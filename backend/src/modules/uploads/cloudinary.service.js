@@ -1,5 +1,5 @@
 const { v2: cloudinary } = require('cloudinary');
-const env = require('../../config/env');
+const { env } = require('../../config/env');
 const ApiError = require('../../lib/ApiError');
 const { logger } = require('../../lib/logger');
 

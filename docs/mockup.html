@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ZoomDrive</title>
+<style>
+:root{color-scheme:light;--bg:#fff;--soft:#f4f5f7;--line:#e8e9ec;--tx:#111;--mu:#6b6f76;--am:#ffb400;--amd:#b87a00;--blue:#1a6bff;--ok:#12a150;--bad:#e5483d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:#eceef1;color:var(--tx);display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;background:var(--bg);position:relative;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 6px}
+.logo{font-weight:900;font-size:21px;letter-spacing:-.5px}.logo b{background:var(--am);padding:0 5px;border-radius:7px;margin-left:2px}
+.seg{display:flex;background:var(--soft);border-radius:20px;padding:3px}.seg button{border:0;background:none;padding:7px 13px;border-radius:17px;font-size:12px;font-weight:700;color:var(--mu)}.seg button.on{background:#111;color:#fff}
+.screen{display:none;padding:6px 20px 20px}.screen.on{display:block;animation:in .25s}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h1{font-size:30px;line-height:1.1;letter-spacing:-.8px;margin:8px 0}h2{font-size:19px;margin:24px 0 10px;letter-spacing:-.3px}
+.mu{color:var(--mu);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{background:var(--soft);border:0;border-radius:18px;padding:14px 6px;text-align:center;font-size:13px;font-weight:700;color:var(--tx)}.tile span{display:block;font-size:30px;margin-bottom:4px}
+.search{display:flex;align-items:center;gap:10px;background:var(--soft);border-radius:16px;padding:16px;margin:16px 0;font-weight:800;font-size:18px;border:0;width:100%;text-align:left;color:var(--tx)}.search i{margin-left:auto;font-style:normal;font-size:12px;background:#fff;padding:6px 10px;border-radius:12px}
+.item{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;color:var(--tx)}
+.item .ic{width:44px;height:44px;border-radius:13px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:20px}
+.item .t{flex:1;font-weight:700;font-size:15px}.item .t small{display:block;color:var(--mu);font-weight:500;font-size:13px;margin-top:2px}.item .r{color:#b9bcc2}.item .p{font-weight:800}
+.hero{background:linear-gradient(135deg,#ffd45c,#ffb400);border-radius:24px;padding:20px;margin:14px 0}
+.hero b{font-size:20px;display:block;margin-bottom:6px}.hero p{font-size:13px;margin-bottom:14px}
+.sos{width:100%;border:0;border-radius:16px;background:#111;color:#fff;font-weight:800;font-size:17px;padding:16px}
+.btn{width:100%;border:0;border-radius:16px;background:#111;color:#fff;font-weight:800;font-size:17px;padding:17px;margin-top:12px}
+.btn.blue{background:var(--blue)}.btn.soft{background:var(--soft);color:var(--tx)}.btn.red{background:var(--soft);color:var(--bad)}
+.banner{display:flex;gap:12px;align-items:center;background:#e8f6ee;border-radius:16px;padding:14px;margin:6px 0 4px}.banner b{display:block;font-size:14px}.banner span{color:var(--ok);font-weight:700;font-size:14px}
+.map{height:230px;border-radius:22px;position:relative;overflow:hidden;background:#e9eef5;background-image:linear-gradient(#fff 2px,transparent 2px),linear-gradient(90deg,#fff 2px,transparent 2px);background-size:46px 46px;margin:10px 0}
+.map .r1{position:absolute;height:14px;background:#cfd9ea;width:150%;left:-25%;top:52%;transform:rotate(-17deg)}.map .r2{position:absolute;width:14px;background:#cfd9ea;height:150%;top:-25%;left:38%;transform:rotate(12deg)}
+.pin{position:absolute;font-size:30px}.me{position:absolute;left:50%;top:48%;width:22px;height:22px;border-radius:50%;background:#111;border:4px solid #fff;box-shadow:0 0 0 8px rgba(26,107,255,.2)}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 6px 20px rgba(0,0,0,.05);margin:10px 0}
+.line{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}.line.tot{border:0;font-size:20px;font-weight:900}
+.pr{display:flex;align-items:center;gap:12px}.av{width:52px;height:52px;border-radius:50%;background:var(--am);display:flex;align-items:center;justify-content:center;font-weight:900;border:3px solid #fff;box-shadow:0 0 0 2px var(--am)}
+.badge{display:inline-block;background:#e8f6ee;color:var(--ok);font-size:11px;font-weight:800;padding:3px 8px;border-radius:9px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:42px;font-weight:900;letter-spacing:-1.5px}
+.bars{display:flex;gap:8px;align-items:flex-end;height:90px;margin-top:10px}.bars i{flex:1;background:var(--am);border-radius:8px 8px 4px 4px}.bars i.z{background:var(--soft)}
+.steps{display:flex;gap:6px;margin:8px 0}.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}.steps i.on{background:#111}
+.offer{display:none;border:2px solid var(--am)}.offer.on{display:block}
+.sel{outline:2px solid #111;outline-offset:-2px}
+.nav{position:fixed;bottom:0;width:100%;max-width:480px;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav button{flex:1;background:none;border:0;color:#9a9ea5;padding:10px 0 11px;font-size:11px;font-weight:700}.nav button span{display:block;font-size:21px;margin-bottom:1px}.nav button.on{color:#111}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--blue);vertical-align:top}
+.field{margin:12px 0}.field label{display:block;font-size:12px;font-weight:700;color:var(--mu);margin-bottom:6px}.field input{width:100%;border:0;background:var(--soft);border-radius:14px;padding:15px;font-size:16px}
+.otp{display:flex;gap:10px;margin:18px 0}.otp input{flex:1;min-width:0;height:64px;border:0;background:var(--soft);border-radius:16px;text-align:center;font-size:26px;font-weight:800}
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin:12px 0;color:var(--tx)}.opt .ic{width:50px;height:50px;border-radius:15px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:24px}
+.ph{display:flex;align-items:center;justify-content:center;width:104px;height:104px;border-radius:50%;background:var(--soft) center/cover;font-size:34px;margin:14px auto 6px;border:2px dashed #c9ccd2;cursor:pointer}.ph.has{border:3px solid var(--am)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:9px 14px;font-weight:700;font-size:13px;color:var(--tx)}.chip.on{background:#111;color:#fff}
+.doc{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--soft);border:0;border-radius:14px;padding:15px;margin:8px 0;font-weight:700;font-size:14px;color:var(--tx)}.doc i{font-style:normal;color:var(--blue);font-size:13px}.doc i::after{content:'Upload'}.doc.on i::after{content:'Uploaded ✓'}.doc.on i{color:var(--ok)}
+.err{display:none;background:#fdecea;color:var(--bad);font-weight:700;font-size:13px;padding:10px 12px;border-radius:12px;margin:8px 0}
+.co{display:none}.company .field.co{display:block}.company .doc.co{display:flex}
+.mk{border:0;background:var(--soft);border-radius:14px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--mu)}.icons{display:flex;gap:18px;justify-content:center;margin-top:26px}.appicon{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:700;font-size:14px;color:var(--tx);max-width:140px;text-align:center}.appicon small{color:var(--mu);font-weight:500;font-size:12px}.mkl{border:0;background:none;color:var(--blue);font-size:12px;margin-top:10px;text-align:left}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="top"><div id="tl" style="display:flex;align-items:center;gap:8px"></div><button class="mk" onclick="go('s-launch')">⌂ Apps</button></div>
+
+ <!-- CUSTOMER -->
+ <section class='screen on' id='s-launch'><div class='mu' style='margin-top:34px;text-align:center'>MOCKUP LAUNCHER</div><h1 style='text-align:center'>One platform,<br>two apps</h1><p class='mu' style='text-align:center'>Each app opens straight into its own role. Tap an icon.</p><div class='icons'><button class='appicon' onclick='openApp(1)'><span id='ic1'></span>ZoomDrive<small>For drivers</small></button><button class='appicon' onclick='openApp(2)'><span id='ic2'></span>ZoomDrive Partner<small>For providers</small></button></div><button class='item' onclick='go(this.dataset.g)' data-g='s-admin' style='margin-top:26px'><div class='ic'>🖥️</div><div class='t'>Admin panel<small>Operator tool for approving providers (not a user role)</small></div><span class='r'>›</span></button></section>
+<section class='screen' id='s-mm'><div style='text-align:center;padding-top:40px'><div style='font-size:60px'>🔀</div><h1 id='mmt'></h1><p class='mu' id='mmb'></p><p class='mu'>Error code ZD-AUTH-004</p></div><button class='btn' id='mmo' onclick='other()'></button><button class='btn soft' onclick='go(this.dataset.g)' data-g='s-phone'>Use a different number</button></section>
+<section class='screen' id='s-admin'><h1>Provider review</h1><p class='mu'>ZoomDrive admin · operator panel</p><div class='card'><div class='pr'><div class='av'>TM</div><div style='flex:1'><b>Thabo Mokoena</b><br><span class='mu'>Individual · Tyres, Jump-start</span></div><span class='badge' style='background:#fff4d6;color:var(--amd)'>Pending</span></div><div class='line' style='margin-top:10px'><span>📷 Profile photo</span><b style='color:var(--ok)'>✓ Provided</b></div><div class='line'><span>🪪 ID document</span><b style='color:var(--ok)'>✓ Uploaded</b></div><div class='line'><span>🚘 Driver’s licence</span><b style='color:var(--ok)'>✓ Uploaded</b></div><div class='line'><span>📄 Vehicle and insurance</span><b style='color:var(--ok)'>✓ Uploaded</b></div><div class='grid2'><button class='btn red' onclick='rejectP()'>Reject</button><button class='btn' onclick='approve()'>Approve</button></div></div><p class='mu'>Approving unlocks the Partner app so the provider can go online.</p></section>
+<section class='screen' id='s-welcome'><div id='wl' style='margin-top:30px'></div><h1 id='wh' style='font-size:34px;margin-top:22px'></h1><p class='mu' id='wp' style='font-size:15px'></p><div class='map' style='height:190px;margin-top:22px'><div class='r1'></div><div class='r2'></div><div class='me'></div><div class='pin' style='left:15%;top:58%'>🚐</div></div><button class='btn' onclick='signup(0)'>Sign up</button><button class='btn soft' onclick='signup(1)'>Log in</button><button class='item' id='jl' onclick='browse()' style='margin-top:10px'><div class='ic'>👀</div><div class='t'>Just looking?<small>Browse the app. You’ll sign up when you request help.</small></div><span class='r'>›</span></button></section>
+<section class='screen' id='s-phone'><div class='banner' id='gm' style='display:none;background:#fff4d6'><div style='font-size:24px'>🔒</div><div><b>Create a profile to request help</b><span style='color:var(--amd)'>It takes about a minute</span></div></div><h1 id='pt'>Enter your phone number</h1><p class='mu'>We’ll send you a 4-digit code.</p><div class='field'><label>Mobile number</label><input value='+27 '></div><button class='btn' onclick='go(this.dataset.g)' data-g='s-otp'>Continue</button><p class='mu' style='margin-top:12px'>By continuing you agree to the Terms and Privacy Policy.</p><button class='mkl' onclick='mm()'>Mockup: pretend this number belongs to the other app</button></section>
+<section class='screen' id='s-otp'><h1>Enter the code</h1><p class='mu'>Sent to your phone</p><div class='otp'><input maxlength='1' value='4'><input maxlength='1' value='8'><input maxlength='1' value='1'><input maxlength='1' value='7'></div><button class='btn' onclick='afterOtp()'>Verify</button></section>
+<section class='screen' id='s-cprof'><div class='steps'><i class='on'></i><i class='on'></i><i></i></div><h1>Create your profile</h1><label class='ph' id='cph'>📷<input type='file' accept='image/*' hidden onchange='ph(this)'></label><p class='mu' style='text-align:center'>Profile photo (optional)</p><div class='field'><label>First name</label><input id='cn' placeholder='Sipho'></div><div class='field'><label>Surname</label><input placeholder='Dlamini'></div><div class='field'><label>Email (optional)</label><input placeholder='you@email.com'></div><button class='btn' onclick='cdone()'>Create profile</button></section>
+<section class='screen' id='s-ptype'><div class='steps'><i class='on'></i><i class='on'></i><i></i></div><h1>How will you provide help?</h1><button class='card opt' onclick='ptype(0)'><div class='ic'>🧑‍🔧</div><div><b>Individual</b><div class='mu'>I work for myself</div></div></button><button class='card opt' onclick='ptype(1)'><div class='ic'>🏢</div><div><b>Company or organisation</b><div class='mu'>Register under your business</div></div></button></section>
+<section class='screen' id='s-pprof'><div class='steps'><i class='on'></i><i class='on'></i><i class='on'></i></div><h1>Set up your provider profile</h1><label class='ph' id='pph'>📷<input type='file' accept='image/*' hidden onchange='ph(this)'></label><p class='mu' style='text-align:center'><b>Profile photo is required</b></p><div class='err' id='perr'>Please add a clear profile photo to continue.</div><div class='field co'><label>Company or organisation name</label><input placeholder='Mokoena Tyre and Tow'></div><div class='field co'><label>Company registration number</label><input placeholder='2019/123456/07'></div><div class='field'><label>First name</label><input id='pn' placeholder='Thabo'></div><div class='field'><label>Surname</label><input placeholder='Mokoena'></div><h2>Services you offer</h2><div class='chips'><button class='chip' onclick='tg(this)'>🛞 Flat tyre</button><button class='chip' onclick='tg(this)'>🔋 Jump-start</button><button class='chip' onclick='tg(this)'>⛽ Fuel</button><button class='chip' onclick='tg(this)'>🧰 Essentials</button><button class='chip' onclick='tg(this)'>🚛 Towing</button></div><h2>Documents</h2><div class='err' id='derr'>Please upload all required documents.</div><button class='doc' onclick='tg(this)'><span>🪪 ID document</span><i></i></button><button class='doc' onclick='tg(this)'><span>🚘 Driver’s licence</span><i></i></button><button class='doc' onclick='tg(this)'><span>📄 Vehicle and insurance</span><i></i></button><button class='doc co' onclick='tg(this)'><span>🏢 Company registration certificate</span><i></i></button><button class='btn' onclick='pdone()'>Submit for review</button></section>
+<section class='screen' id='s-pend'><div style='text-align:center;padding-top:50px'><div style='font-size:64px'>⏳</div><h1>Profile under review</h1><p class='mu' id='pst'>We check every provider’s photo and documents, usually within 24 hours. You’ll get an SMS when you’re approved.</p></div><button class='btn soft' onclick='go(this.dataset.g)' data-g='s-admin'>Mockup: open the admin panel</button></section>
+<section class="screen" id="c-home">
+  <h1>Stuck? We’ll come to you.</h1>
+  <div class="tiles">
+   <button class="tile" onclick="pick(0)"><span>🛞</span>Flat tyre</button><button class="tile" onclick="pick(1)"><span>🔋</span>Jump-start</button><button class="tile" onclick="pick(2)"><span>⛽</span>Fuel</button>
+   <button class="tile" onclick="pick(3)"><span>🧰</span>Essentials</button><button class="tile" onclick="pick(4)"><span>🚛</span>Towing</button><button class="tile" onclick="go('c-act')"><span>🗓️</span>Schedule</button>
+  </div>
+  <button class="search" onclick="go('c-req')">🔍 Where are you? <i>📍 Use GPS</i></button>
+  <button class="item" onclick="go('c-req')"><div class="ic">📍</div><div class="t">Current location<small>Pin shared in one tap, works on weak data</small></div></button>
+  <button class="item" onclick="go('c-req')"><div class="ic">🏠</div><div class="t">Home<small>Saved place</small></div></button>
+  <button class="item" onclick="go('c-req')"><div class="ic">🛣️</div><div class="t">N2 North, Umhlanga off-ramp<small>Last request</small></div></button>
+  <div class="hero"><b>Driving for a living?</b><p>Add your whole fleet to one Fleet Profile and pay from one account.</p><button class="sos" onclick="go('c-acc')">Set up Fleet Profile</button></div>
+ </section>
+
+ <section class="screen" id="c-req">
+  <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+  <h1>Confirm request</h1>
+  <div class="map"><div class="r1"></div><div class="r2"></div><div class="me"></div></div>
+  <div id="svc"></div>
+  <div class="card">
+   <div class="line"><span id="cs"></span><span id="cp"></span></div>
+   <div class="line"><span>Distance fee (4.2 km)</span><span>R45</span></div>
+   <div class="line tot"><span>Fixed total</span><span id="ct"></span></div>
+   <p class="mu">Price never changes after you confirm.</p>
+  </div>
+  <button class="item"><div class="ic">💳</div><div class="t">Visa •••• 4417<small>Payment method</small></div><span class="r">›</span></button>
+  <button class="item"><div class="ic">🏷️</div><div class="t">Add promo code<small>Savings applied automatically</small></div><span class="r">›</span></button>
+  <button class="btn" onclick="go('c-trk')">Request help</button>
+ </section>
+
+ <section class="screen" id="c-trk">
+  <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+  <h1>Thabo is on his way</h1><p class="mu">Arriving in <b style="color:#111">11 min</b></p>
+  <div class="map"><div class="r1"></div><div class="r2"></div><div class="me"></div><div class="pin" style="left:14%;top:60%">🚐</div></div>
+  <div class="card"><div class="pr"><div class="av">TM</div><div style="flex:1"><b>Thabo M.</b><br><span class="mu">⭐ 4.91 · 212 jobs</span> <span class="badge">✔ Verified</span></div></div>
+   <div class="line" style="margin-top:10px"><span>Service</span><span>Mobile tyre service</span></div><div class="line"><span>Vehicle</span><span>White Quantum · CA 482 913</span></div></div>
+  <div class="grid2"><button class="btn soft">📞 Call</button><button class="btn soft">💬 Chat</button><button class="btn soft">🔗 Share trip</button><button class="btn soft">🛡️ Safety</button></div>
+  <button class="btn red" onclick="go('c-home')">Cancel request</button>
+ </section>
+
+ <section class="screen" id="c-act">
+  <h1>Activity</h1>
+  <h2>Upcoming</h2><p class="mu">No scheduled services. Book ahead for tyre checks and battery tests.</p>
+  <h2>Past</h2>
+  <button class="item"><div class="ic">🛞</div><div class="t">Flat tyre change<small>12 Oct · Completed</small></div><span class="p">R225</span></button>
+  <button class="item"><div class="ic">⛽</div><div class="t">Fuel top-up<small>28 Sep · Completed</small></div><span class="p">R165</span></button>
+  <button class="item"><div class="ic">🔋</div><div class="t">Jump-start<small>3 Sep · Completed</small></div><span class="p">R195</span></button>
+ </section>
+
+ <section class="screen" id="c-acc">
+  <h1>Account</h1><div id="cname" style="font-size:20px;font-weight:800;margin:6px 0">Sipho Dlamini</div>
+  <div class="banner"><div style="font-size:26px">🛡️</div><div><b>Get priority help and safer service</b><span>Verify identity ›</span></div></div>
+  <button class="item"><div class="ic">👤</div><div class="t">Profile</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">💳</div><div class="t">Payment</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">❓</div><div class="t">Support</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">🛡️</div><div class="t">Safety</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">📌</div><div class="t">Saved places</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">⚙️</div><div class="t">Settings</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">➕</div><div class="t">ZoomDrive Plus<small>Priority dispatch and discounts</small></div><span class="r">›</span></button>
+  <button class="item"><div class="ic">🏷️</div><div class="t">Promotions<small>Promo codes, offers, and savings</small></div><span class="r">›</span></button>
+  <button class="item"><div class="ic">💼</div><div class="t">Fleet Profile<small>Cover your drivers’ requests</small></div><span class="r">›</span></button>
+  <button class="item" onclick="logout()"><div class="ic">🚪</div><div class="t">Log out</div><span class="r">›</span></button>
+ </section>
+
+ <!-- PROVIDER -->
+ <section class="screen" id="p-home">
+  <h1 id="ps">You’re offline</h1><p class="mu" id="pm">Ready to go?</p>
+  <div class="map"><div class="r1"></div><div class="r2"></div><div class="me"></div><div class="pin" style="left:70%;top:20%;display:none" id="pp">📍</div></div>
+  <div class="card offer" id="offer">
+   <div class="line"><b>🛞 Flat tyre change</b><span class="mu">4.2 km · 9 min</span></div>
+   <div class="line"><span>Driver rating</span><span>⭐ 4.8</span></div>
+   <div class="line"><span>You earn (after 12% fee)</span><b style="color:var(--ok)">R198</b></div>
+   <div class="grid2"><button class="btn soft" onclick="document.getElementById('offer').classList.remove('on')">Decline</button><button class="btn" onclick="alert('Accepted. Navigation opens here in the real app.')">Accept</button></div>
+  </div>
+  <h2>Opportunities</h2>
+  <div class="card"><span class="mu">✦ Opportunity</span><div style="font-weight:800;font-size:18px;margin-top:4px">Peak breakdown hours on N2, 4pm to 7pm</div><p class="mu" style="margin-top:4px">Stay online for 20% more jobs per hour.</p></div>
+  <button class="btn blue" id="go" onclick="goOnline()">🚗 Go Online</button>
+ </section>
+
+ <section class="screen" id="p-earn">
+  <h1>Earnings</h1><div class="big">R610</div><p class="mu">Today · 4 jobs</p>
+  <div class="bars"><i class="z" style="height:30%"></i><i style="height:55%"></i><i style="height:40%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:100%"></i><i style="height:45%"></i></div>
+  <p class="mu" style="margin-top:6px">Mon–Sun · This week R3 240</p>
+  <h2>Recent jobs</h2>
+  <button class="item"><div class="ic">🛞</div><div class="t">Flat tyre<small>Today 14:20</small></div><span class="p">R198</span></button>
+  <button class="item"><div class="ic">🔋</div><div class="t">Jump-start<small>Today 11:05</small></div><span class="p">R132</span></button>
+  <button class="item"><div class="ic">⛽</div><div class="t">Fuel top-up<small>Today 08:40</small></div><span class="p">R105</span></button>
+ </section>
+
+ <section class="screen" id="p-inbox">
+  <h1>Inbox</h1>
+  <button class="item"><div class="ic">🔔</div><div class="t">New job requests nearby<small>Go online to receive them</small></div><span class="dot"></span></button>
+  <button class="item"><div class="ic">📄</div><div class="t">Insurance document expires soon<small>Upload a new copy in Documents</small></div></button>
+  <button class="item"><div class="ic">💬</div><div class="t">Message from driver<small>“I’m in the left lane, hazards on.”</small></div></button>
+ </section>
+
+ <section class="screen" id="p-menu">
+  <div class="card"><div class="pr"><div class="av" id="pav">TM</div><div><div id="pname" style="font-weight:900;font-size:22px">THABO MOKOENA</div><span class="mu">⭐ 4,91 · 96% accept</span></div></div></div>
+  <div class="tiles" style="margin-top:12px"><button class="tile"><span>❓</span>Help</button><button class="tile"><span>🛡️</span>Safety</button><button class="tile"><span>⚙️</span>Settings</button></div>
+  <h2>More ways to earn</h2>
+  <button class="item"><div class="ic">🧭</div><div class="t">Opportunities</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">🥇</div><div class="t">ZoomDrive Pro<small>Gold</small></div><span class="r">›</span></button>
+  <button class="item"><div class="ic">🎁</div><div class="t">Referrals</div><span class="r">›</span></button>
+  <h2>Manage</h2>
+  <button class="item"><div class="ic">🚐</div><div class="t">Vehicle &amp; service kit<small>Hilux · CA 482 913</small></div><span class="r">›</span></button>
+  <button class="item"><div class="ic">🛠️</div><div class="t">Services offered<small>Tyres, jump-start, fuel, towing</small></div><span class="r">›</span></button>
+  <button class="item"><div class="ic">📄</div><div class="t">Documents<small>ID, licence, insurance</small></div><span class="r">›</span></button>
+  <h2>Money</h2>
+  <button class="item"><div class="ic">🧮</div><div class="t">Tax info</div><span class="r">›</span></button>
+  <button class="item"><div class="ic">💵</div><div class="t">Payout methods</div><span class="r">›</span></button>
+  <button class="btn soft" onclick="logout()">Log out</button>
+ </section>
+
+ <div class="nav" id="nav"></div>
+</div>
+
+<script>
+var S=[["🛞","Flat tyre change",180],["🔋","Jump-start",150],["⛽","Fuel top-up (5 L)",120],["🧰","Essentials",60],["🚛","Towing",450]],cur=0;
+var N={c:[["c-home","🏠","Home"],["c-act","🧾","Activity"],["c-acc","👤","Account"]],p:[["p-home","🏠","Home"],["p-earn","💵","Earnings"],["p-inbox","✉️","Inbox"],["p-menu","☰","Menu"]]},m='c';
+function nav(id){if(id.charAt(0)=='s'){document.getElementById('nav').innerHTML='';return}document.getElementById('nav').innerHTML=N[m].map(function(n){return '<button class="'+(n[0]==id?'on':'')+'" onclick="go(\''+n[0]+'\')"><span>'+n[1]+'</span>'+n[2]+'</button>'}).join('')}
+function render(){document.getElementById('svc').innerHTML='<div class="tiles" style="margin-bottom:6px">'+S.map(function(s,i){return '<button class="tile'+(i==cur?' sel':'')+'" onclick="cur='+i+';render()"><span>'+s[0]+'</span>'+s[1].split(' (')[0]+'</button>'}).join('')+'</div>';
+ var s=S[cur];document.getElementById('cs').textContent=s[1];document.getElementById('cp').textContent='R'+s[2];document.getElementById('ct').textContent='R'+(s[2]+45)}
+function go(id){if(guest&&(id=='c-req'||id=='c-trk')){id='s-phone';gate=true}if(id=='s-phone'){document.getElementById('gm').style.display=gate?'flex':'none'}document.querySelectorAll('.screen').forEach(function(e){e.classList.toggle('on',e.id==id)});nav(id);document.querySelector('.top').style.display=id=='s-launch'?'none':'flex';window.scrollTo(0,0)}
+function pick(i){cur=i;render();go('c-req')}
+var pend='c',guest=false,cp='',pp='',isco=false;
+var gate=false,isLogin=false;
+var WR='<path d="M32.83 76H92V124H32.83A62 62 0 1 0 32.83 76Z"/><path fill-rule="evenodd" d="M488 100a62 62 0 1 0 124 0a62 62 0 1 0-124 0ZM550 66L577.7 83V117L550 134L522.3 117V83Z"/><rect x="92" y="58" width="408" height="84"/>';
+function logo(w){return '<svg viewBox="0 0 640 200" width="'+w+'" role="img" aria-label="ZoomDrive"><g fill="#111">'+WR+'</g><text x="320" y="116" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="38" letter-spacing="3" fill="#FFB400">ZOOMDRIVE</text></svg>'}
+function icon(p){return '<svg viewBox="0 0 512 512" width="88" height="88"><rect width="512" height="512" rx="112" fill="'+(p?'#111':'#FFB400')+'"/><g transform="translate(16 '+(p?140:155)+') scale(.75)"><g fill="'+(p?'#FFB400':'#111')+'">'+WR+'</g><text x="320" y="116" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="38" letter-spacing="3" fill="'+(p?'#111':'#FFB400')+'">ZOOMDRIVE</text></g>'+(p?'<text x="256" y="340" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="30" letter-spacing="8" fill="#FFB400">PARTNER</text>':'')+'</svg>'}
+function openApp(n){m=n==1?'c':'p';guest=false;var p=m=='p';document.getElementById('tl').innerHTML=logo(120)+(p?'<span class="badge" style="background:#111;color:#ffb400">PARTNER</span>':'');document.getElementById('wl').innerHTML=logo(220);document.getElementById('wh').textContent=p?'Earn by helping drivers nearby.':'Roadside help, in minutes.';document.getElementById('wp').textContent=p?'Get verified, accept jobs near you and track your earnings.':'Verified providers, fixed prices and live tracking.';document.getElementById('jl').style.display=p?'none':'flex';go('s-welcome')}
+function signup(l){isLogin=l==1;gate=false;document.getElementById('pt').textContent=l?'Welcome back':'Enter your phone number';go('s-phone')}
+function afterOtp(){if(isLogin){enter(m=='c'?1:2)}else{go(m=='c'?'s-cprof':'s-ptype')}}
+function mm(){var p=m=='p',o=p?'ZoomDrive':'ZoomDrive Partner';document.getElementById('mmt').textContent=p?'This number is registered as a driver':'This number is registered as a provider';document.getElementById('mmb').textContent='Open the '+o+' app instead.';document.getElementById('mmo').textContent='Open '+o;go('s-mm')}
+function other(){openApp(m=='c'?2:1)}
+function approve(){openApp(2);enter(2)}
+function rejectP(){openApp(2);document.getElementById('pst').textContent='Rejected: your photo is blurry. Please upload a clearer photo and submit again.';go('s-pend')}
+function ptype(n){isco=n==1;document.body.classList.toggle('company',isco);go('s-pprof')}
+function tg(el){el.classList.toggle('on')}
+function ph(el){var f=el.files[0];if(!f)return;var r=new FileReader();r.onload=function(){var l=el.parentNode;l.style.backgroundImage='url('+r.result+')';l.firstChild.nodeValue='';l.classList.add('has');if(l.id=='pph'){pp=r.result;document.getElementById('perr').style.display='none'}else{cp=r.result}};r.readAsDataURL(f)}
+function browse(){guest=true;m='c';go('c-home')}
+function enter(n){guest=false;m=n==1?'c':'p';go(m+'-home')}
+function logout(){guest=false;go('s-welcome')}
+function cdone(){var v=document.getElementById('cn').value;if(v)document.getElementById('cname').textContent=v;enter(1)}
+function pdone(){document.getElementById('perr').style.display=pp?'none':'block';var miss=0;document.querySelectorAll('#s-pprof .doc').forEach(function(d){if(d.offsetParent&&!d.classList.contains('on'))miss++});document.getElementById('derr').style.display=miss?'block':'none';if(!pp||miss){window.scrollTo(0,0);return}var n=document.getElementById('pn').value;if(n)document.getElementById('pname').textContent=n.toUpperCase();var a=document.getElementById('pav');a.textContent='';a.style.background='url('+pp+') center/cover';go('s-pend')}
+var on=false;
+function goOnline(){on=!on;document.getElementById('ps').textContent=on?'You’re online':'You’re offline';document.getElementById('pm').textContent=on?'Looking for nearby jobs…':'Ready to go?';
+ var b=document.getElementById('go');b.textContent=on?'⏹ Go Offline':'🚗 Go Online';b.className='btn '+(on?'':'blue');
+ document.getElementById('offer').classList.toggle('on',on);document.getElementById('pp').style.display=on?'block':'none'}
+render();document.getElementById('ic1').innerHTML=icon(0);document.getElementById('ic2').innerHTML=icon(1);openApp(1);go('s-launch');
+</script>
+</body>
+</html>
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
