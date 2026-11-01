@@ -8,13 +8,13 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 3  (Profiles, uploads, organisations, documents)
-LAST COMPLETED PHASE . 2
-LAST TASK DONE ....... P3.5
-NEXT ACTION .......... Romeo manual test, then Phase 4 task P4.1
+CURRENT PHASE ........ 4  (Frontend foundation and PWA shells)
+LAST COMPLETED PHASE . 3
+LAST TASK DONE ....... P4.7
+NEXT ACTION .......... Romeo manual tests for Phase 3 and Phase 4, then Phase 5 task P5.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
-LAST UPDATED ......... 29 Oct 2026 by Devin
+LAST UPDATED ......... 1 Nov 2026 by Devin
 ```
 
 **To catch up (Claude or Windsurf):** read this file only. Read section 0, then 1 (rules), then the section for the CURRENT PHASE in section 13, then the Build Log (section 14). Do not ask Romeo to re-upload anything. Everything needed is in here.
@@ -147,7 +147,7 @@ A clickable mockup (white theme, Uber/Bolt-style driver and provider screens) ex
 
 - **Monorepo** `zoomdrive/` with `backend/` and `frontend/`, one `BLUEPRINT.md` at the root.
 - **Backend:** Node.js + Express, PostgreSQL on Neon, JWT auth, Cloudinary for images/documents, `zod` validation, `helmet`, `cors`, `express-rate-limit`, `multer`. Hosted on Render (root directory `backend`).
-- **Frontend:** vanilla HTML/CSS/JS (no framework), hash router, three static sites in one deployment: `driver/`, `provider/`, `admin/`, plus `shared/`. Hosted on Vercel (root directory `frontend/public`).
+- **Frontend:** vanilla HTML/CSS/JS (no framework), hash router, three static sites in one deployment: `driver/`, `provider/`, `admin/`, plus `shared/`. Hosted on Vercel, Root Directory `frontend`, Framework Preset `Other`, no Build Command, Output Directory `public`.
 - **PWAs:** each app has its own `manifest.webmanifest` (own `id`, `scope`, `start_url`, icons, name) and its own service worker located inside its folder so its scope is `/driver/` or `/provider/`. Both install separately from the same domain and show as two icons.
 - **Maps:** Leaflet + OpenStreetMap tiles (free, no key). Geocoding: browser geolocation first, Nominatim search as optional (respect its usage policy, debounce, cache). Distance: Haversine formula times a road factor (default 1.3). Routing/ETA: estimate from distance and average speed (setting). Upgrade path to Google/Mapbox later.
 - **Live updates:** polling, not WebSockets (Render free tier sleeps; simpler). Driver tracking screen polls every 5s. Provider offers poll every 5s while online. Provider location heartbeat every 15s while online.
@@ -509,7 +509,7 @@ One line per event: `[2026-10-25T10:15:00.123Z] [LEVEL] [reqId] [module] CODE me
 [ZD][BOOT] env ........ OK
 [ZD][BOOT] database ... OK (latency 34ms)
 [ZD][BOOT] migrations . OK (8 applied, 0 pending)
-[ZD][BOOT] cloudinary . SKIPPED (phase 3)
+[ZD][BOOT] cloudinary . OK
 [ZD][BOOT] listening on :4000
 ```
 A failure prints `[ZD][BOOT][FAIL] <check> <named reason>` (for example `env: missing JWT_SECRET`) and exits with code 1. Port busy prints `[ZD][BOOT][PORT_IN_USE] 4000 busy. Run: npx kill-port 4000`.
@@ -635,13 +635,13 @@ Verification: `npm run check`; submit with no photo returns `ZD-PROV-001`; with 
 Manual test: upload a photo and a document using a REST client or the phase 5/6 UI later; confirm they appear in Cloudinary.
 
 ### PHASE 4: Frontend foundation and PWA shells
-- [ ] P4.1 `frontend/package.json`, `vercel.json`, `scripts/check.js`, `scripts/build-icons.js`.
-- [ ] P4.2 `brand/` SVGs from section 3; generate icons for both apps.
-- [ ] P4.3 `shared/styles/tokens.css`, `base.css`, `components.css` (buttons, fields, cards, tiles, list rows, bottom nav, banner, toast, error banner, steps bar).
-- [ ] P4.4 `shared/config.js`, `api.js` (contract 8.1), `auth.js`, `errors.js` (10.4), `ui.js`, `router.js` (guards: public routes, auth-required routes, `next` support), `pwa.js`.
-- [ ] P4.5 Components: `topbar.js`, `bottom-nav.js`, `field.js`, `photo-upload.js`, `doc-upload.js`, `status-badge.js`.
-- [ ] P4.6 `index.html` landing; `driver/` and `provider/` shells (`index.html`, `app.js`, `manifest.webmanifest`, `sw.js`) each rendering a placeholder welcome route.
-- [ ] P4.7 Service workers: shell cache, never cache `/api`, versioned cache.
+- [x] P4.1 `frontend/package.json`, `vercel.json`, `scripts/check.js`, `scripts/build-icons.js`.
+- [x] P4.2 `brand/` SVGs from section 3; generate icons for both apps.
+- [x] P4.3 `shared/styles/tokens.css`, `base.css`, `components.css` (buttons, fields, cards, tiles, list rows, bottom nav, banner, toast, error banner, steps bar).
+- [x] P4.4 `shared/config.js`, `api.js` (contract 8.1), `auth.js`, `errors.js` (10.4), `ui.js`, `router.js` (guards: public routes, auth-required routes, `next` support), `pwa.js`.
+- [x] P4.5 Components: `topbar.js`, `bottom-nav.js`, `field.js`, `photo-upload.js`, `doc-upload.js`, `status-badge.js`.
+- [x] P4.6 `index.html` landing; `driver/` and `provider/` shells (`index.html`, `app.js`, `manifest.webmanifest`, `sw.js`) each rendering a placeholder welcome route.
+- [x] P4.7 Service workers: shell cache, never cache `/api`, versioned cache.
 Verification: `npm run check` (frontend); manifest JSON validity via `node -e "JSON.parse(require('fs').readFileSync(...))"`; `grep` confirms two different `scope`/`id` values; no localhost outside `config.js`.
 Manual test (Romeo): open `/`, `/driver/`, `/provider/` locally; install each to the phone Home Screen; confirm two different icons and names; confirm the install button appears on mobile.
 
@@ -726,7 +726,7 @@ Manual test: full regression using `docs/manual-tests.md`.
 
 ### PHASE 14: Deployment and pilot launch
 - [ ] P14.1 Render service (root `backend`, env vars set in dashboard), Neon production database, run migrations and seed.
-- [ ] P14.2 Vercel project (root `frontend/public`), set `API_BASE` production URL in `config.js`.
+- [ ] P14.2 Vercel project, Root Directory `frontend`, Framework Preset `Other`, no Build Command, Output Directory `public`, set `API_BASE` production URL in `config.js`.
 - [ ] P14.3 Domain and subdomain plan (for example `zoomdrive.co.za` for the apps and `api.zoomdrive.co.za` for the API), HTTPS verified.
 - [ ] P14.4 Create the admin account in production; seed services; set real prices from pilot findings.
 - [ ] P14.5 Pilot runbook in `docs/`: how to onboard and approve providers, how to dispatch manually, how to record payouts, support contacts.
@@ -749,6 +749,7 @@ Manual test: one real driver and one real provider complete a live job.
 | 29 Oct 2026 | 1 | P1.2-P1.5 (migrate.js, schema-audit.js, seed.js) | npm run migrate, schema:audit, seed | 8 migrations applied, 19 tables, 5 services (4 active), 8 settings | P1.7 |
 | 29 Oct 2026 | 1 | P1.7 (server.js boot self-check, health routes db status) | node --check, npm run check | Boot checks db latency and migrations, health endpoint reports db up/down | Manual test |
 | 29 Oct 2026 | 3 | P3.4-P3.5 (providers, organisations, documents, app mount) | npm run check | Implemented provider flows, upload/delete lifecycle, submit order, added /api/v1/providers mount | Manual test |
+| 1 Nov 2026 | 4 | P4.1-P4.7 (frontend shell, shared modules, components, PWA, router, static checks) | npm run check | Full frontend foundation: config, API, auth, errors, UI, router, PWA, components, driver/provider app shells with welcome route, check.js with 7 frontend rules | Manual test |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -773,6 +774,13 @@ Manual test: one real driver and one real provider complete a live job.
 | 29 Oct 2026 | Submit check order: ZD-PROV-001 photo, ZD-USR-001 profile, ZD-PROV-004 company, ZD-PROV-003 services, ZD-PROV-002 documents | Matches required order exactly |
 | 29 Oct 2026 | Providers cannot select inactive services (ZD-REQ-002) | Enforced in setServices |
 | 29 Oct 2026 | Boot cloudinary check is WARN, not fatal (deviation from 10.3) | As implemented/needed in current setup |
+| 1 Nov 2026 | Driver and provider apps keep separate token keys (zd_token_driver / zd_token_provider) because they share one origin | Prevents token conflicts between apps on same domain |
+| 1 Nov 2026 | Frontend uses ES modules ("type": "module" in frontend/package.json) | Modern JS, clean imports/exports, no build step needed |
+| 1 Nov 2026 | Service workers are network-first with the cache as offline fallback, and never intercept API or cross-origin requests | Ensures API calls always go to server, PWA shell works offline |
+| 1 Nov 2026 | Vercel: Root Directory frontend, Output Directory public (vercel.json lives in frontend/, so it cannot be inside the output directory) | Matches Vercel requirements for static deployments |
+| 1 Nov 2026 | Phone install is tested after the first HTTPS deployment (service workers and install need a secure context) | PWA install features require HTTPS |
+| 1 Nov 2026 | Page modules export a default render(ctx) function; ctx.onLeave and ctx.signal handle cleanup of timers and requests on route change | Clean pattern for route lifecycle management |
+| 1 Nov 2026 | Frontend-only error codes ZD-NET-001..004 and ZD-UI-001 are client-side and do not belong in the backend registry | Separates client and server error namespaces |
 
 ### Known issues
 (none yet)

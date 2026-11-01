@@ -116,4 +116,12 @@ curl.exe -s -X POST -H "Authorization: Bearer $p" -F "doc_type=id_document" -F "
 # 17. Not approved yet: going online must fail ZD-PROV-005
 try { Api Post "/providers/me/online" $p @{ online=$true; lat=-29.86; lng=31.03 } } catch { Show $_ }
 
+## Phase 4
+1. Backend running (cd backend; npm run dev). In frontend: npm install (first time only) then npm run dev. Open http://localhost:3000/ (landing: logo, two big buttons), http://localhost:3000/driver/ and http://localhost:3000/provider/. Each welcome screen shows 'Connected to API · v... · database up'.
+2. Chrome DevTools > Application > Manifest for each app: names ZoomDrive and ZoomDrive Partner, different ids and scopes, icons load with no warnings. Application > Service Workers: one activated worker per scope (/driver/ and /provider/).
+3. In Chrome, install each app from the address-bar install icon: two separate windows with two different icons and names.
+4. Stop the backend and reload an app: a red banner appears with 'Code ZD-NET-001 · ref -' and a 'Copy details' button; paste the clipboard into a text editor and confirm it is JSON with app, version, route, code, status, requestId, time.
+5. DevTools > Network > Offline, reload: the page still loads from cache and the 'You're offline' bar shows. Switch back to Online and it disappears.
+6. DevTools device toolbar at 360px width: no horizontal scrolling on any of the three pages.
+7. Phone install (Add to Home Screen) needs HTTPS, so it is tested after the first Vercel deployment, not over the local network.
 

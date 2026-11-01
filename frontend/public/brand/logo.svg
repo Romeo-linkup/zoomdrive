@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" width="640" height="200" role="img" aria-label="ZoomDrive">
+  <g fill="#111">
+    <path d="M32.83 76H92V124H32.83A62 62 0 1 0 32.83 76Z"/>
+    <path fill-rule="evenodd" d="M488 100a62 62 0 1 0 124 0a62 62 0 1 0-124 0ZM550 66L577.7 83V117L550 134L522.3 117V83Z"/>
+    <rect x="92" y="58" width="408" height="84"/>
+  </g>
+  <text x="320" y="116" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="38" letter-spacing="3" fill="#FFB400">ZOOMDRIVE</text>
+</svg>

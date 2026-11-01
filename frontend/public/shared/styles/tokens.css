@@ -1,0 +1,7 @@
+:root{
+  --bg:#ffffff; --soft:#f4f5f7; --line:#e8e9ec; --tx:#111111; --mu:#6b6f76;
+  --am:#ffb400; --amd:#b87a00; --blue:#1a6bff; --ok:#12a150; --bad:#e5483d;
+  --r-sm:12px; --r-md:16px; --r-lg:22px; --shadow:0 6px 20px rgba(0,0,0,.05);
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --tap:44px; /* minimum tap target */
+}

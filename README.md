@@ -41,6 +41,16 @@ npm run dev
 | `npm run schema:audit` | Compare migrations with live database |
 | `npm run seed` | Seed services and settings |
 
+## Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev        # serves http://localhost:3000
+npm run check      # run static checks
+npm run icons      # only needed after editing the brand SVGs
+```
+
 ## Environment Variables
 
 See `.env.example` for variable names. See BLUEPRINT.md section 6 for detailed descriptions.
@@ -48,7 +58,7 @@ See `.env.example` for variable names. See BLUEPRINT.md section 6 for detailed d
 ## Deployment
 
 - **Backend**: Render, root directory `backend`
-- **Frontend**: Vercel, root directory `frontend/public`
+- **Frontend**: Vercel, Root Directory `frontend`, Framework Preset `Other`, no Build Command, Output Directory `public`
 
 ## Source of Truth
 
