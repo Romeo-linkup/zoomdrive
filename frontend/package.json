@@ -5,11 +5,13 @@
   "type": "module",
   "description": "ZoomDrive static frontend: driver app, provider app, admin panel",
   "scripts": {
-    "dev": "serve public -l 3000",
-    "check": "node scripts/check.js",
+    "dev": "serve public -l 3100",
+    "check": "node scripts/check.js && node scripts/check-imports.js && eslint public",
     "icons": "node scripts/build-icons.js"
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
     "serve": "^14.2.4",
     "sharp": "^0.33.5"
   }

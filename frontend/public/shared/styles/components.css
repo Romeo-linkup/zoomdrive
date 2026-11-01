@@ -128,3 +128,12 @@ button{font-family:inherit;cursor:pointer}
 .offline-bar[hidden]{display:none}
 .install-card{border:1px solid var(--line);border-radius:var(--r-md);background:var(--soft);padding:14px;margin:12px 0;font-size:14px}
 .install-card b{display:block;margin-bottom:4px}
+
+/* P5 additions */
+.check{display:flex;align-items:center;gap:12px;margin:14px 0;font-size:14px;line-height:1.4;border-radius:12px;padding:6px 0}
+.check input{width:24px;height:24px;min-width:24px;accent-color:#111}
+.check.has-error{outline:2px solid var(--bad);outline-offset:4px}
+.empty{text-align:center;padding:40px 16px;color:var(--mu)}
+.empty .ico{font-size:44px;display:block;margin-bottom:8px}
+.avatar-lg{width:84px;height:84px;font-size:28px}
+.link-btn{background:none;border:0;color:var(--blue);font-weight:700;font-size:14px;padding:0 4px}

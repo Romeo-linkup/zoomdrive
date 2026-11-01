@@ -1,11 +1,12 @@
 // driver/app.js
 import { APP_ID, CONFIG } from '../shared/config.js';
-import { initErrors } from '../shared/errors.js';
+import { initErrors, showError } from '../shared/errors.js';
 import { registerServiceWorker, initInstallPrompt, createInstallControl, initOfflineNotice } from '../shared/pwa.js';
-import { isAuthed, refreshMe } from '../shared/auth.js';
-import { apiFetch, showError } from '../shared/api.js';
+import { isAuthed, refreshMe, getSession } from '../shared/auth.js';
+import { apiFetch } from '../shared/api.js';
 import { createRouter } from '../shared/router.js';
-import { createBrandBar, createBottomNav } from '../shared/components/topbar.js';
+import { createBrandBar, createTopbar } from '../shared/components/topbar.js';
+import { createBottomNav } from '../shared/components/bottom-nav.js';
 import { el, clear } from '../shared/ui.js';
 
 initErrors();
@@ -14,7 +15,13 @@ initInstallPrompt();
 initOfflineNotice();
 
 if (isAuthed()) {
-  refreshMe().catch(() => {});
+  refreshMe().catch(() => {
+    location.hash = '#/welcome';
+  });
+}
+
+if (!location.hash && isAuthed()) {
+  location.hash = '#/home';
 }
 
 const navItems = [
@@ -26,38 +33,55 @@ const navItems = [
 const router = createRouter({
   routes: {
     '/welcome': {
-      render: async () => {
+      path: '/welcome',
+      load: () => import('./pages/welcome.js'),
+      title: 'ZoomDrive',
+    },
+    '/phone': {
+      path: '/phone',
+      load: () => import('./pages/phone.js'),
+    },
+    '/otp': {
+      path: '/otp',
+      load: () => import('./pages/otp.js'),
+    },
+    '/profile-setup': {
+      path: '/profile-setup',
+      load: () => import('./pages/profileSetup.js'),
+      auth: true,
+    },
+    '/home': {
+      path: '/home',
+      load: () => import('./pages/home.js'),
+      nav: true,
+    },
+    '/activity': {
+      path: '/activity',
+      load: () => import('./pages/activity.js'),
+      nav: true,
+    },
+    '/account': {
+      path: '/account',
+      load: () => import('./pages/account.js'),
+      nav: true,
+    },
+    '/request': {
+      path: '/request',
+      auth: true,
+      needsProfile: true,
+      nav: false,
+      render: () => {
         const screen = el('div', { class: 'screen' });
-        screen.appendChild(createBrandBar(APP_ID));
-        const logo = el('img', { class: 'landing-logo', attrs: { src: '/brand/logo.svg', alt: 'ZoomDrive' } });
-        screen.appendChild(logo);
-        screen.appendChild(el('h1', {}, 'Roadside help, in minutes.'));
-        screen.appendChild(el('p', { class: 'mu' }, 'The app shell is ready. Sign-up arrives in the next phase.'));
-
+        screen.appendChild(createTopbar({
+          title: 'Request help',
+          onBack: () => router.navigate('/home'),
+        }));
         const card = el('div', { class: 'card' });
-        const apiLine = el('div', {}, 'API status: checking...');
-        card.appendChild(apiLine);
+        card.appendChild(el('h2', {}, 'Requesting help arrives in a later update (Phase 9).'));
+        const backBtn = el('button', { class: 'btn soft', type: 'button' }, 'Back to home');
+        backBtn.addEventListener('click', () => router.navigate('/home'));
+        card.appendChild(backBtn);
         screen.appendChild(card);
-
-        try {
-          const health = await apiFetch('/health', { auth: false });
-          if (health && health.db) {
-            apiLine.textContent = 'Connected to API · v' + (health.version || CONFIG.APP_VERSION) + ' · database ' + health.db;
-          } else {
-            apiLine.textContent = 'Connected to API · v' + (health.version || CONFIG.APP_VERSION);
-          }
-        } catch (err) {
-          showError(err);
-          apiLine.textContent = 'API unreachable';
-        }
-
-        const install = createInstallControl();
-        if (install) {
-          screen.appendChild(install);
-        }
-
-        screen.appendChild(el('p', { class: 'mu' }, 'App version ' + CONFIG.APP_VERSION));
-
         return screen;
       },
     },
@@ -65,6 +89,22 @@ const router = createRouter({
   defaultRoute: '/welcome',
   mount: document.getElementById('view'),
   navRoot: document.getElementById('nav-root'),
+  guard(route, ctx) {
+    if (isAuthed()) {
+      if (route.path === '/welcome' || (route.path === '/phone' && ctx.query.mode !== 'login')) {
+        return '/home';
+      }
+      if (route.path === '/otp') {
+        return '/home';
+      }
+      if (route.needsProfile) {
+        const session = getSession();
+        if (!session || !session.profileComplete) {
+          return '/profile-setup?next=' + encodeURIComponent(ctx.path);
+        }
+      }
+    }
+  },
   renderNav(route, ctx) {
     if (route.nav) {
       clear(this.navRoot);
@@ -72,5 +112,9 @@ const router = createRouter({
     }
   },
 });
+
+if (!location.hash && isAuthed()) {
+  location.hash = '#/home';
+}
 
 router.start();

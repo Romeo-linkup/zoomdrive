@@ -117,11 +117,22 @@ curl.exe -s -X POST -H "Authorization: Bearer $p" -F "doc_type=id_document" -F "
 try { Api Post "/providers/me/online" $p @{ online=$true; lat=-29.86; lng=31.03 } } catch { Show $_ }
 
 ## Phase 4
-1. Backend running (cd backend; npm run dev). In frontend: npm install (first time only) then npm run dev. Open http://localhost:3000/ (landing: logo, two big buttons), http://localhost:3000/driver/ and http://localhost:3000/provider/. Each welcome screen shows 'Connected to API · v... · database up'.
+1. Backend running (cd backend; npm run dev). In frontend: npm install (first time only) then npm run dev. Open http://localhost:3100/ (landing: logo, two big buttons), http://localhost:3000/driver/ and http://localhost:3000/provider/. Each welcome screen shows 'Connected to API · v... · database up'.
 2. Chrome DevTools > Application > Manifest for each app: names ZoomDrive and ZoomDrive Partner, different ids and scopes, icons load with no warnings. Application > Service Workers: one activated worker per scope (/driver/ and /provider/).
 3. In Chrome, install each app from the address-bar install icon: two separate windows with two different icons and names.
 4. Stop the backend and reload an app: a red banner appears with 'Code ZD-NET-001 · ref -' and a 'Copy details' button; paste the clipboard into a text editor and confirm it is JSON with app, version, route, code, status, requestId, time.
 5. DevTools > Network > Offline, reload: the page still loads from cache and the 'You're offline' bar shows. Switch back to Online and it disappears.
 6. DevTools device toolbar at 360px width: no horizontal scrolling on any of the three pages.
 7. Phone install (Add to Home Screen) needs HTTPS, so it is tested after the first Vercel deployment, not over the local network.
+
+## Phase 5
+1. Guest: open /driver/ > Just looking? > Home shows the guest banner. Tap Flat tyre: you land on the phone screen with the green 'Create a profile to request help' banner.
+2. Enter 12345: field error 'Enter a valid South African mobile number'. Enter 082 000 0021: OTP screen shows the dev code; enter a wrong code: red error under the boxes, boxes clear. Enter the right code (or paste it): profile setup opens.
+3. Press Create profile empty: errors on first name, surname and the consent box. Fill names, tick consent, add a photo, choose a platform, Create profile: you land on the 'Requesting help arrives in a later update' placeholder (the next route from step 1). Go Home > Account: name, photo and phone are shown.
+4. Reload the page: still signed in. Account > Profile: the form is pre-filled, no consent box; change the surname and save.
+5. Log out (confirm dialog) returns to welcome. Log in with 082 000 0021: no profile screen, straight to Home.
+6. Role mismatch: in the driver app enter 082 000 0012 (a provider from the Phase 3 test): friendly card with the server message and an 'Open ZoomDrive Partner' button that opens /provider/.
+7. Rate limit: request a code for 082 000 0022 four times (use Resend and Change number): the 4th shows a red banner with Code ZD-AUTH-003.
+8. In Cloudinary the photo is under zoomdrive/development/photos; in Neon: select first_name, last_name, photo_url from users where phone = '+27820000021'; and select consent_at from driver_profiles for that user.
+9. 360px width in DevTools: no horizontal scroll on welcome, phone, otp, profile setup, home, account.
 

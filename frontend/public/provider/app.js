@@ -1,11 +1,12 @@
 // provider/app.js
 import { APP_ID, CONFIG } from '../shared/config.js';
-import { initErrors } from '../shared/errors.js';
+import { initErrors, showError } from '../shared/errors.js';
 import { registerServiceWorker, initInstallPrompt, createInstallControl, initOfflineNotice } from '../shared/pwa.js';
 import { isAuthed, refreshMe } from '../shared/auth.js';
-import { apiFetch, showError } from '../shared/api.js';
+import { apiFetch } from '../shared/api.js';
 import { createRouter } from '../shared/router.js';
-import { createBrandBar, createBottomNav } from '../shared/components/topbar.js';
+import { createBrandBar } from '../shared/components/topbar.js';
+import { createBottomNav } from '../shared/components/bottom-nav.js';
 import { el, clear } from '../shared/ui.js';
 
 initErrors();

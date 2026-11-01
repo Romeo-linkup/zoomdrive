@@ -1,0 +1,212 @@
+// driver/pages/profileSetup.js
+import { getSession, getUser, refreshMe } from '../../shared/auth.js';
+import { apiFetch } from '../../shared/api.js';
+import { el, clear, toast, withSpinner, modal } from '../../shared/ui.js';
+import { clearFieldErrors, showError } from '../../shared/errors.js';
+import { createTopbar, createBrandBar } from '../../shared/components/topbar.js';
+import { createField } from '../../shared/components/field.js';
+import { createPhotoUpload } from '../../shared/components/photo-upload.js';
+import { consumeNext } from '../../shared/router.js';
+
+export default (ctx) => {
+  const session = getSession();
+  const user = getUser();
+  const profile = session && session.profile ? session.profile : {};
+  const isEdit = session && session.profileComplete;
+
+  const screen = el('div', { class: 'screen' });
+  const title = isEdit ? 'Your profile' : 'Create your profile';
+  if (isEdit) {
+    screen.appendChild(createTopbar({
+      title,
+      onBack: () => ctx.navigate('/account'),
+    }));
+  } else {
+    screen.appendChild(createBrandBar('driver'));
+    screen.appendChild(el('h1', {}, title));
+  }
+
+  const photo = createPhotoUpload({
+    required: false,
+    initialUrl: user && user.photoUrl ? user.photoUrl : null,
+  });
+  screen.appendChild(photo.el);
+
+  const firstName = createField({
+    name: 'firstName',
+    label: 'First name',
+    value: user && user.firstName ? user.firstName : '',
+  });
+  screen.appendChild(firstName.el);
+
+  const lastName = createField({
+    name: 'lastName',
+    label: 'Surname',
+    value: user && user.lastName ? user.lastName : '',
+  });
+  screen.appendChild(lastName.el);
+
+  const email = createField({
+    name: 'email',
+    label: 'Email (optional)',
+    type: 'email',
+    value: user && user.email ? user.email : '',
+  });
+  screen.appendChild(email.el);
+
+  screen.appendChild(el('h3', {}, 'Your vehicle (optional)'));
+
+  const vehicleMake = createField({
+    name: 'vehicleMake',
+    label: 'Make',
+    value: profile.vehicleMake || '',
+  });
+  screen.appendChild(vehicleMake.el);
+
+  const vehicleModel = createField({
+    name: 'vehicleModel',
+    label: 'Model',
+    value: profile.vehicleModel || '',
+  });
+  screen.appendChild(vehicleModel.el);
+
+  const vehicleColour = createField({
+    name: 'vehicleColour',
+    label: 'Colour',
+    value: profile.vehicleColour || '',
+  });
+  screen.appendChild(vehicleColour.el);
+
+  const plate = createField({
+    name: 'plate',
+    label: 'Number plate',
+    value: profile.plate || '',
+  });
+  screen.appendChild(plate.el);
+
+  const platformField = el('div', { class: 'field', dataset: { field: 'hailPlatform' } });
+  platformField.appendChild(el('label', {}, 'E-hailing platform'));
+  const chips = el('div', { class: 'chips' });
+  const platforms = [
+    { value: 'uber', label: 'Uber' },
+    { value: 'bolt', label: 'Bolt' },
+    { value: 'indrive', label: 'inDrive' },
+    { value: 'other', label: 'Other' },
+  ];
+  let selectedPlatform = profile.hailPlatform || null;
+
+  platforms.forEach((p) => {
+    const chip = el('button', { class: 'chip', type: 'button' }, p.label);
+    if (selectedPlatform === p.value) {
+      chip.classList.add('on');
+      chip.setAttribute('aria-pressed', 'true');
+    }
+    chip.addEventListener('click', () => {
+      if (selectedPlatform === p.value) {
+        selectedPlatform = null;
+        chip.classList.remove('on');
+        chip.removeAttribute('aria-pressed');
+      } else {
+        selectedPlatform = p.value;
+        chips.querySelectorAll('.chip').forEach(c => {
+          c.classList.remove('on');
+          c.removeAttribute('aria-pressed');
+        });
+        chip.classList.add('on');
+        chip.setAttribute('aria-pressed', 'true');
+      }
+    });
+    chips.appendChild(chip);
+  });
+  platformField.appendChild(chips);
+  screen.appendChild(platformField);
+
+  let consentChecked = !!profile.consentAt;
+  const consentField = el('div', { class: 'check', dataset: { field: 'consent' } });
+  if (!isEdit || !profile.consentAt) {
+    const checkbox = el('input', { type: 'checkbox' });
+    if (consentChecked) {
+      checkbox.checked = true;
+    }
+    checkbox.addEventListener('change', () => {
+      consentChecked = checkbox.checked;
+    });
+    consentField.appendChild(checkbox);
+    const label = el('label', {}, 'I agree to the Terms and Privacy Policy');
+    label.addEventListener('click', () => {
+      checkbox.checked = !checkbox.checked;
+      consentChecked = checkbox.checked;
+    });
+    consentField.appendChild(label);
+    screen.appendChild(consentField);
+  }
+
+  const btn = el('button', { class: 'btn', type: 'button' }, isEdit ? 'Save changes' : 'Create profile');
+  screen.appendChild(btn);
+
+  async function handleSubmit() {
+    clearFieldErrors();
+    const fn = firstName.getValue();
+    const ln = lastName.getValue();
+    const em = email.getValue();
+    const vm = vehicleMake.getValue();
+    const vmd = vehicleModel.getValue();
+    const vc = vehicleColour.getValue();
+    const pl = plate.getValue();
+
+    if (!fn) {
+      firstName.setError('First name is required');
+      return;
+    }
+    if (!ln) {
+      lastName.setError('Surname is required');
+      return;
+    }
+    if (!consentChecked) {
+      consentField.classList.add('has-error');
+      const err = el('div', { class: 'field-error' }, 'You must agree to the terms');
+      consentField.appendChild(err);
+      return;
+    }
+
+    try {
+      await withSpinner(async () => {
+        const body = {
+          firstName: fn,
+          lastName: ln,
+          email: em || null,
+          vehicleMake: vm || null,
+          vehicleModel: vmd || null,
+          vehicleColour: vc || null,
+          plate: pl || null,
+          hailPlatform: selectedPlatform || null,
+          consent: true,
+        };
+        await apiFetch('/drivers/me', { method: 'PUT', body });
+
+        const file = photo.getFile();
+        if (file) {
+          try {
+            const fd = new FormData();
+            fd.append('photo', file);
+            await apiFetch('/users/me/photo', { method: 'POST', body: fd });
+          } catch (photoErr) {
+            toast('Profile saved, but the photo upload failed. You can add it later from your profile.', 'error');
+          }
+        }
+
+        await refreshMe();
+      });
+
+      toast('Profile saved', 'ok');
+      const target = isEdit ? '/account' : consumeNext('/home');
+      ctx.navigate(target, { replace: true });
+    } catch (err) {
+      showError(err);
+    }
+  }
+
+  btn.addEventListener('click', handleSubmit);
+
+  return screen;
+};

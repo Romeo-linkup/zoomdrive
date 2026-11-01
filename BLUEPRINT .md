@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 4  (Frontend foundation and PWA shells)
-LAST COMPLETED PHASE . 3
-LAST TASK DONE ....... P4.7
-NEXT ACTION .......... Romeo manual tests for Phase 3 and Phase 4, then Phase 5 task P5.1
+CURRENT PHASE ........ 5  (Driver sign-up and profile)
+LAST COMPLETED PHASE . 4
+LAST TASK DONE ....... P5.5
+NEXT ACTION .......... Romeo manual tests for Phase 3, 4 and 5, then Phase 6 task P6.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 1 Nov 2026 by Devin
@@ -250,6 +250,7 @@ zoomdrive/
 │     │  ├─ config.js                   (phase 4)  API_BASE per environment, app names, version
 │     │  ├─ api.js                      (phase 4)  apiFetch, ApiError
 │     │  ├─ auth.js                     (phase 4)  token store, getUser, requireAuth, logout
+│     │  ├─ authFlow.js                 (phase 5)  phone/OTP validation, screens, role mismatch
 │     │  ├─ errors.js                   (phase 4)  global handlers, error banner, copy details
 │     │  ├─ ui.js                       (phase 4)  toast, modal, spinner, formatZAR, formatDate
 │     │  ├─ router.js                   (phase 4)  hash router with guards
@@ -646,11 +647,11 @@ Verification: `npm run check` (frontend); manifest JSON validity via `node -e "J
 Manual test (Romeo): open `/`, `/driver/`, `/provider/` locally; install each to the phone Home Screen; confirm two different icons and names; confirm the install button appears on mobile.
 
 ### PHASE 5: Driver sign-up and profile (guest browse + gate)
-- [ ] P5.1 Welcome, Phone, OTP, Profile-setup pages wired to the API with field errors and the error banner.
-- [ ] P5.2 Guest mode: Home/Activity/Account render for guests; gate redirects to `#/phone?next=...` with banner (9.7).
-- [ ] P5.3 Role-mismatch UX: friendly screen with a button to the other app.
-- [ ] P5.4 Optional photo upload on profile setup; consent checkbox required.
-- [ ] P5.5 Account page shows name/photo, Log out clears token and returns to welcome.
+- [x] P5.1 Welcome, Phone, OTP, Profile-setup pages wired to the API with field errors and the error banner.
+- [x] P5.2 Guest mode: Home/Activity/Account render for guests; gate redirects to `#/phone?next=...` with banner (9.7).
+- [x] P5.3 Role-mismatch UX: friendly screen with a button to the other app.
+- [x] P5.4 Optional photo upload on profile setup; consent checkbox required.
+- [x] P5.5 Account page shows name/photo, Log out clears token and returns to welcome.
 Verification: `npm run check`; grep confirms every API call goes through `apiFetch`.
 Manual test: sign up as a driver with and without a photo; log out and in; browse as a guest and tap Request to confirm the sign-up gate; try the provider number in the driver app and confirm the mismatch message.
 
@@ -750,6 +751,7 @@ Manual test: one real driver and one real provider complete a live job.
 | 29 Oct 2026 | 1 | P1.7 (server.js boot self-check, health routes db status) | node --check, npm run check | Boot checks db latency and migrations, health endpoint reports db up/down | Manual test |
 | 29 Oct 2026 | 3 | P3.4-P3.5 (providers, organisations, documents, app mount) | npm run check | Implemented provider flows, upload/delete lifecycle, submit order, added /api/v1/providers mount | Manual test |
 | 1 Nov 2026 | 4 | P4.1-P4.7 (frontend shell, shared modules, components, PWA, router, static checks) | npm run check | Full frontend foundation: config, API, auth, errors, UI, router, PWA, components, driver/provider app shells with welcome route, check.js with 7 frontend rules | Manual test |
+| 1 Nov 2026 | 5 | P5.1-P5.5 (driver auth flow, profile setup, guest mode, account, router edits, check rule 12) | npm run check | Driver sign-up and profile: phone/OTP validation, photo upload, consent, guest browsing, account page, logout modal, needsProfile guard, NOFETCH check rule | Manual test |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -781,6 +783,12 @@ Manual test: one real driver and one real provider complete a live job.
 | 1 Nov 2026 | Phone install is tested after the first HTTPS deployment (service workers and install need a secure context) | PWA install features require HTTPS |
 | 1 Nov 2026 | Page modules export a default render(ctx) function; ctx.onLeave and ctx.signal handle cleanup of timers and requests on route change | Clean pattern for route lifecycle management |
 | 1 Nov 2026 | Frontend-only error codes ZD-NET-001..004 and ZD-UI-001 are client-side and do not belong in the backend registry | Separates client and server error namespaces |
+| 1 Nov 2026 | shared/authFlow.js holds the phone, OTP and role-mismatch logic and screens for both apps; Phase 6 reuses it (the blueprint file list gains this file) | Centralizes authentication UI logic shared by driver and provider apps |
+| 1 Nov 2026 | Phase 5 creates minimal driver home.js, activity.js and account.js because P5.2 and P5.5 need them; Phase 9 extends them; Home uses a static service list until GET /services exists (P8.4) | Implements guest mode placeholders now, extends with real functionality later |
+| 1 Nov 2026 | The pending phone number is kept in sessionStorage during the OTP step, never in the URL | Avoids exposing sensitive data in URLs or URL history |
+| 1 Nov 2026 | '/request' is a placeholder route until Phase 9; route flag needsProfile sends signed-in drivers without a complete profile to /profile-setup | Provides a clear path for incomplete profiles to complete setup before using core features |
+| 1 Nov 2026 | The driver profile page doubles as the edit page (edit mode when profileComplete is true) | Reuses the same component for create and edit flows with conditional UI |
+| 1 Nov 2026 | The profile is saved before the photo upload, and a photo failure does not undo the profile | Prevents data loss if photo upload fails; profile is always saved |
 
 ### Known issues
 (none yet)

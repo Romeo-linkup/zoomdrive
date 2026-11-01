@@ -1,7 +1,8 @@
 // shared/router.js
 import { APP_ID } from './config.js';
 import { isAuthed } from './auth.js';
-import { clear, clearError, clearFieldErrors, spinner, renderPageError } from './ui.js';
+import { clear, spinner } from './ui.js';
+import { clearError, clearFieldErrors, renderPageError } from './errors.js';
 
 export function goToLogin(nextPath) {
   return '/phone?next=' + encodeURIComponent(nextPath);

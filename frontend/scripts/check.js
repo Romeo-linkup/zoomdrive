@@ -249,6 +249,21 @@ function rule11Pwa() {
   }
 }
 
+// Rule 12: NOFETCH - flag any use of fetch( except in api.js and sw.js
+function rule12NoFetch() {
+  walkDir(publicDir, (file) => {
+    if (file.endsWith('.js') && !file.endsWith('api.js') && !file.endsWith('sw.js')) {
+      const content = fs.readFileSync(file, 'utf8');
+      const lines = content.split('\n');
+      lines.forEach((line, i) => {
+        if (line.includes('fetch(') && !line.includes('//')) {
+          addProblem(file, i + 1, 'NOFETCH', 'forbidden use of fetch()');
+        }
+      });
+    }
+  });
+}
+
 // Run all rules
 rule1Syntax();
 rule2Empty();
@@ -258,6 +273,7 @@ rule6ApiResult();
 rule7InnerHtml();
 rule10TapTarget();
 rule11Pwa();
+rule12NoFetch();
 
 if (problems.length > 0) {
   problems.forEach(p => console.log(p));
