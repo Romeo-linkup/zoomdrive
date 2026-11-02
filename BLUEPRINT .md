@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 8  (Requests, pricing, dispatch)
-LAST COMPLETED PHASE . 7
-LAST TASK DONE ....... P8.5 (request service and atomic state transitions)
-NEXT ACTION .......... Romeo manual tests for Phases 3 to 8 (and the admin UI test for Phase 7), then Phase 9 task P9.1
+CURRENT PHASE ........ 9  (Driver request flow)
+LAST COMPLETED PHASE . 8
+LAST TASK DONE ....... P9.4 (cancel flow and expired/no-providers states)
+NEXT ACTION .......... Romeo manual tests for Phase 9, then Phase 10 task P10.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 2 Nov 2026
@@ -686,10 +686,10 @@ Verification: `npm run check`; scripted curl scenario in `docs/manual-tests.md`:
 Manual test: run the scripted scenario with one driver and one approved provider.
 
 ### PHASE 9: Driver request flow (frontend)
-- [ ] P9.1 `shared/map.js`, `shared/geo.js` (Leaflet via CDN, geolocation helper, permission denied fallback to manual pin).
-- [ ] P9.2 Home, Request (quote refresh on pin move), Searching, Track (5s polling, ETA, provider card), Rate, Activity list/detail.
-- [ ] P9.3 Saved places, Payment methods (placeholder), Safety, Support, Settings pages.
-- [ ] P9.4 Cancel flow and expired/no-providers state.
+- [x] P9.1 `shared/map.js`, `shared/geo.js` (Leaflet via CDN, geolocation helper, permission denied fallback to manual pin).
+- [x] P9.2 Home, Request (quote refresh on pin move), Searching, Track (5s polling, ETA, provider card), Rate, Activity list/detail.
+- [x] P9.3 Saved places, Payment methods (placeholder), Safety, Support, Settings pages.
+- [x] P9.4 Cancel flow and expired/no-providers state.
 Verification: `npm run check`; no API calls bypass `apiFetch`; polling timers cleared on route change (grep for `setInterval` paired with cleanup).
 Manual test: with the provider app open on another device/browser tab, request help end to end; test cancel and no-provider cases.
 
@@ -762,6 +762,9 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | 7 | P7.3 (provider review interaction fixes and final frontend check) | npm run check | Preserved document/provider rejection reasons, refreshed details after API errors, and used API page size for provider pagination | Romeo manual tests for Phases 3 to 7, then P8.1 |
 | 2 Nov 2026 | 8 | P8.1, P8.2, P8.3, P8.5 (request pricing, lifecycle, dispatch and expiry) | npm run check | Added request pricing/lifecycle services, candidate dispatch, admin assignment, expiry job, atomic provider acceptance and audit events; added ZD-REQ-008/009 | P8.4 |
 | 2 Nov 2026 | 8 | P8.4 (request/provider/admin controllers and routes) | npm run check | Mounted request routes, added provider online/heartbeat/offers/jobs and admin request list/detail/assign/cancel; documented the Phase 8 end-to-end manual test | Romeo manual tests for Phases 3 to 8 (and Phase 7 admin UI), then P9.1 |
+| 2 Nov 2026 | 9 | P9.1 and Home/Request portion of P9.2 (U1) | npm run check (only expected empty page modules reported) | Added geolocation and Leaflet map helpers, map styles, services/GPS/saved-place Home flow, request map and live quote submission | P9.2 Searching, Track, Rate and Activity |
+| 2 Nov 2026 | 9 | Searching, Track, Rate, Activity and P9.4 states (U2) | npm run check (only expected empty P9.3 page modules reported) | Added chained 5-second polling, visibility pause/resume, provider tracking, cancellation and terminal states, rating placeholder, paginated activity details | P9.3, guest-gating review and documentation |
+| 2 Nov 2026 | 9 | P9.3, guest-gating review and P9 wrap-up (U3) | npm run check (expected empty P9.3 modules only) | Added saved places CRUD (address required by the backend schema) and account pages; wired account links and Account-tab navigation. Gated Request through its guest redirect and added auth guards to Searching, Track and Rate so guests cannot load request data. Render failures use the router's standard "This page failed to load" card with Copy details. | Romeo manual tests for Phase 9, then P10.1 |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -819,6 +822,12 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | Document previews use 5-minute signed Cloudinary download URLs; file URLs and public ids are never returned or logged | Limits access to private provider documents |
 | 2 Nov 2026 | notifications.service.js created in Phase 7 (createNotification); Phase 12 extends it with the inbox endpoints | Reuses the notification foundation for the future inbox |
 | 2 Nov 2026 | Admin accounts are created only with scripts/create-admin.js (interactive, hidden password, --reset to change a password); there is no public admin signup | Prevents public registration of privileged accounts |
+| 2 Nov 2026 | The driver pages poll GET /requests/:id every 5 s with chained timeouts, pause while the tab is hidden and stop on terminal states or route change | Avoids overlapping polls and unnecessary hidden-tab network traffic |
+| 2 Nov 2026 | The Request screen uses POST /requests/quote for every price shown (no hardcoded numbers) and sends expectedTotalCents so a changed price returns ZD-REQ-008 | Keeps displayed and confirmed prices aligned |
+| 2 Nov 2026 | The Rate page is built now but does not call an API until Phase 12 (P12.1) | The ratings API is not implemented yet |
+| 2 Nov 2026 | Home shows only services returned by GET /services (fuel stays hidden while inactive) plus a placeholder Schedule tile | Keeps the catalog and active-service policy authoritative |
+| 2 Nov 2026 | Payment methods, Promotions, Fleet Profile and Verify identity are visibly marked placeholders | Avoids implying unsupported functionality exists |
+| 2 Nov 2026 | Leaflet and OpenStreetMap tiles are loaded from CDN on demand by shared/map.js; a failed map load shows a fallback card instead of crashing the page | Keeps location entry usable when map assets are unavailable |
 
 ### Known issues
 (none yet)

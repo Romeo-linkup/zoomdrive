@@ -268,3 +268,23 @@ select indexname from pg_indexes where indexname = 'uq_requests_one_active_job_p
 ```
 
 Confirm audit rows for each exercised transition (`request.create`, `request.accept`, `request.arrived`, `request.complete`, `request.cancel`, `request.expire`, `admin.request_assign`).
+
+## Phase 9
+
+1. Open /driver/ signed out, tap 'Just looking?': Home shows 4 service tiles from the API plus a 'Schedule' tile marked Soon; tap Flat tyre: you are sent to the phone screen with the 'Create a profile to request help' banner.
+2. Sign in as the Phase 5 driver: tap Flat tyre; Request opens with a map, a draggable pin, the price card showing service price, distance fee and fixed total, and 'About N min away' (provider online) or the 'No providers nearby' text (none online).
+3. Drag the pin: the price re-quotes (loading state, then new numbers). Drag it outside South Africa: red message and the Request button disabled; drag it back.
+4. Deny location permission and reload: the pin starts at Durban with 'Drag the pin to your exact spot'.
+5. With the provider app open in another browser (or private window) and online: tap Request help; the provider sees the offer; the driver sees Searching with a countdown.
+6. Cancel while searching: back on Home with a toast; the provider's offer disappears.
+7. Request again; provider accepts: the driver moves to Track automatically with the provider card (name, rating or 'New', vehicle, plate, verified badge), an ETA and a Call link (tel:).
+8. Share trip: the share sheet or a clipboard toast; confirm no phone number is in the shared text.
+9. Provider marks Arrived: Track header changes; provider completes: the driver lands on Rate; choose stars and Submit: thank-you toast and Home (ratings API is Phase 12).
+10. Activity: the finished job shows under Past with a status badge and total; tap it for the detail modal.
+11. No providers: set the provider offline, request: Searching shows 'No providers nearby right now'; wait for expiry (3 minutes) or use the SQL from Phase 8 test step 12: the Expired card appears with Try again and Home.
+12. In admin, manually assign that kind of request to the provider while the driver sits on Searching: the driver moves to Track within about 5 seconds.
+13. Request, then have the provider cancel the job from the API: Track shows 'Request cancelled' with the reason and Request again.
+14. Start a request, close the tab, reopen /driver/: Home shows 'You have a request in progress' with Resume. Try to create a second request: the 'already in progress' modal with Resume.
+15. Account: every row opens its page (Payment, Support, Safety, Saved places, Settings, Profile); add a saved place with 'Add current location' and see it on Home; delete it.
+16. Narrow the window to 360px: no horizontal scroll on any screen; tap targets comfortable; the bottom nav never covers a button.
+17. In DevTools Network, leave Track open 30 seconds: one request roughly every 5 seconds; navigate away: polling stops.
