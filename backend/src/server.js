@@ -2,6 +2,7 @@ const { env, validateEnv } = require('./config/env');
 const { logger } = require('./lib/logger');
 const { checkDb, query } = require('./db/pool');
 const { startExpiryJob } = require('./modules/dispatch/expiry.job');
+const paystack = require('./modules/payments/paystack.service');
 const fs = require('fs');
 const path = require('path');
 const app = require('./app');
@@ -16,6 +17,9 @@ async function boot() {
   }
 
   console.log('[ZD][BOOT] env ........ OK');
+  console.log(paystack.isConfigured()
+    ? '[ZD][BOOT] paystack .. OK'
+    : '[ZD][BOOT] paystack .. NOT CONFIGURED (ok until keys are set)');
 
   const dbCheck = await checkDb();
   if (dbCheck.ok) {

@@ -5,6 +5,8 @@ const geo = require('../../lib/geo');
 const pricing = require('../../lib/pricing');
 const stateMachine = require('./stateMachine');
 const { loadSettings, findCandidates, createOffers } = require('../dispatch/dispatch.service');
+const { isPlusActive } = require('../plus/plus.service');
+const pricingPolicy = require('../admin/pricingPolicy');
 
 function queryWith(client, text, params) {
   return client ? client.query(text, params) : query(text, params);
@@ -202,6 +204,13 @@ async function createRequest({ driverId, body, requestId, ip }) {
     });
   }
 
+  const [plusActive, pricingValues] = await Promise.all([
+    isPlusActive(driverId),
+    pricingPolicy.readValues(),
+  ]);
+  const offerLimit = computed.settings.max_offers_per_request
+    + (plusActive ? pricingValues.driverPlusExtraOffers : 0);
+
   try {
     return await withTransaction(async (client) => {
       const insertResult = await client.query(
@@ -238,7 +247,7 @@ async function createRequest({ driverId, body, requestId, ip }) {
         client,
         id,
         computed.candidates,
-        computed.settings.max_offers_per_request
+        offerLimit
       );
       await writeAudit({
         actorType: 'user',
@@ -246,7 +255,12 @@ async function createRequest({ driverId, body, requestId, ip }) {
         action: 'request.create',
         entity: 'requests',
         entityId: id,
-        meta: { serviceId: body.serviceId, totalCents: computed.quote.totalCents, offersSent: offersSent.length },
+        meta: {
+          serviceId: body.serviceId,
+          totalCents: computed.quote.totalCents,
+          offersSent: offersSent.length,
+          plus: plusActive,
+        },
         requestId,
         ip,
       }, client);

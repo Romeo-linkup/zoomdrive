@@ -1,6 +1,7 @@
 const { query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
+const { PROTECTED } = require('./pricingPolicy');
 
 const SETTING_RULES = {
   commission_pct: { min: 0, max: 50 },
@@ -37,6 +38,17 @@ async function getSettings(req, res) {
 
 async function updateSettings(req, res) {
   const { values } = req.body;
+  const protectedKeys = new Set([
+    ...Object.keys(PROTECTED),
+    ...Object.values(PROTECTED).map((rule) => rule.api),
+  ]);
+  const protectedKey = Object.keys(values).find((key) => protectedKeys.has(key));
+  if (protectedKey) {
+    throw new ApiError('ZD-ADM-005', {
+      message: 'Pricing settings must be changed through the verified pricing workflow',
+      field: 'values.' + protectedKey,
+    });
+  }
 
   await withTransaction(async (client) => {
     const changes = {};

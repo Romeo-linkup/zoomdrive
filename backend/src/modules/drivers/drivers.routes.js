@@ -6,6 +6,7 @@ const validate = require('../../middleware/validate');
 const wrap = require('../../lib/asyncHandler');
 const driver = require('./drivers.controller');
 const places = require('./savedPlaces.controller');
+const plus = require('../plus/plus.controller');
 
 const router = express.Router();
 
@@ -41,5 +42,8 @@ router.put('/me', validate(profileSchema), wrap(driver.upsertMe));
 router.get('/me/saved-places', wrap(places.list));
 router.post('/me/saved-places', validate(placeSchema), wrap(places.create));
 router.delete('/me/saved-places/:id', validate(idParams, 'params'), wrap(places.remove));
+router.get('/me/plus', wrap(plus.getState));
+router.post('/me/plus/join', wrap(plus.join));
+router.post('/me/plus/pay', wrap(plus.pay));
 
 module.exports = router;

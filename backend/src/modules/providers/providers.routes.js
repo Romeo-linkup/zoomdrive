@@ -10,6 +10,7 @@ const providers = require('./providers.controller');
 const docs = require('./documents.controller');
 const orgs = require('./organisations.controller');
 const jobs = require('./jobs.controller');
+const registrationFee = require('./registrationFee.controller');
 
 const router = express.Router();
 
@@ -54,6 +55,9 @@ const heartbeatSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
 });
+const registrationVerifySchema = z.object({
+  reference: z.string().trim().min(5).max(100),
+});
 
 router.use(auth, requireRole('provider'));
 
@@ -63,6 +67,10 @@ router.put('/me/services', validate(servicesSchema), wrap(providers.setServices)
 router.get('/me/documents', wrap(docs.listDocuments));
 router.post('/me/documents', documentUpload, validate(docSchema), wrap(docs.uploadDocument));
 router.post('/me/submit', wrap(providers.submit));
+
+router.get('/me/registration-fee', wrap(registrationFee.status));
+router.post('/me/registration-fee/pay', wrap(registrationFee.pay));
+router.post('/me/registration-fee/verify', validate(registrationVerifySchema), wrap(registrationFee.verify));
 
 router.post('/me/online', wrap(requireApproved), validate(onlineSchema), wrap(jobs.online));
 router.post('/me/heartbeat', wrap(requireApproved), validate(heartbeatSchema), wrap(jobs.heartbeat));

@@ -1,9 +1,11 @@
 const express = require('express');
 const { z } = require('zod');
+const rateLimit = require('express-rate-limit');
 const adminAuth = require('../../middleware/adminAuth');
 const validate = require('../../middleware/validate');
 const { adminLoginLimiter } = require('../../middleware/rateLimit');
 const wrap = require('../../lib/asyncHandler');
+const ApiError = require('../../lib/ApiError');
 const authCtl = require('./adminAuth.controller');
 const overview = require('./adminOverview.controller');
 const providers = require('./providersReview.controller');
@@ -11,6 +13,7 @@ const users = require('./adminUsers.controller');
 const services = require('./adminServices.controller');
 const settings = require('./adminSettings.controller');
 const adminRequests = require('./adminRequests.controller');
+const adminPricing = require('./adminPricing.controller');
 
 const router = express.Router();
 
@@ -74,8 +77,41 @@ const serviceSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 
 const settingsSchema = z.object({
-  values: z.record(z.string(), z.union([z.string(), z.number()])),
+  values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 });
+const pricingChallengeSchema = z.object({
+  password: z.string().min(1).max(200),
+}).strict();
+const pricingVerifySchema = z.object({
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+}).strict();
+const pricingApplySchema = z.object({
+  challengeId: z.string().uuid(),
+  changes: z.record(z.string(), z.union([z.number(), z.boolean()])),
+}).strict();
+
+function pricingLimiter(windowMs, limit, message) {
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `admin:${req.admin.id}`,
+    handler: (req, res, next) => next(new ApiError('ZD-ADM-008', { message })),
+  });
+}
+
+const pricingChallengeLimiter = pricingLimiter(
+  10 * 60 * 1000,
+  3,
+  'Too many pricing challenges. Try again later.'
+);
+const pricingVerifyLimiter = pricingLimiter(
+  15 * 60 * 1000,
+  5,
+  'Too many pricing verification attempts. Try again later.'
+);
 
 // Public: admin login (rate limited). Everything below requires a valid admin token.
 router.post('/auth/login', adminLoginLimiter, validate(loginSchema), wrap(authCtl.login));
@@ -91,6 +127,7 @@ router.get('/providers', validate(providerListQuery, 'query'), wrap(providers.li
 router.get('/providers/:userId', validate(userIdParams, 'params'), wrap(providers.getProvider));
 router.post('/providers/:userId/approve', validate(userIdParams, 'params'), wrap(providers.approve));
 router.post('/providers/:userId/reject', validate(userIdParams, 'params'), validate(rejectSchema), wrap(providers.reject));
+router.post('/providers/:userId/waive-registration', validate(userIdParams, 'params'), wrap(providers.waiveRegistration));
 router.post('/documents/:id/review', validate(idParams, 'params'), validate(docReviewSchema), wrap(providers.reviewDocument));
 
 router.get('/users', validate(userListQuery, 'query'), wrap(users.listUsers));
@@ -105,5 +142,24 @@ router.post('/requests/:id/cancel', validate(idParams, 'params'), validate(admin
 
 router.get('/settings', wrap(settings.getSettings));
 router.put('/settings', validate(settingsSchema), wrap(settings.updateSettings));
+
+router.get('/pricing', wrap(adminPricing.getPricing));
+router.post(
+  '/pricing/challenge',
+  pricingChallengeLimiter,
+  validate(pricingChallengeSchema),
+  wrap(adminPricing.createChallenge)
+);
+router.post(
+  '/pricing/verify',
+  pricingVerifyLimiter,
+  validate(pricingVerifySchema),
+  wrap(adminPricing.verifyChallenge)
+);
+router.post(
+  '/pricing/apply',
+  validate(pricingApplySchema),
+  wrap(adminPricing.applyChanges)
+);
 
 module.exports = router;

@@ -18,6 +18,7 @@ const ERRORS = Object.freeze({
   'ZD-PROV-003': { status: 400, message: 'No services selected' },
   'ZD-PROV-004': { status: 400, message: 'Company details missing' },
   'ZD-PROV-005': { status: 403, message: 'Provider not approved' },
+  'ZD-PROV-006': { status: 403, message: 'Provider registration fee required' },
   'ZD-REQ-001': { status: 404, message: 'Request not found' },
   'ZD-REQ-002': { status: 400, message: 'Service inactive or unknown' },
   'ZD-REQ-003': { status: 409, message: 'Driver already has an active request' },
@@ -29,10 +30,19 @@ const ERRORS = Object.freeze({
   'ZD-REQ-009': { status: 409, message: 'Provider already has an active job' },
   'ZD-PAY-001': { status: 502, message: 'Paystack error' },
   'ZD-PAY-002': { status: 400, message: 'Webhook signature invalid' },
+  'ZD-PAY-003': { status: 503, message: 'Paystack is not configured' },
+  'ZD-PAY-004': { status: 404, message: 'Payment charge not found' },
+  'ZD-PAY-005': { status: 400, message: 'Payment amount must be greater than zero' },
+  'ZD-PLUS-001': { status: 403, message: 'ZoomDrive Plus is not enabled' },
   'ZD-ADM-001': { status: 401, message: 'Admin login failed' },
   'ZD-ADM-002': { status: 409, message: 'Provider is not waiting for review' },
   'ZD-ADM-003': { status: 404, message: 'Admin target not found' },
   'ZD-ADM-004': { status: 409, message: 'Required documents are not approved yet' },
+  'ZD-ADM-005': { status: 403, message: 'Pricing settings require the verified pricing workflow' },
+  'ZD-ADM-006': { status: 400, message: 'Pricing challenge is invalid or expired' },
+  'ZD-ADM-007': { status: 409, message: 'Pricing changes are in cooldown' },
+  'ZD-ADM-008': { status: 429, message: 'Too many pricing challenge attempts' },
+  'ZD-EML-001': { status: 502, message: 'Email delivery failed' },
 });
 
 module.exports = { ERRORS };

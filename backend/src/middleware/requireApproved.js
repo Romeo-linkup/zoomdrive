@@ -1,5 +1,6 @@
 const { query } = require('../db/pool');
 const ApiError = require('../lib/ApiError');
+const { getRegistrationState } = require('../modules/payments/charges.service');
 
 module.exports = function requireApproved(req, res, next) {
   if (!req.user || !req.user.id) {
@@ -15,7 +16,15 @@ module.exports = function requireApproved(req, res, next) {
       if (status !== 'approved') {
         return next(new ApiError('ZD-PROV-005'));
       }
-      return next();
+      return getRegistrationState(req.user.id)
+        .then((registration) => {
+          if (registration.required) {
+            return next(new ApiError('ZD-PROV-006', {
+              message: 'Pay your one-time registration fee to go online',
+            }));
+          }
+          return next();
+        });
     })
     .catch(next);
 };

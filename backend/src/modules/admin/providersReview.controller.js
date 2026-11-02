@@ -1,8 +1,9 @@
-const { query, withTransaction } = require('../../db/pool');
+const { pool, query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
 const { createNotification } = require('../notifications/notifications.service');
 const { signedDocumentUrl } = require('../uploads/cloudinary.service');
+const { getRegistrationState } = require('../payments/charges.service');
 
 const DOC_LABELS = {
   id_document: 'ID document',
@@ -98,6 +99,7 @@ async function buildProviderDetail(userId, client = null) {
     const approvedDocs = new Set(docsResult.rows.filter((r) => r.status === 'approved').map((r) => r.doc_type));
     allRequiredApproved = required.every((rt) => approvedDocs.has(rt));
   }
+  const registration = await getRegistrationState(userId, client || pool);
 
   return {
     user: {
@@ -133,6 +135,7 @@ async function buildProviderDetail(userId, client = null) {
     documents,
     requiredDocs: required,
     canApprove: canApprove && allRequiredApproved,
+    registration,
   };
 }
 
@@ -416,4 +419,36 @@ async function reviewDocument(req, res) {
   }
 }
 
-module.exports = { listProviders, getProvider, approve, reject, reviewDocument };
+async function waiveRegistration(req, res) {
+  const userId = Number(req.params.userId);
+  await withTransaction(async (client) => {
+    const provider = await client.query(
+      `SELECT pp.user_id
+       FROM provider_profiles pp
+       JOIN users u ON u.id = pp.user_id
+       WHERE pp.user_id = $1 AND u.role = 'provider'
+       FOR UPDATE OF pp`,
+      [userId]
+    );
+    if (provider.rows.length === 0) {
+      throw new ApiError('ZD-ADM-003', { message: 'Provider not found' });
+    }
+
+    await client.query(
+      'UPDATE provider_profiles SET registration_waived = true WHERE user_id = $1',
+      [userId]
+    );
+    await writeAudit({
+      actorType: 'admin',
+      actorId: req.admin.id,
+      action: 'admin.provider_waive_registration',
+      entity: 'provider_profiles',
+      entityId: userId,
+      requestId: req.id,
+      ip: req.ip,
+    }, client);
+  });
+  res.ok({ waived: true });
+}
+
+module.exports = { listProviders, getProvider, approve, reject, reviewDocument, waiveRegistration };

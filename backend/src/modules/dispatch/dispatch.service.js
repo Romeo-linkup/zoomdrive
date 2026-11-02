@@ -5,7 +5,7 @@ const geo = require('../../lib/geo');
 const stateMachine = require('../requests/stateMachine');
 
 const SETTING_DEFAULTS = Object.freeze({
-  commission_pct: 12,
+  commission_pct: 15,
   road_factor: 1.3,
   avg_speed_kmh: 40,
   offer_radius_km: 25,
