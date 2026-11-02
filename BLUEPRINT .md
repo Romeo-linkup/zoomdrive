@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 5  (Driver sign-up and profile)
-LAST COMPLETED PHASE . 4
-LAST TASK DONE ....... P5.5
-NEXT ACTION .......... Romeo manual tests for Phase 3, 4 and 5, then Phase 6 task P6.1
+CURRENT PHASE ........ 6  (Provider sign-up, profile, documents)
+LAST COMPLETED PHASE . 5
+LAST TASK DONE ....... P6.3
+NEXT ACTION .......... Romeo manual tests for Phase 6, then Phase 7 task P7.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 1 Nov 2026 by Devin
@@ -656,10 +656,10 @@ Verification: `npm run check`; grep confirms every API call goes through `apiFet
 Manual test: sign up as a driver with and without a photo; log out and in; browse as a guest and tap Request to confirm the sign-up gate; try the provider number in the driver app and confirm the mismatch message.
 
 ### PHASE 6: Provider sign-up, profile, documents
-- [ ] P6.1 Welcome/Phone/OTP (provider branding), Type chooser (individual / company).
-- [ ] P6.2 Profile-setup with **required photo**, company fields, vehicle, base location, radius, services, consent.
-- [ ] P6.3 Documents page with per-document upload states and Submit for review (disabled until complete).
-- [ ] P6.4 Pending page (pending/rejected states); route guard sends unapproved providers only to onboarding/pending routes.
+- [x] P6.1 Welcome/Phone/OTP (provider branding), Type chooser (individual / company).
+- [x] P6.2 Profile-setup with **required photo**, company fields, vehicle, base location, radius, services, consent.
+- [x] P6.3 Documents page with per-document upload states and Submit for review (disabled until complete).
+- [x] P6.4 Pending page (pending/rejected states); route guard sends unapproved providers only to onboarding/pending routes.
 Verification: `npm run check`; attempt submit without photo shows `ZD-PROV-001` message in the UI.
 Manual test: register as an individual provider and as a company provider; try to submit without a photo (must be blocked); upload documents; confirm Pending screen.
 

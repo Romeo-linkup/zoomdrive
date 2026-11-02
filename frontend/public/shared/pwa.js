@@ -1,6 +1,6 @@
 // shared/pwa.js
 import { CONFIG } from './config.js';
-import { el } from './ui.js';
+import { clear, el } from './ui.js';
 
 let installPromptEvent = null;
 

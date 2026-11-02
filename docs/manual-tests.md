@@ -136,3 +136,15 @@ try { Api Post "/providers/me/online" $p @{ online=$true; lat=-29.86; lng=31.03 
 8. In Cloudinary the photo is under zoomdrive/development/photos; in Neon: select first_name, last_name, photo_url from users where phone = '+27820000021'; and select consent_at from driver_profiles for that user.
 9. 360px width in DevTools: no horizontal scroll on welcome, phone, otp, profile setup, home, account.
 
+## Phase 6
+1. Open /provider/: welcome with PARTNER badge. Sign up with 082 000 0031, enter the dev code: the type chooser opens. Choose Individual.
+2. Press Save without a photo: red 'A profile photo is required' and the circle turns red. Add a photo, leave names empty: field errors. Fill everything, press 'Use my current location' (allow it; or enter coordinates manually, for example -29.8587 and 31.0218), choose Flat tyre and Jump-start, tick consent, Save and continue: the documents page opens.
+3. Submit is disabled. Upload ID document, driver's licence and vehicle and insurance (a JPG or PDF each): rows show 'Uploaded ✓ (in review)', the checklist disappears, Submit enables. Submit: the pending screen 'Profile under review' opens.
+4. Reload: still on Pending. Log out and log in again with the same number: straight to Pending. Try opening #/documents manually: you are sent back to Pending.
+5. Neon: select verification_status, submitted_at from provider_profiles where user_id = (select id from users where phone = '+27820000031'); then select doc_type, status from provider_documents for that user (3 rows). Cloudinary: photo under zoomdrive/development/photos, documents under zoomdrive/development/documents.
+6. Rejected flow: in Neon run update provider_profiles set verification_status = 'rejected', rejection_reason = 'Photo is blurry' where user_id = (select id from users where phone = '+27820000031'); and update provider_documents set status = 'rejected', note = 'ID is unreadable' where doc_type = 'id_document' and provider_user_id = (select id from users where phone = '+27820000031'); then press Refresh status: red banner with the reason; 'Fix and resubmit' shows the ID row as 'Rejected: upload again' with the note; re-upload it, Submit: back to Pending.
+7. Approved flow: update provider_profiles set verification_status = 'approved' where user_id = (select id from users where phone = '+27820000031'); within 20 seconds (or after Refresh status) the app opens the 'You are approved' placeholder. Reload: still there; manually opening #/profile-setup bounces to home.
+8. Company: sign up 082 000 0032, choose Company: the form shows Company name and Registration number (required); the documents page lists FOUR rows including 'Company registration certificate'; Submit stays disabled until all four are uploaded.
+9. Role mismatch: in the provider app enter the driver number 082 000 0021: friendly card with an 'Open ZoomDrive' button.
+10. 360px width in DevTools: no horizontal scroll on welcome, type, profile, documents, pending.
+
