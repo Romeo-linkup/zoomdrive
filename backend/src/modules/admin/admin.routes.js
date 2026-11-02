@@ -14,6 +14,7 @@ const services = require('./adminServices.controller');
 const settings = require('./adminSettings.controller');
 const adminRequests = require('./adminRequests.controller');
 const adminPricing = require('./adminPricing.controller');
+const adminPayouts = require('./adminPayouts.controller');
 
 const router = express.Router();
 
@@ -27,6 +28,7 @@ const loginSchema = z.object({
 
 const userIdParams = z.object({ userId: z.coerce.number().int().positive() });
 const idParams = z.object({ id: z.coerce.number().int().positive() });
+const providerIdParams = z.object({ providerId: z.coerce.number().int().positive() });
 
 const providerListQuery = z.object({
   status: z.enum(['all', 'incomplete', 'pending', 'approved', 'rejected']).default('pending'),
@@ -46,9 +48,38 @@ const requestListQuery = z.object({
   q: search,
   page,
 });
+const payoutListQuery = z.object({
+  filter: z.enum(['all', 'owed', 'owing']).default('all'),
+  q: search,
+  page,
+});
+const payoutSchema = z.object({
+  amountCents: z.number().int().positive(),
+  method: z.enum(['eft', 'cash', 'other']),
+  reference: z.string().trim().min(3).max(60),
+  note: z.string().max(200).optional(),
+});
+const adjustmentSchema = z.object({
+  amountCents: z.number().int().min(-10000000).max(10000000).refine((value) => value !== 0),
+  note: z.string().trim().min(3).max(200),
+});
+function isIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+const payoutExportQuery = z.object({
+  from: z.string().refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  to: z.string().refine(isIsoDate, 'Enter a valid ISO date').optional(),
+});
 const assignSchema = z.object({ providerId: z.number().int().positive() });
 const adminCancelSchema = z.object({
   reason: z.string().trim().min(3, 'Give a short reason').max(200),
+});
+const markPaidSchema = z.object({
+  method: z.enum(['cash', 'eft']),
+  receivedBy: z.enum(['provider', 'platform']),
+  note: z.string().trim().min(3).max(200),
 });
 
 const rejectSchema = z.object({
@@ -139,6 +170,14 @@ router.get('/requests', validate(requestListQuery, 'query'), wrap(adminRequests.
 router.get('/requests/:id', validate(idParams, 'params'), wrap(adminRequests.getRequest));
 router.post('/requests/:id/assign', validate(idParams, 'params'), validate(assignSchema), wrap(adminRequests.assign));
 router.post('/requests/:id/cancel', validate(idParams, 'params'), validate(adminCancelSchema), wrap(adminRequests.cancel));
+router.post('/requests/:id/mark-paid', validate(idParams, 'params'), validate(markPaidSchema), wrap(adminRequests.markPaid));
+
+router.get('/payouts', validate(payoutListQuery, 'query'), wrap(adminPayouts.list));
+router.get('/payouts/export', validate(payoutExportQuery, 'query'), wrap(adminPayouts.exportCsv));
+router.get('/payouts/:providerId/bank-details', validate(providerIdParams, 'params'), wrap(adminPayouts.revealBank));
+router.get('/payouts/:providerId', validate(providerIdParams, 'params'), wrap(adminPayouts.detail));
+router.post('/payouts/:providerId', validate(providerIdParams, 'params'), validate(payoutSchema), wrap(adminPayouts.createPayout));
+router.post('/payouts/:providerId/adjustment', validate(providerIdParams, 'params'), validate(adjustmentSchema), wrap(adminPayouts.createAdjustment));
 
 router.get('/settings', wrap(settings.getSettings));
 router.put('/settings', validate(settingsSchema), wrap(settings.updateSettings));

@@ -27,6 +27,10 @@ const createSchema = quoteSchema.extend({
 });
 
 const cancelSchema = z.object({ reason: optText(200) });
+const offlinePaymentSchema = z.object({
+  method: z.enum(['cash', 'eft']),
+  note: z.string().trim().max(200).optional(),
+});
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1) });
 
@@ -44,5 +48,12 @@ router.post('/:id/accept', requireRole('provider'), wrap(requireApproved), valid
 router.post('/:id/decline', requireRole('provider'), wrap(requireApproved), validate(idParams, 'params'), wrap(ctl.decline));
 router.post('/:id/arrived', requireRole('provider'), validate(idParams, 'params'), wrap(ctl.arrived));
 router.post('/:id/complete', requireRole('provider'), validate(idParams, 'params'), wrap(ctl.complete));
+router.post(
+  '/:id/record-payment',
+  requireRole('provider'),
+  validate(idParams, 'params'),
+  validate(offlinePaymentSchema),
+  wrap(ctl.recordPayment)
+);
 
 module.exports = router;

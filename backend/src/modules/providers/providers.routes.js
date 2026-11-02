@@ -1,9 +1,11 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const auth = require('../../middleware/auth');
 const requireRole = require('../../middleware/requireRole');
 const requireApproved = require('../../middleware/requireApproved');
 const validate = require('../../middleware/validate');
+const ApiError = require('../../lib/ApiError');
 const { documentUpload } = require('../../middleware/upload');
 const wrap = require('../../lib/asyncHandler');
 const providers = require('./providers.controller');
@@ -11,6 +13,8 @@ const docs = require('./documents.controller');
 const orgs = require('./organisations.controller');
 const jobs = require('./jobs.controller');
 const registrationFee = require('./registrationFee.controller');
+const earnings = require('./earnings.controller');
+const bankDetails = require('./bankDetails.controller');
 
 const router = express.Router();
 
@@ -58,6 +62,27 @@ const heartbeatSchema = z.object({
 const registrationVerifySchema = z.object({
   reference: z.string().trim().min(5).max(100),
 });
+const bankDetailsSchema = z.object({
+  accountHolder: z.string().trim().min(2).max(80),
+  bankName: z.string().trim().min(2).max(60),
+  accountType: z.enum(['cheque', 'savings', 'transmission']),
+  branchCode: z.string().regex(/^\d{6}$/, 'Enter a 6-digit branch code'),
+  accountNumber: z.preprocess(
+    (value) => typeof value === 'string' ? value.replace(/[ -]/g, '') : value,
+    z.string().regex(/^\d{6,16}$/, 'Enter an account number with 6 to 16 digits')
+  ),
+});
+
+const bankDetailsWriteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `provider:${req.user.id}`,
+  handler: (req, res, next) => next(new ApiError('ZD-AUTH-003', {
+    message: 'Too many bank detail changes. Try again later.',
+  })),
+});
 
 router.use(auth, requireRole('provider'));
 
@@ -71,6 +96,9 @@ router.post('/me/submit', wrap(providers.submit));
 router.get('/me/registration-fee', wrap(registrationFee.status));
 router.post('/me/registration-fee/pay', wrap(registrationFee.pay));
 router.post('/me/registration-fee/verify', validate(registrationVerifySchema), wrap(registrationFee.verify));
+router.get('/me/earnings', wrap(earnings.earnings));
+router.get('/me/bank-details', wrap(bankDetails.get));
+router.put('/me/bank-details', bankDetailsWriteLimiter, validate(bankDetailsSchema), wrap(bankDetails.put));
 
 router.post('/me/online', wrap(requireApproved), validate(onlineSchema), wrap(jobs.online));
 router.post('/me/heartbeat', wrap(requireApproved), validate(heartbeatSchema), wrap(jobs.heartbeat));

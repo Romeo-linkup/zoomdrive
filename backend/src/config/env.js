@@ -26,6 +26,7 @@ const env = Object.freeze({
   PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY || null,
   PAYSTACK_PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY || null,
   PAYSTACK_FALLBACK_EMAIL_DOMAIN: process.env.PAYSTACK_FALLBACK_EMAIL_DOMAIN || null,
+  DATA_ENCRYPTION_KEY: process.env.DATA_ENCRYPTION_KEY || null,
   EMAIL_DRIVER: process.env.EMAIL_DRIVER || 'console',
   EMAIL_FROM: process.env.EMAIL_FROM || null,
   SMTP_HOST: process.env.SMTP_HOST || null,
@@ -51,6 +52,14 @@ function validateEnv() {
     problems.push({ name: 'JWT_SECRET', problem: 'missing' });
   } else if (env.JWT_SECRET.length < 32) {
     problems.push({ name: 'JWT_SECRET', problem: 'too short (min 32)' });
+  }
+
+  if (!env.DATA_ENCRYPTION_KEY) {
+    problems.push({ name: 'DATA_ENCRYPTION_KEY', problem: 'missing' });
+  } else if (!/^(?:[A-Za-z0-9+/]{4}){10}[A-Za-z0-9+/]{3}=$/.test(env.DATA_ENCRYPTION_KEY)
+      || Buffer.from(env.DATA_ENCRYPTION_KEY, 'base64').length !== 32
+      || Buffer.from(env.DATA_ENCRYPTION_KEY, 'base64').toString('base64') !== env.DATA_ENCRYPTION_KEY) {
+    problems.push({ name: 'DATA_ENCRYPTION_KEY', problem: 'must be base64 encoding of exactly 32 bytes' });
   }
 
   if (env.FRONTEND_ORIGINS.length === 0) {

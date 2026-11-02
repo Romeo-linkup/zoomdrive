@@ -1,4 +1,5 @@
 const requests = require('./requests.service');
+const ridePayments = require('../payments/ridePayments.service');
 
 async function quote(req, res) {
   res.ok(await requests.quote(req.body));
@@ -80,4 +81,16 @@ async function complete(req, res) {
   res.ok({ request: result.request });
 }
 
-module.exports = { quote, create, listMine, getOne, cancel, accept, decline, arrived, complete };
+async function recordPayment(req, res) {
+  const result = await ridePayments.recordOffline({
+    requestId: Number(req.params.id),
+    method: req.body.method,
+    actor: { role: 'provider', id: req.user.id },
+    note: req.body.note,
+    requestIdHeader: req.id,
+    ip: req.ip,
+  });
+  res.ok(result);
+}
+
+module.exports = { quote, create, listMine, getOne, cancel, accept, decline, arrived, complete, recordPayment };

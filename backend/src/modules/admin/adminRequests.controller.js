@@ -3,6 +3,7 @@ const ApiError = require('../../lib/ApiError');
 const geo = require('../../lib/geo');
 const dispatch = require('../dispatch/dispatch.service');
 const requests = require('../requests/requests.service');
+const ridePayments = require('../payments/ridePayments.service');
 
 async function listRequests(req, res) {
   const { status, q, page } = req.validated;
@@ -205,4 +206,17 @@ async function cancel(req, res) {
   res.ok({ request: detail.request });
 }
 
-module.exports = { listRequests, getRequest, assign, cancel };
+async function markPaid(req, res) {
+  const result = await ridePayments.recordOffline({
+    requestId: Number(req.params.id),
+    method: req.body.method,
+    actor: { role: 'admin', id: req.admin.id },
+    receivedBy: req.body.receivedBy,
+    note: req.body.note,
+    requestIdHeader: req.id,
+    ip: req.ip,
+  });
+  res.ok(result);
+}
+
+module.exports = { listRequests, getRequest, assign, cancel, markPaid };

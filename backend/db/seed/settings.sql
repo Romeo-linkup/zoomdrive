@@ -13,5 +13,7 @@ INSERT INTO app_settings (key, value) VALUES
   ('driver_plus_monthly_cents', '0'),
   ('driver_plus_trial_days', '0'),
   ('driver_plus_enabled', 'false'),
-  ('driver_plus_extra_offers', '0')
+  ('driver_plus_extra_offers', '0'),
+  ('cash_payments_enabled', 'true'),
+  ('block_new_requests_when_unpaid', 'true')
 ON CONFLICT (key) DO NOTHING;

@@ -7,6 +7,8 @@ const stateMachine = require('./stateMachine');
 const { loadSettings, findCandidates, createOffers } = require('../dispatch/dispatch.service');
 const { isPlusActive } = require('../plus/plus.service');
 const pricingPolicy = require('../admin/pricingPolicy');
+const paystack = require('../payments/paystack.service');
+const ridePayments = require('../payments/ridePayments.service');
 
 function queryWith(client, text, params) {
   return client ? client.query(text, params) : query(text, params);
@@ -153,6 +155,7 @@ async function buildView(requestRow, viewerRole, client = null) {
     etaMinutes,
     provider,
     driver,
+    payment: await ridePayments.getPaymentView(row.id, client || undefined),
   };
 }
 
@@ -189,6 +192,38 @@ async function createRequest({ driverId, body, requestId, ip }) {
   if (!profile || !profile.first_name || !String(profile.first_name).trim() ||
       !profile.last_name || !String(profile.last_name).trim() || !profile.consent_at) {
     throw new ApiError('ZD-USR-001', { message: 'Complete your profile to request help' });
+  }
+
+  if (paystack.isConfigured()) {
+    const settingResult = await query(
+      'SELECT value FROM app_settings WHERE key = $1',
+      ['block_new_requests_when_unpaid']
+    );
+    if (!settingResult.rows[0] || !['true', 'false'].includes(String(settingResult.rows[0].value).toLowerCase())) {
+      throw new ApiError('ZD-SYS-001', { message: 'The unpaid-request setting is missing or invalid' });
+    }
+    if (String(settingResult.rows[0].value).toLowerCase() === 'true') {
+      const unpaidResult = await query(
+        `SELECT r.id, r.total_cents
+         FROM requests r
+         JOIN payments p ON p.request_id = r.id
+         WHERE r.driver_id = $1
+           AND r.status = 'completed'
+           AND p.status = 'pending'
+         ORDER BY r.completed_at DESC
+         LIMIT 1`,
+        [driverId]
+      );
+      if (unpaidResult.rows[0]) {
+        throw new ApiError('ZD-PAY-006', {
+          message: 'Please pay for your last job before requesting help again',
+          details: {
+            requestId: unpaidResult.rows[0].id,
+            totalCents: Number(unpaidResult.rows[0].total_cents),
+          },
+        });
+      }
+    }
   }
 
   const computed = await computeForRequest({
@@ -292,9 +327,11 @@ async function listDriverRequests({ driverId, page = 1 }) {
   const [listResult, countResult] = await Promise.all([
     query(
       `SELECT r.id, r.status, s.name AS service_name, s.icon AS service_icon,
-              r.total_cents, r.address_text, r.created_at, r.completed_at
+              r.total_cents, r.address_text, r.created_at, r.completed_at,
+              p.status AS payment_status
        FROM requests r
        JOIN services s ON s.id = r.service_id
+       LEFT JOIN payments p ON p.request_id = r.id
        WHERE r.driver_id = $1
        ORDER BY r.created_at DESC
        LIMIT $2 OFFSET $3`,
@@ -311,6 +348,7 @@ async function listDriverRequests({ driverId, page = 1 }) {
       addressText: row.address_text,
       createdAt: row.created_at,
       completedAt: row.completed_at,
+      paymentStatus: row.payment_status || null,
     })),
     page,
     pageSize,
@@ -435,7 +473,7 @@ async function transitionProviderRequest({ providerId, requestId, requestIdHeade
         'UPDATE provider_profiles SET jobs_completed = jobs_completed + 1 WHERE user_id = $1',
         [providerId]
       );
-      // Provider ledger entries are added in Phase 11.
+      // Earnings are credited only when the ride payment is settled in ridePayments.service.
     }
 
     await writeAudit({
