@@ -1,5 +1,5 @@
 // driver/pages/account.js
-import { el, modal, toast } from '../../shared/ui.js';
+import { el, modal } from '../../shared/ui.js';
 import { isAuthed, getUser, logout } from '../../shared/auth.js';
 import { goToLogin } from '../../shared/router.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
@@ -44,27 +44,29 @@ export default (ctx) => {
     screen.appendChild(header);
 
     const verifyBanner = el('div', { class: 'banner warn' });
-    verifyBanner.appendChild(el('span', {}, 'Verify your identity'));
+    verifyBanner.appendChild(el('span', {}, 'Verify your identity · Soon'));
     screen.appendChild(verifyBanner);
 
     const actions = [
       { label: 'Profile', path: '/profile-setup' },
-      { label: 'Payment', handler: () => toast('Coming soon') },
-      { label: 'Saved places', handler: () => toast('Coming soon') },
-      { label: 'Support', handler: () => toast('Coming soon') },
-      { label: 'Safety', handler: () => toast('Coming soon') },
-      { label: 'Settings', handler: () => toast('Coming soon') },
-      { label: 'Promotions', handler: () => toast('Coming soon') },
+      { label: 'Payment', path: '/payment' },
+      { label: 'Saved places', path: '/saved-places' },
+      { label: 'Support', path: '/support' },
+      { label: 'Safety', path: '/safety' },
+      { label: 'Settings', path: '/settings' },
+      { label: 'Promotions', placeholder: true },
+      { label: 'Fleet Profile', placeholder: true },
     ];
 
     actions.forEach((a) => {
-      const item = el('button', { class: 'item', type: 'button' });
+      const item = a.placeholder
+        ? el('div', { class: 'item' })
+        : el('button', { class: 'item', type: 'button' });
       item.appendChild(el('div', { class: 'ic' }, '→'));
       item.appendChild(el('div', { class: 't' }, a.label));
+      if (a.placeholder) item.appendChild(el('span', { class: 'badge off' }, 'Soon'));
       if (a.path) {
         item.addEventListener('click', () => ctx.navigate(a.path));
-      } else if (a.handler) {
-        item.addEventListener('click', a.handler);
       }
       screen.appendChild(item);
     });

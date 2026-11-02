@@ -137,3 +137,48 @@ button{font-family:inherit;cursor:pointer}
 .empty .ico{font-size:44px;display:block;margin-bottom:8px}
 .avatar-lg{width:84px;height:84px;font-size:28px}
 .link-btn{background:none;border:0;color:var(--blue);font-weight:700;font-size:14px;padding:0 4px}
+
+/* P9 map and loading states */
+.zd-map{height:230px;border-radius:var(--r-lg);overflow:hidden;position:relative;z-index:1;background:var(--soft)}
+.zd-map .leaflet-pane,.zd-map .leaflet-top,.zd-map .leaflet-bottom{z-index:1}
+.zd-pin{background:transparent;border:0}
+.zd-pin span{display:flex;align-items:center;justify-content:center;width:34px;height:38px;font-size:28px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+.zd-skeleton{min-height:84px;border-radius:18px;background:linear-gradient(90deg,var(--soft) 25%,#e9ebef 50%,var(--soft) 75%);background-size:200% 100%;animation:zd-shimmer 1.4s infinite}
+.zd-map-fallback{min-height:230px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:8px}
+@keyframes zd-shimmer{to{background-position:-200% 0}}
+
+/* P9 request status and activity */
+.zd-search-pulse{width:24px;height:24px;border-radius:50%;background:var(--am);margin:14px auto;animation:zd-pulse 1.4s ease-in-out infinite}
+@keyframes zd-pulse{50%{transform:scale(1.45);opacity:.45}}
+.searching-card{text-align:center}
+.countdown-label{font-size:13px;color:var(--mu);margin-top:20px}
+.countdown{font-variant-numeric:tabular-nums}
+.connection-banner{font-size:13px;padding:8px 12px}
+.track-actions{display:flex;gap:8px;flex-wrap:wrap}
+.track-actions .btn{flex:1;min-width:110px}
+.provider-card .pr{align-items:flex-start}
+.provider-photo{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.av.has-photo{overflow:hidden;padding:0}
+.provider-info{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.activity-section{margin:18px 0}
+.activity-section h2{margin-bottom:8px}
+.request-row-detail{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.request-row-detail small{font-size:12px;color:var(--mu)}
+.upcoming-empty{padding:18px 12px}
+.request-detail-skeleton{min-height:110px}
+.rating-stars{display:flex;justify-content:center;gap:8px;margin:18px 0}
+.rating-star{min-width:44px;min-height:44px;border:0;border-radius:12px;background:var(--soft);color:var(--mu);font-size:28px}
+.rating-star.selected{background:var(--am);color:var(--tx)}
+
+/* P9 account pages */
+.saved-place-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.saved-place-info{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.saved-place-info small{color:var(--mu);overflow-wrap:anywhere}
+.saved-place-row .btn{width:auto;margin:0;padding:10px 14px}
+.faq-item{padding:14px 0;border-bottom:1px solid var(--line)}
+.faq-item summary{font-weight:700;cursor:pointer;min-height:44px;display:flex;align-items:center}
+.faq-item p{color:var(--mu);margin:8px 0 0}
+.contact-support{color:inherit;text-decoration:none}
+.settings-section{margin:18px 0}
+.settings-notification{gap:10px}
+.settings-notification input{width:24px;height:24px;accent-color:var(--am)}

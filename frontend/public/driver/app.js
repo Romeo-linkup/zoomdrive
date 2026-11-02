@@ -1,13 +1,11 @@
 // driver/app.js
-import { APP_ID, CONFIG } from '../shared/config.js';
-import { initErrors, showError } from '../shared/errors.js';
-import { registerServiceWorker, initInstallPrompt, createInstallControl, initOfflineNotice } from '../shared/pwa.js';
+import { APP_ID } from '../shared/config.js';
+import { initErrors } from '../shared/errors.js';
+import { registerServiceWorker, initInstallPrompt, initOfflineNotice } from '../shared/pwa.js';
 import { isAuthed, refreshMe, getSession } from '../shared/auth.js';
-import { apiFetch } from '../shared/api.js';
 import { createRouter } from '../shared/router.js';
-import { createBrandBar, createTopbar } from '../shared/components/topbar.js';
 import { createBottomNav } from '../shared/components/bottom-nav.js';
-import { el, clear } from '../shared/ui.js';
+import { clear } from '../shared/ui.js';
 
 initErrors();
 registerServiceWorker(APP_ID);
@@ -29,6 +27,7 @@ const navItems = [
   { path: '/activity', label: 'Activity', icon: '📋' },
   { path: '/account', label: 'Account', icon: '👤' },
 ];
+const navRoot = document.getElementById('nav-root');
 
 const router = createRouter({
   routes: {
@@ -49,6 +48,8 @@ const router = createRouter({
       path: '/profile-setup',
       load: () => import('./pages/profileSetup.js'),
       auth: true,
+      nav: true,
+      navPath: '/account',
     },
     '/home': {
       path: '/home',
@@ -65,25 +66,62 @@ const router = createRouter({
       load: () => import('./pages/account.js'),
       nav: true,
     },
+    '/saved-places': {
+      path: '/saved-places',
+      load: () => import('./pages/savedPlaces.js'),
+      auth: true,
+      nav: true,
+      navPath: '/account',
+    },
+    '/payment': {
+      path: '/payment',
+      load: () => import('./pages/paymentMethods.js'),
+      auth: true,
+      nav: true,
+      navPath: '/account',
+    },
+    '/safety': {
+      path: '/safety',
+      load: () => import('./pages/safety.js'),
+      nav: true,
+      navPath: '/account',
+    },
+    '/support': {
+      path: '/support',
+      load: () => import('./pages/support.js'),
+      nav: true,
+      navPath: '/account',
+    },
+    '/settings': {
+      path: '/settings',
+      load: () => import('./pages/settings.js'),
+      auth: true,
+      nav: true,
+      navPath: '/account',
+    },
     '/request': {
       path: '/request',
-      auth: true,
       needsProfile: true,
       nav: false,
-      render: () => {
-        const screen = el('div', { class: 'screen' });
-        screen.appendChild(createTopbar({
-          title: 'Request help',
-          onBack: () => router.navigate('/home'),
-        }));
-        const card = el('div', { class: 'card' });
-        card.appendChild(el('h2', {}, 'Requesting help arrives in a later update (Phase 9).'));
-        const backBtn = el('button', { class: 'btn soft', type: 'button' }, 'Back to home');
-        backBtn.addEventListener('click', () => router.navigate('/home'));
-        card.appendChild(backBtn);
-        screen.appendChild(card);
-        return screen;
-      },
+      load: () => import('./pages/request.js'),
+    },
+    '/searching/:id': {
+      path: '/searching/:id',
+      load: () => import('./pages/searching.js'),
+      auth: true,
+      nav: false,
+    },
+    '/track/:id': {
+      path: '/track/:id',
+      load: () => import('./pages/track.js'),
+      auth: true,
+      nav: false,
+    },
+    '/rate/:id': {
+      path: '/rate/:id',
+      load: () => import('./pages/rate.js'),
+      auth: true,
+      nav: false,
     },
   },
   defaultRoute: '/welcome',
@@ -107,8 +145,8 @@ const router = createRouter({
   },
   renderNav(route, ctx) {
     if (route.nav) {
-      clear(this.navRoot);
-      this.navRoot.appendChild(createBottomNav({ items: navItems, current: ctx.path }));
+      clear(navRoot);
+      navRoot.appendChild(createBottomNav({ items: navItems, current: route.navPath || ctx.path }));
     }
   },
 });

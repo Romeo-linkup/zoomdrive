@@ -10,6 +10,7 @@ const apiOrigin = IS_LOCAL ? 'http://localhost:4000' : IS_LAN ? `http://${host}:
 
 // Which app is running: set on <body data-app="driver|provider|admin"> in each index.html.
 export const APP_ID = (document.body && document.body.dataset.app) || 'landing';
+export const SUPPORT_EMAIL = 'support@zoomdrive.co.za'; // Placeholder until the domain is confirmed.
 
 export const CONFIG = Object.freeze({
   APP_VERSION: '0.4.0',
