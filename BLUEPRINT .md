@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 9  (Driver request flow)
-LAST COMPLETED PHASE . 8
-LAST TASK DONE ....... P9.4 (cancel flow and expired/no-providers states)
-NEXT ACTION .......... Romeo manual tests for Phase 9, then Phase 10 task P10.1
+CURRENT PHASE ........ 10  (Pricing governance and provider charges)
+LAST COMPLETED PHASE . 9
+LAST TASK DONE ....... P10.12
+NEXT ACTION .......... Romeo manual tests for Phase 9 and Phase 10, then Phase 11 task P11.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 2 Nov 2026
@@ -65,7 +65,7 @@ LAST UPDATED ......... 2 Nov 2026
 - Providers register as an **individual** or under a **company/organisation**. Profile photo is **compulsory** for providers. Documents are compulsory. Providers are `pending` until an admin approves them. Only `approved` providers can go online and receive jobs.
 - To make a request, a driver must have signed up and have a profile. A driver can browse the whole driver app as a guest first; any request action sends them to sign-up.
 - Signup and profile creation flow like Uber/Bolt: phone number, 4-digit code (OTP), then profile details.
-- Fair price for both sides: admin-controlled price bands, fixed price shown before confirming, never changes afterwards. Platform commission default 12% taken from the provider side.
+- Fair price for both sides: admin-controlled price bands, fixed price shown before confirming, never changes afterwards. Platform commission default 15% taken from the provider side; sensitive pricing changes require an emailed admin challenge.
 - Theme: white, modern, amber accent (`#FFB400`), black buttons. Mobile-first PWA that also works on desktop.
 - The marketplace starts narrow: one pilot city, vetted providers, manual dispatch fallback. Later: partners/corporate/fleet, wider accessories, WhatsApp requests, staff accounts under companies.
 - Validation first: Romeo is running driver/provider interviews and a manual pilot. The app is built so the pilot can run with admin-assisted dispatch from day one.
@@ -194,7 +194,9 @@ zoomdrive/
 │  │  │  ├─ 005_requests_offers.sql           (phase 1)
 │  │  │  ├─ 006_payments_ledger_payouts.sql   (phase 1)
 │  │  │  ├─ 007_ratings_notifications.sql     (phase 1)
-│  │  │  └─ 008_admin_audit.sql               (phase 1)
+│  │  │  ├─ 008_admin_audit.sql               (phase 1)
+│  │  │  ├─ 009_provider_active_job.sql       (phase 8)
+│  │  │  └─ 010_pricing_governance_charges.sql (phase 10; read-only once present)
 │  │  └─ seed/
 │  │     ├─ services.sql                      (phase 1)
 │  │     └─ settings.sql                      (phase 1)
@@ -207,6 +209,7 @@ zoomdrive/
 │     │  ├─ ApiError.js                 (phase 0)
 │     │  ├─ errors.js                   (phase 0)  error code registry
 │     │  ├─ logger.js                   (phase 0)
+│     │  ├─ mailer.js                   (phase 10) development console / SMTP email
 │     │  ├─ money.js                    (phase 8)
 │     │  ├─ geo.js                      (phase 8)  haversine, bounding box
 │     │  ├─ pricing.js                  (phase 8)
@@ -228,15 +231,16 @@ zoomdrive/
 │        ├─ auth/          auth.routes.js, auth.controller.js, auth.service.js, otp.service.js, otp.drivers/console.js, otp.drivers/bulksms.js   (phase 2)
 │        ├─ users/         users.routes.js, users.controller.js           (phase 3)
 │        ├─ drivers/       drivers.routes.js, drivers.controller.js, savedPlaces.controller.js   (phase 3)
-│        ├─ providers/     providers.routes.js, providers.controller.js, documents.controller.js, organisations.controller.js   (phase 3)
+│        ├─ providers/     providers.routes.js, providers.controller.js, documents.controller.js, organisations.controller.js, registrationFee.controller.js   (phase 3, extended 10)
 │        ├─ uploads/       cloudinary.service.js                          (phase 3)
 │        ├─ services/      services.routes.js, services.controller.js     (phase 7)
 │        ├─ requests/      requests.routes.js, requests.controller.js, requests.service.js, stateMachine.js   (phase 8)
 │        ├─ dispatch/      dispatch.service.js, expiry.job.js             (phase 8)
-│        ├─ payments/      payments.routes.js, payments.controller.js, ledger.service.js, paystack.service.js   (phase 11)
+│        ├─ payments/      payments.routes.js, payments.controller.js, charges.service.js, ledger.service.js, paystack.service.js   (phase 10, extended 11)
+│        ├─ plus/          plus.service.js, plus.controller.js                            (phase 10)
 │        ├─ ratings/       ratings.routes.js, ratings.controller.js       (phase 12)
 │        ├─ notifications/ notifications.routes.js, notifications.service.js   (phase 12)
-│        └─ admin/         admin.routes.js, adminAuth.controller.js, providersReview.controller.js, adminUsers.controller.js, adminRequests.controller.js, adminServices.controller.js, adminSettings.controller.js, adminPayouts.controller.js, adminAudit.controller.js   (phase 7, extended 11-12)
+│        └─ admin/         admin.routes.js, adminAuth.controller.js, providersReview.controller.js, adminUsers.controller.js, adminRequests.controller.js, adminServices.controller.js, adminSettings.controller.js, pricingPolicy.js, adminPricing.controller.js, adminPayouts.controller.js, adminAudit.controller.js   (phase 7, extended 10-12)
 ├─ frontend/
 │  ├─ package.json                      (phase 4)  devDependencies: sharp
 │  ├─ vercel.json                       (phase 4)  headers (sw no-cache), no rewrites needed
@@ -264,14 +268,15 @@ zoomdrive/
 │     │  ├─ icons/ icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon-180.png   (phase 4)
 │     │  └─ pages/ welcome.js, phone.js, otp.js, profileSetup.js            (phase 5)
 │     │          home.js, request.js, searching.js, track.js, rate.js, activity.js, account.js, savedPlaces.js, paymentMethods.js, safety.js, support.js, settings.js   (phase 9)
+│     │          plus.js   (phase 10)
 │     ├─ provider/
-│     │  ├─ index.html, app.js, manifest.webmanifest, sw.js                  (phase 4)
+│     │  ├─ index.html, app.js, heartbeat.js, manifest.webmanifest, sw.js    (phase 4, extended 10)
 │     │  ├─ icons/ (same four PNGs, partner artwork)                         (phase 4)
 │     │  └─ pages/ welcome.js, phone.js, otp.js, providerType.js, profileSetup.js, documents.js, pending.js   (phase 6)
-│     │          home.js, job.js, earnings.js, inbox.js, menu.js, services.js, vehicle.js, payouts.js   (phase 10)
+│     │          home.js, job.js, earnings.js, inbox.js, menu.js, services.js, vehicle.js, payouts.js, registrationFee.js   (phase 10)
 │     └─ admin/
 │        ├─ index.html, app.js, login.js                                      (phase 7)
-│        └─ pages/ overview.js, providers.js, providerDetail.js, users.js, requests.js, services.js, settings.js   (phase 7)
+│        └─ pages/ overview.js, providers.js, providerDetail.js, users.js, requests.js, services.js, settings.js, pricing.js   (phase 7, extended 10)
 │                  payouts.js, audit.js                                       (phase 11-12)
 └─ docs/
    └─ manual-tests.md                   (phase 0)  Romeo's checklists, appended each phase
@@ -296,7 +301,13 @@ Real values only in Render's dashboard and a local git-ignored `backend/.env`. `
 | `OTP_DEV_ECHO` | no | `true` returns the code in the API response (development only; boot refuses `true` in production) |
 | `SMS_API_KEY`, `SMS_API_SECRET`, `SMS_SENDER_ID` | when `OTP_DRIVER=bulksms` | SMS provider |
 | `SIGNUP_ENABLED` | no | `true`/`false` kill-switch for new signups |
-| `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` | from phase 11 | card payments |
+| `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` | from phase 10 | platform charges and card payments |
+| `PAYSTACK_FALLBACK_EMAIL_DOMAIN` | when Paystack is configured | valid domain used for accounts without an email |
+| `EMAIL_DRIVER` | yes | `console` in development only or `smtp` for email delivery |
+| `EMAIL_FROM` | when `EMAIL_DRIVER=smtp` | verified sender address |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | when `EMAIL_DRIVER=smtp` | SMTP connection |
+| `EMAIL_FALLBACK_DOMAIN` | no | domain used only when an admin email has no domain |
+| `PRICING_CHANGE_COOLDOWN_HOURS` | no | default 720 (30 days); integer 1–720 hours between applied pricing changes |
 | `APP_VERSION` | no | shown in `/health` and error details |
 
 Frontend has no secrets. `shared/config.js` holds `API_BASE` (production URL, with a development branch for localhost).
@@ -315,7 +326,7 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **organisations** `id, name, reg_number, status CHECK(pending|approved|rejected|suspended), owner_user_id→users, created_at`
 
-**provider_profiles** `user_id PK→users, provider_type CHECK(individual|company), organisation_id→organisations null, vehicle_description, plate, base_lat, base_lng, service_radius_km default 25, verification_status CHECK(pending|approved|rejected) default pending, rejection_reason, is_online bool default false, last_lat, last_lng, last_seen_at, rating_avg numeric(3,2) default 0, rating_count int default 0, jobs_completed int default 0, submitted_at, approved_at, approved_by→admin_users, consent_at, created_at`
+**provider_profiles** `user_id PK→users, provider_type CHECK(individual|company), organisation_id→organisations null, vehicle_description, plate, base_lat, base_lng, service_radius_km default 25, verification_status CHECK(pending|approved|rejected) default pending, rejection_reason, is_online bool default false, last_lat, last_lng, last_seen_at, rating_avg numeric(3,2) default 0, rating_count int default 0, jobs_completed int default 0, submitted_at, approved_at, approved_by→admin_users, consent_at, registration_paid_at, registration_waived bool default false, registration_charge_id→platform_charges null, created_at`
 
 **provider_documents** `id, provider_user_id→users, doc_type CHECK(id_document|drivers_licence|vehicle_insurance|company_registration), file_url, cloudinary_public_id, status CHECK(pending|approved|rejected) default pending, note, uploaded_at, reviewed_at, reviewed_by`
 
@@ -341,7 +352,15 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **admin_users** `id, email UNIQUE, password_hash, name, created_at, last_login_at`
 
-**app_settings** `key PK, value, updated_at, updated_by` seeded with: `commission_pct=12`, `road_factor=1.3`, `avg_speed_kmh=40`, `offer_radius_km=25`, `max_offers_per_request=5`, `request_expiry_seconds=180`, `provider_stale_seconds=120`, `cancel_fee_cents=0`
+**app_settings** `key PK, value, updated_at, updated_by` seeded with: `commission_pct=15`, `road_factor=1.3`, `avg_speed_kmh=40`, `offer_radius_km=25`, `max_offers_per_request=5`, `request_expiry_seconds=180`, `provider_stale_seconds=120`, `cancel_fee_cents=0`, `provider_registration_fee_cents=15000`, `provider_registration_fee_enabled=false`, `provider_registration_waiver_enabled=true`, `driver_plus_monthly_cents=2900`, `driver_plus_trial_days=90`, `driver_plus_enabled=false`, `driver_plus_extra_offers=0`. Pricing settings are changed only through the verified pricing workflow, not generic settings writes.
+
+**admin_change_challenges** `id uuid, admin_id→admin_users, code_hash, expires_at, attempts, verified_at, consumed_at, created_at`; codes are stored only as keyed hashes and can be verified/applied once.
+
+**pricing_change_log** `id, admin_id→admin_users, challenge_id→admin_change_challenges, changes jsonb, created_at`; append-only record of each applied change and its before/after values.
+
+**platform_charges** `id, user_id→users, purpose CHECK(provider_registration|driver_plus), amount_cents, status CHECK(pending|paid|failed|abandoned), paystack_ref UNIQUE, paid_at, meta jsonb, created_at`.
+
+**driver_memberships** `user_id PK→users, plan CHECK(plus), started_at, trial_ends_at, paid_until, created_at`. Provider registration payment/waiver timestamps and charge link are stored on `provider_profiles`.
 
 **audit_log** `id, actor_type CHECK(user|admin|system), actor_id, action, entity, entity_id, meta jsonb, request_id, ip, created_at`
 
@@ -373,12 +392,18 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | PUT | `/drivers/me` | driver | create/update driver profile (name, vehicle, consent) |
 | POST | `/users/me/photo` | any | upload profile photo (multipart, field `photo`) |
 | GET/POST/DELETE | `/drivers/me/saved-places` | driver | saved places |
+| GET | `/drivers/me/plus` | driver | Driver Plus status |
+| POST | `/drivers/me/plus/join` | driver | join Plus and start any configured trial |
+| POST | `/drivers/me/plus/pay` | driver | initialize a Plus membership payment |
 | PUT | `/providers/me` | provider | profile (name, type, vehicle, base location, radius) |
 | PUT | `/providers/me/organisation` | provider | company name + reg number (company type only) |
 | PUT | `/providers/me/services` | provider | `{serviceIds:[]}` |
 | POST | `/providers/me/documents` | provider | upload one document (`doc_type`, file) |
 | GET | `/providers/me/documents` | provider | list own documents + status |
 | POST | `/providers/me/submit` | provider | submit for review; fails if photo/docs/services missing |
+| GET | `/providers/me/registration-fee` | provider | one-time registration-fee state |
+| POST | `/providers/me/registration-fee/pay` | provider | initialize registration-fee payment |
+| POST | `/providers/me/registration-fee/verify` | provider | verify and settle own registration-fee charge |
 | POST | `/providers/me/online` | provider (approved) | `{online:boolean, lat, lng}` |
 | POST | `/providers/me/heartbeat` | provider (approved) | `{lat, lng}` |
 | GET | `/providers/me/offers` | provider (approved) | open offers |
@@ -404,11 +429,16 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | GET | `/admin/providers/:userId` | admin | profile + documents (signed URLs) |
 | POST | `/admin/providers/:userId/approve` | admin | approve |
 | POST | `/admin/providers/:userId/reject` | admin | `{reason}` |
+| POST | `/admin/providers/:userId/waive-registration` | admin | waive provider registration fee |
 | POST | `/admin/documents/:id/review` | admin | `{status, note}` |
 | GET | `/admin/users`, `/admin/requests` | admin | lists with filters |
 | POST | `/admin/requests/:id/assign` | admin | manual dispatch `{providerId}` |
 | PUT | `/admin/services/:id` | admin | price/active edits |
 | GET/PUT | `/admin/settings` | admin | commission, radius, expiry etc. |
+| GET | `/admin/pricing` | admin | protected pricing values, last change and next eligible change |
+| POST | `/admin/pricing/challenge` | admin | `{password}`; emails a one-time verification code |
+| POST | `/admin/pricing/verify` | admin | `{challengeId, code}`; verifies the email challenge |
+| POST | `/admin/pricing/apply` | admin | `{challengeId, changes}`; atomically applies allowed changes |
 | GET/POST | `/admin/payouts` | admin | provider balances, record payout |
 | GET | `/admin/audit` | admin | audit log with filters |
 
@@ -460,6 +490,17 @@ Guests can open Home, service tiles, prices, Activity (empty), Account (sign-in 
 ### 9.8 Privacy (POPIA)
 Consent checkbox at profile creation (privacy policy + terms, timestamped). Collect only what is needed. Provide account deletion on request (admin tool in phase 12). Store ID documents privately. This is not legal advice; get the policy reviewed before launch.
 
+### 9.9 Pricing governance
+- The commission default is 15%; migration 010 changes a still-default value of 12 to 15 without overwriting an admin-edited value.
+- Sensitive pricing values are excluded from generic `PUT /admin/settings`. A pricing change requires the authenticated admin's password and a one-time code emailed to that admin account.
+- Challenge codes are keyed-hashed, expire after 10 minutes, allow at most 5 verification attempts, and are one-use. Limit challenge requests to 3 per admin per 10 minutes and verification attempts to 5 per admin per 15 minutes.
+- Validate all supplied values and ranges before applying. Apply changes, consume the challenge, append `pricing_change_log`, and write the audit event in one transaction protected by an advisory lock. Enforce the configured change cooldown before emailing a challenge and again while applying.
+- A challenge or email failure must not report success. The development console mailer is allowed only outside production; SMTP credentials and message bodies are never logged.
+
+### 9.10 Platform charges and memberships
+- Provider registration charges and optional Driver Plus memberships use the `platform_charges` table; paid membership state is held in `driver_memberships`. Migration 010 provides the schema and registration-fee fields.
+- Paystack credentials are optional; platform-charge endpoints are implemented in Phase 10. Never enable a payment flow without the required keys and verified webhook handling.
+
 ---
 
 ## 10. ERROR SYSTEM (so problems are found fast)
@@ -488,6 +529,7 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-PROV-003 | 400 | No services selected |
 | ZD-PROV-004 | 400 | Company details missing |
 | ZD-PROV-005 | 403 | Provider not approved |
+| ZD-PROV-006 | 403 | Provider registration fee required to go online |
 | ZD-REQ-001 | 404 | Request not found |
 | ZD-REQ-002 | 400 | Service inactive or unknown |
 | ZD-REQ-003 | 409 | Driver already has an active request |
@@ -499,15 +541,24 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-REQ-009 | 409 | Provider already has an active job |
 | ZD-PAY-001 | 502 | Paystack error |
 | ZD-PAY-002 | 400 | Webhook signature invalid |
+| ZD-PAY-003 | 503 | Paystack is not configured |
+| ZD-PAY-004 | 404 | Payment charge not found or does not belong to user |
+| ZD-PAY-005 | 400 | Payment amount must be greater than zero |
+| ZD-PLUS-001 | 403 | ZoomDrive Plus is not enabled |
 | ZD-ADM-001 | 401 | Admin login failed |
 | ZD-ADM-002 | 409 | Provider is not waiting for review |
 | ZD-ADM-003 | 404 | Admin target not found |
 | ZD-ADM-004 | 409 | Required documents are not approved yet |
+| ZD-ADM-005 | 403 | Pricing settings cannot be changed through generic settings |
+| ZD-ADM-006 | 400 | Pricing challenge is invalid, expired or exhausted |
+| ZD-ADM-007 | 409 | Pricing changes are in cooldown |
+| ZD-ADM-008 | 429 | Too many pricing challenge attempts |
+| ZD-EML-001 | 502 | Email delivery failed |
 
 Add new codes to this table in the same commit that uses them.
 
 ### 10.2 Backend logging
-One line per event: `[2026-10-25T10:15:00.123Z] [LEVEL] [reqId] [module] CODE message {json meta}`. Levels: `INFO`, `WARN`, `ERROR`. Every request logs method, path, status, ms. Errors log the code and stack (stack only in development responses; production responses never include stacks). Secrets, tokens, OTP codes (except `OTP_DRIVER=console`), phone numbers beyond the last 4 digits and document URLs are never logged.
+One line per event: `[2026-10-25T10:15:00.123Z] [LEVEL] [reqId] [module] CODE message {json meta}`. Levels: `INFO`, `WARN`, `ERROR`. Every request logs method, path, status, ms. Errors log the code and stack (stack only in development responses; production responses never include stacks). Secrets, tokens, OTP codes (except `OTP_DRIVER=console`), email challenge codes (only through the development console mailer), phone numbers beyond the last 4 digits and document URLs are never logged.
 
 ### 10.3 Boot self-check
 `server.js` prints a table before listening, for example:
@@ -559,6 +610,7 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/searching/:id`: animated "Finding help nearby", countdown to expiry, Cancel.
 - `#/track/:id`: map with driver pin and provider pin, ETA, provider card (photo, name, rating, jobs, verified badge, company name if any, vehicle and plate), Call (`tel:` link), Share trip (Web Share API), Safety, Cancel.
 - `#/rate/:id`: stars + comment after completion.
+- `#/plus` (sign-in required, Account tab): Plus benefits, trial/active/lapsed membership state, trial join or Paystack pass purchase, and payment-return status refresh without a client verify endpoint. Show this Account row only while Plus is enabled.
 - `#/activity`: upcoming (empty state), past requests with status and total; tap for detail.
 - `#/account`: name + photo, optional "Verify identity" banner (placeholder), Profile, Payment, Support, Safety, Saved places, Settings, Promotions (placeholder), Log out. No role-switch item.
 
@@ -572,10 +624,11 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/job/:id`: driver details, **Navigate** (opens Google Maps/Waze link with coordinates), Call, Arrived, Complete, Cancel.
 - `#/earnings`: today total, week chart (simple CSS bars), job list, balance owed by platform.
 - `#/inbox`: notifications.
-- `#/menu`: profile card (photo, name, rating, acceptance), Help, Safety, Settings, More ways to earn (Opportunities, Referrals placeholders), Manage (Vehicle, Services offered, Documents), Money (Tax info placeholder, Payout methods), Log out.
+- `#/menu`: profile card (photo, name, rating, acceptance), Help, Safety, Settings, More ways to earn (Opportunities, Referrals placeholders), Manage (Vehicle, Services offered, Documents), Registration fee, Money (Tax info placeholder, Payout methods), Log out.
+- `#/registration-fee`: one-time fee state and Paystack checkout/return.
 
 ### 11.4 Admin panel (`/admin/`)
-Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason); Users; Requests (filters, manual assign, cancel); Services and prices; Settings; Payouts; Audit log.
+Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users; Requests (filters, manual assign, cancel); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts; Audit log.
 
 ### 11.5 PWA requirements
 - Each app: manifest with `id`, `name`, `short_name`, `start_url` (`/driver/` or `/provider/`), `scope`, `display: standalone`, `theme_color #FFB400`, `background_color #FFFFFF`, 192/512/maskable icons.
@@ -693,17 +746,25 @@ Manual test: run the scripted scenario with one driver and one approved provider
 Verification: `npm run check`; no API calls bypass `apiFetch`; polling timers cleared on route change (grep for `setInterval` paired with cleanup).
 Manual test: with the provider app open on another device/browser tab, request help end to end; test cancel and no-provider cases.
 
-### PHASE 10: Provider job flow (frontend)
-- [ ] P10.1 Home with Go Online (location permission, heartbeat every 15s, offer polling every 5s), offer card with Accept/Decline.
-- [ ] P10.2 Job page (Navigate link, Call, Arrived, Complete, Cancel).
-- [ ] P10.3 Earnings, Inbox, Menu, Services offered, Vehicle, Payout methods (display + placeholders).
-- [ ] P10.4 Heartbeat stops when offline or when the page is hidden for more than 5 minutes.
+### PHASE 10: Pricing governance, provider charges, and Plus
+- [x] P10.1 Backend pricing governance, emailed admin challenge, protected settings, mailer/env configuration, and migration 010 pricing defaults.
+- [x] P10.2 Paystack transaction initialization, verification, webhook signature validation, and raw webhook-body routing.
+- [x] P10.3 Provider registration-fee payment, enforcement, verification, admin waiver, and notifications.
+- [x] P10.4 Driver Plus join/trial/payment state and membership extra-offer cap.
+- [x] P10.5 Admin pricing page with challenge, verification, change review/apply, provider fee status/waiver, and protected Settings values.
+- [x] P10.6 Provider Home with Go Online (location permission, heartbeat every 15s, offer polling every 5s), offer card with Accept/Decline.
+- [x] P10.7 Job page (Navigate link, Call, Arrived, Complete, Cancel).
+- [x] P10.8 Earnings, Inbox, Menu, Services offered, Vehicle, Payout methods (display + placeholders).
+- [x] P10.9 Heartbeat singleton stops when offline or when the page is hidden for more than 5 minutes; logout clears online state.
+- [x] P10.10 Registration-fee payment return and verification, provider routes/guards, and global fee-required navigation.
+- [x] P10.11 Driver Plus screen, conditional Account row, and Paystack return status refresh.
+- [x] P10.12 Phase 10 manual-test checklist, Blueprint updates, and frontend/backend checks.
 Verification: `npm run check`; timers cleaned up on logout.
 Manual test: go online, receive and accept a driver's request, complete the job, check earnings.
 
 ### PHASE 11: Payments, ledger, payouts
 - [ ] P11.1 `ledger.service.js`, completion writes ledger entries (9.5).
-- [ ] P11.2 `paystack.service.js` + `/payments/:requestId/pay` + webhook with signature verification (`ZD-PAY-002`). Idempotent on `paystack_ref`.
+- [ ] P11.2 Request-specific `POST /payments/:requestId/pay`; payment webhook signing and platform-charge settlement are implemented in Phase 10. Idempotent on `paystack_ref`.
 - [ ] P11.3 Driver pay screen (card via Paystack inline), payment status on job and activity detail.
 - [ ] P11.4 Admin Payouts: provider balances, record payout, export CSV.
 - [ ] P11.5 Provider Earnings shows balance and payout history.
@@ -766,6 +827,12 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | 9 | Searching, Track, Rate, Activity and P9.4 states (U2) | npm run check (only expected empty P9.3 page modules reported) | Added chained 5-second polling, visibility pause/resume, provider tracking, cancellation and terminal states, rating placeholder, paginated activity details | P9.3, guest-gating review and documentation |
 | 2 Nov 2026 | 9 | P9.3, guest-gating review and P9 wrap-up (U3) | npm run check (expected empty P9.3 modules only) | Added saved places CRUD (address required by the backend schema) and account pages; wired account links and Account-tab navigation. Gated Request through its guest redirect and added auth guards to Searching, Track and Rate so guests cannot load request data. Render failures use the router's standard "This page failed to load" card with Copy details. | Romeo manual tests for Phase 9, then P10.1 |
 
+| 2 Nov 2026 | 10 | P10.1 Pricing governance backend (V1) | `npm run check` | Added protected pricing settings, password + emailed-code challenge, hard bounds, cooldown, audit/change log, console/SMTP mailer and migration defaults. | P10.2-P10.4 (V2) |
+| 2 Nov 2026 | 10 | P10.2-P10.4 Paystack charge gateway, provider registration-fee gating, Driver Plus (V2) | `npm run check` passed | Added Paystack transactions and signed webhook settlement for platform charges; provider fee status/pay/verify, admin waiver, approved-provider online/accept gate, Plus trial/join/pay state and extra-offer cap. Migration 010 remains unchanged. | P10.5 (V3) |
+| 2 Nov 2026 | 10 | P10.5 Admin pricing frontend (V3) | `npm run check` | Added Pricing navigation and challenge/review/apply UI, provider registration-fee display/waiver, and read-only pricing fields in Settings. Frontend maps the pricing controls to the current backend's pricing API field names and derives the challenge countdown from its expiry response. | P10.6-P10.10 (V4) |
+| 2 Nov 2026 | 10 | P10.6-P10.10 Provider frontend (V4) | `npm run check` (blocked only by then-empty `driver/pages/plus.js`) | Added app-wide provider heartbeat with logout/background-offline handling; provider Home offers and active-job resume; job lifecycle, earnings, inbox/menu, service and vehicle editing, payout placeholder, registration-fee payment return/verification, route guards and fee-required global redirect. | P10.11-P10.12 (V5) |
+| 2 Nov 2026 | 10 | P10.11-P10.12 Driver Plus, Phase 10 manual tests and Blueprint (V5) | `npm run check` (frontend and backend) | Added Plus route/page, conditional Account entry, Paystack-return status refresh without a verify API; appended governance, registration-fee, provider and Plus manual tests and Neon queries. | Romeo manual tests for Phase 9 and Phase 10, then P11.1 |
+
 ### Decision log
 | Date | Decision | Reason |
 |---|---|---|
@@ -819,6 +886,16 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | Approving a provider requires every required document to be approved (ZD-ADM-004); approving or rejecting a provider that is not pending returns ZD-ADM-002 | Enforces the provider review state machine |
 | 2 Nov 2026 | Rejecting a document on a pending provider automatically rejects the provider with the document label and note as the reason | Gives the provider actionable rejection feedback |
 | 2 Nov 2026 | New codes ZD-ADM-002, ZD-ADM-003 and ZD-ADM-004 added to the registry and section 10.1 | Keeps admin API failures consistently coded |
+| 2 Nov 2026 | Provider registration fees and Driver Plus use verified, idempotent platform-charge settlement; Plus offers use the protected extra-offers setting | Applies benefits only after server-side payment verification |
+| 2 Nov 2026 | Platform commission default raised from 12% to 15%; commission, registration fee and Plus settings are protected and change only through password + emailed code + once-per-30-days flow | Protects high-impact pricing changes and prevents frequent edits |
+| 2 Nov 2026 | Hard limits on protected pricing values live in code (`pricingPolicy.js`) | A compromised admin account cannot set extreme values |
+| 2 Nov 2026 | Providers pay a one-time registration fee (default R150, OFF in the pilot) after approval; there is no provider subscription; providers approved before enablement are founding providers and never pay | Keeps provider costs limited to a one-time onboarding charge |
+| 2 Nov 2026 | Drivers pay no platform fee; the Paystack gateway fee is carried by the platform | Keeps driver request prices separate from payment processing fees |
+| 2 Nov 2026 | ZoomDrive Plus is optional and OFF by default: 90-day free trial, then a 30-day pass at R29 bought with Paystack (no auto-renew); its only built benefit is priority dispatch; a price discount is deferred to Phase 11 | Validates priority dispatch before adding other benefits |
+| 2 Nov 2026 | Paystack is initialized server-side and users are redirected to Paystack and back; provider verification and the signed webhook settle charges idempotently through `settleByReference` | Prevents client-side payment claims and duplicate settlement |
+| 2 Nov 2026 | Pricing confirmation codes are HMAC-hashed, expire in 10 minutes, allow 5 attempts, and are emailed to the acting admin; `EMAIL_DRIVER=console` is refused in production | Limits replay and brute-force risk while keeping development convenient |
+| 2 Nov 2026 | Provider heartbeat is a module-level singleton in `provider/heartbeat.js`; it survives navigation and stops after 5 minutes hidden, when offline, and on logout | Keeps availability state independent from page lifetime |
+| 2 Nov 2026 | Provider earnings are computed client-side from the last 50 jobs until the ledger exists in Phase 11; Inbox stays empty until Phase 12 | Clearly labels interim screens without implying unavailable accounting or messaging |
 | 2 Nov 2026 | Document previews use 5-minute signed Cloudinary download URLs; file URLs and public ids are never returned or logged | Limits access to private provider documents |
 | 2 Nov 2026 | notifications.service.js created in Phase 7 (createNotification); Phase 12 extends it with the inbox endpoints | Reuses the notification foundation for the future inbox |
 | 2 Nov 2026 | Admin accounts are created only with scripts/create-admin.js (interactive, hidden password, --reset to change a password); there is no public admin signup | Prevents public registration of privileged accounts |
@@ -828,6 +905,10 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | Home shows only services returned by GET /services (fuel stays hidden while inactive) plus a placeholder Schedule tile | Keeps the catalog and active-service policy authoritative |
 | 2 Nov 2026 | Payment methods, Promotions, Fleet Profile and Verify identity are visibly marked placeholders | Avoids implying unsupported functionality exists |
 | 2 Nov 2026 | Leaflet and OpenStreetMap tiles are loaded from CDN on demand by shared/map.js; a failed map load shows a fallback card instead of crashing the page | Keeps location entry usable when map assets are unavailable |
+| 2 Nov 2026 | Provider online heartbeat is a module-level singleton; page polling is route-scoped, while logout and five minutes in the background stop the server presence | Keeps online presence consistent across provider sub-pages and bounds stale availability |
+| 3 Nov 2026 | Pricing changes use an emailed, one-use admin challenge and transactional cooldown/locking; generic settings writes cannot change protected pricing | Adds an auditable second confirmation for high-impact price changes |
+| 3 Nov 2026 | Email delivery uses a development-only console driver or configured SMTP; production boot rejects console email mode | Prevents production verification codes from being written to application logs |
+| 3 Nov 2026 | Migration 010 is read-only and moves the commission default from 12% to 15% only when it remains unchanged | Preserves prior operator edits while adopting the new default |
 
 ### Known issues
 (none yet)
@@ -840,7 +921,7 @@ Manual test: one real driver and one real provider complete a live job.
 2. **Fuel top-up**: legal and insurance position before activating the service.
 3. **Pilot city** and radius defaults.
 4. **Payments**: confirm Paystack split-payment support and whether the pilot starts with cash/EFT plus ledger.
-5. **Commission** percentage after pilot interviews (default 12%).
+5. **Commission** percentage after pilot interviews (default 15%).
 6. **Final app names** ("ZoomDrive" and "ZoomDrive Partner") and domain availability (CIPC, domain, social handles).
 7. **Partnership agreement** (equity, roles, vesting) reviewed by a lawyer.
 8. **Company staff accounts** and fleet profiles (planned after the pilot, not in this build).

@@ -288,3 +288,47 @@ Confirm audit rows for each exercised transition (`request.create`, `request.acc
 15. Account: every row opens its page (Payment, Support, Safety, Saved places, Settings, Profile); add a saved place with 'Add current location' and see it on Home; delete it.
 16. Narrow the window to 360px: no horizontal scroll on any screen; tap targets comfortable; the bottom nav never covers a button.
 17. In DevTools Network, leave Track open 30 seconds: one request roughly every 5 seconds; navigate away: polling stops.
+
+## Phase 10
+
+### Governance
+
+1. PUT /admin/settings with commission_pct (REST client): ZD-ADM-005. The Settings page shows protected values read-only.
+2. Admin > Pricing: shows 15%, fee R150 'Not charged (pilot)', Plus Off, green 'You can change pricing now'.
+3. Change pricing: wrong password -> red message (ZD-ADM-006) and the admin stays logged in. Correct password -> the 6-digit code appears in the backend terminal (EMAIL_DRIVER=console) and in the Dev only box.
+4. Wrong code -> ZD-ADM-008; five wrong codes -> ZD-ADM-009 and back to step 1. Correct code -> step 3 with the countdown.
+5. Set commission to 16 and apply (tick the checkbox): success, locked banner. Starting a second change shows ZD-ADM-007 right after the password and NO email/code is produced.
+6. Out-of-range values (commission 40, fee R900) are rejected with a clear message and nothing is saved.
+7. Neon: select * from pricing_change_log; select action, meta from audit_log where action = 'admin.pricing_change'. Create a request as the driver: select commission_pct, commission_cents from requests order by id desc limit 3; older rows still show 15.
+8. To test another change within the lock, in Neon run: update pricing_change_log set created_at = now() - interval '31 days'; then change commission back to 15.
+
+### Registration fee (Paystack test keys go in backend/.env as PAYSTACK_SECRET_KEY and PAYSTACK_PUBLIC_KEY)
+
+9. Without keys: a pending provider that is approved sees the fee screen only if the fee is enabled; Pay returns the friendly 'not switched on' message (ZD-PAY-003).
+10. Enable the fee (needs an unlocked change). Check Neon: select user_id, registration_waived from provider_profiles; every provider approved before the change is waived.
+11. Register a NEW provider, approve them in admin: Go Online in the provider app sends them to #/registration-fee (ZD-PROV-006). Pay with a Paystack TEST card from Paystack's documentation; after returning to /provider/ the app verifies and shows 'Registration fee received'. Go Online now works.
+12. Reload the return URL (same reference) again: still paid, no second charge (select * from platform_charges).
+13. Webhook: only testable once the backend has a public URL (deployment, or a tunnel). Then set the Paystack dashboard webhook to <API>/api/v1/payments/paystack/webhook and replay a charge.success: still one paid row.
+14. Admin > Provider detail of an unpaid provider shows Unpaid and a Waive fee button; after waiving, that provider can go online with no payment.
+
+### Provider app
+
+15. Go Online (allow location): headline changes, heartbeat visible in the Network tab every 15 s; the driver's request appears as an offer with area, distance and 'You earn'. No driver phone or surname before accepting.
+16. Decline one offer, accept another: you land on the Job page; the driver app moves to Track. A second provider accepting the same request gets 'Someone else took this job'.
+17. Navigate opens Google Maps with the pin; Call is a tel: link; 'I have arrived' then 'Complete job' work in order; the driver sees each change within about 5 s.
+18. Earnings shows today's total and the week bars; Menu rows open Vehicle, Services offered (change and save), Documents, Registration fee, Payout methods (placeholder).
+19. Leave the tab hidden for more than 5 minutes: heartbeats stop and on return you see the offline message; the database shows is_online false. Log out: no further heartbeats in the Network tab.
+20. Close the tab while on a job and reopen /provider/: Home shows 'Job in progress' with Resume.
+
+### Plus (optional)
+
+21. Enable Plus in Pricing (needs an unlocked change). The driver Account page shows ZoomDrive Plus; Start free trial shows the trial end date; a new request's audit row has plus true (select action, meta from audit_log where action = 'request.create' order by id desc limit 3) and offers up to max + extra providers.
+22. Switch Plus off again: the Account row disappears and the next request meta no longer has plus true.
+
+Neon checks:
+
+```sql
+select purpose, status, amount_cents, paystack_ref from platform_charges order by id desc limit 5;
+select user_id, trial_ends_at, paid_until from driver_memberships;
+select indexname from pg_indexes where indexname = 'uq_requests_one_active_job_per_provider';
+```
