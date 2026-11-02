@@ -4,6 +4,7 @@ import { apiFetch } from './api.js';
 
 let memoryToken = null;
 let session = null;
+const logoutHooks = new Set();
 
 function readToken() {
   try {
@@ -153,7 +154,20 @@ export function requireAuth() {
   return isAuthed();
 }
 
+export function registerLogoutHook(callback) {
+  if (typeof callback !== 'function') return () => {};
+  logoutHooks.add(callback);
+  return () => logoutHooks.delete(callback);
+}
+
 export async function logout() {
+  for (const hook of logoutHooks) {
+    try {
+      await hook();
+    } catch (e) {
+      try { console.debug(e); } catch (e2) {}
+    }
+  }
   try {
     await apiFetch('/auth/logout', { method: 'POST', auth: true });
   } catch (e) {

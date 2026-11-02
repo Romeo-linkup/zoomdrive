@@ -1,22 +1,21 @@
-// provider/app.js
 import { APP_ID, CONFIG } from '../shared/config.js';
 import { initErrors, showError } from '../shared/errors.js';
 import { registerServiceWorker, initInstallPrompt, createInstallControl, initOfflineNotice } from '../shared/pwa.js';
-import { isAuthed, refreshMe } from '../shared/auth.js';
+import { getSession, isAuthed, refreshMe } from '../shared/auth.js';
 import { apiFetch } from '../shared/api.js';
 import { createRouter } from '../shared/router.js';
 import { createBrandBar } from '../shared/components/topbar.js';
 import { createBottomNav } from '../shared/components/bottom-nav.js';
 import { el, clear } from '../shared/ui.js';
+import { onboardingRoute } from './onboarding.js';
+import './heartbeat.js';
+import { capturePaymentReturn } from './paymentReturn.js';
 
 initErrors();
 registerServiceWorker(APP_ID);
 initInstallPrompt();
 initOfflineNotice();
-
-if (isAuthed()) {
-  refreshMe().catch(() => {});
-}
+capturePaymentReturn();
 
 const navItems = [
   { path: '/home', label: 'Home', icon: '🏠' },
@@ -24,6 +23,7 @@ const navItems = [
   { path: '/inbox', label: 'Inbox', icon: '📬' },
   { path: '/menu', label: 'Menu', icon: '☰' },
 ];
+const navRoot = document.getElementById('nav-root');
 
 const router = createRouter({
   routes: {
@@ -33,46 +33,91 @@ const router = createRouter({
         screen.appendChild(createBrandBar(APP_ID));
         const logo = el('img', { class: 'landing-logo', attrs: { src: '/brand/logo.svg', alt: 'ZoomDrive' } });
         screen.appendChild(logo);
-        screen.appendChild(el('h1', {}, 'Earn by helping drivers nearby.'));
-        screen.appendChild(el('p', { class: 'mu' }, 'The app shell is ready. Sign-up arrives in the next phase.'));
+        screen.appendChild(el('h1', {}, 'Become a ZoomDrive Partner.'));
+        screen.appendChild(el('p', { class: 'mu' }, 'Sign up, complete onboarding, and start helping nearby drivers.'));
 
-        const card = el('div', { class: 'card' });
-        const apiLine = el('div', {}, 'API status: checking...');
-        card.appendChild(apiLine);
-        screen.appendChild(card);
+        const signUp = el('button', { class: 'btn', type: 'button' }, 'Sign up');
+        signUp.addEventListener('click', () => router.navigate('/phone?mode=signup'));
+        screen.appendChild(signUp);
+        const logIn = el('button', { class: 'btn soft', type: 'button' }, 'Log in');
+        logIn.addEventListener('click', () => router.navigate('/phone?mode=login'));
+        screen.appendChild(logIn);
 
-        try {
-          const health = await apiFetch('/health', { auth: false });
-          if (health && health.db) {
-            apiLine.textContent = 'Connected to API · v' + (health.version || CONFIG.APP_VERSION) + ' · database ' + health.db;
-          } else {
-            apiLine.textContent = 'Connected to API · v' + (health.version || CONFIG.APP_VERSION);
+        if (CONFIG.ZD_DEBUG) {
+          const apiLine = el('p', { class: 'mu' }, 'API: checking...');
+          screen.appendChild(apiLine);
+          try {
+            const health = await apiFetch('/health', { auth: false });
+            apiLine.textContent = health && health.db
+              ? 'API: ' + health.db
+              : 'API: up';
+          } catch (err) {
+            showError(err);
+            apiLine.textContent = 'API: unreachable';
           }
-        } catch (err) {
-          showError(err);
-          apiLine.textContent = 'API unreachable';
         }
 
         const install = createInstallControl();
-        if (install) {
-          screen.appendChild(install);
-        }
-
+        if (install) screen.appendChild(install);
         screen.appendChild(el('p', { class: 'mu' }, 'App version ' + CONFIG.APP_VERSION));
-
         return screen;
       },
     },
+    '/phone': { path: '/phone', load: () => import('./pages/phone.js') },
+    '/otp': { path: '/otp', load: () => import('./pages/otp.js') },
+    '/type': { path: '/type', load: () => import('./pages/providerType.js'), auth: true, onboarding: true },
+    '/profile-setup': { path: '/profile-setup', load: () => import('./pages/profileSetup.js'), auth: true, onboarding: true },
+    '/documents': { path: '/documents', load: () => import('./pages/documents.js'), auth: true },
+    '/pending': { path: '/pending', load: () => import('./pages/pending.js'), auth: true, onboarding: true },
+    '/home': { path: '/home', load: () => import('./pages/home.js'), auth: true, approved: true, nav: true },
+    '/job/:id': { path: '/job/:id', load: () => import('./pages/job.js'), auth: true, approved: true },
+    '/earnings': { path: '/earnings', load: () => import('./pages/earnings.js'), auth: true, approved: true, nav: true },
+    '/inbox': { path: '/inbox', load: () => import('./pages/inbox.js'), auth: true, approved: true, nav: true },
+    '/menu': { path: '/menu', load: () => import('./pages/menu.js'), auth: true, approved: true, nav: true },
+    '/services': { path: '/services', load: () => import('./pages/services.js'), auth: true, approved: true },
+    '/vehicle': { path: '/vehicle', load: () => import('./pages/vehicle.js'), auth: true, approved: true },
+    '/payouts': { path: '/payouts', load: () => import('./pages/payouts.js'), auth: true, approved: true },
+    '/registration-fee': { path: '/registration-fee', load: () => import('./pages/registrationFee.js'), auth: true, approved: true },
   },
   defaultRoute: '/welcome',
   mount: document.getElementById('view'),
-  navRoot: document.getElementById('nav-root'),
+  navRoot,
+  guard(route, ctx) {
+    const session = getSession();
+    if (isAuthed() && route.path === '/welcome') {
+      return onboardingRoute(session);
+    }
+    if (route.approved && (!session || session.providerStatus !== 'approved')) {
+      return onboardingRoute(session);
+    }
+    if (route.onboarding && session && session.providerStatus === 'approved') {
+      return '/home';
+    }
+  },
   renderNav(route, ctx) {
+    if (!navRoot) return;
+    clear(navRoot);
     if (route.nav) {
-      clear(this.navRoot);
-      this.navRoot.appendChild(createBottomNav({ items: navItems, current: ctx.path }));
+      navRoot.appendChild(createBottomNav({ items: navItems, current: ctx.path }));
     }
   },
 });
 
-router.start();
+window.addEventListener('zd:apierror', (event) => {
+  if (event.detail && event.detail.code === 'ZD-PROV-006') {
+    router.navigate('/registration-fee');
+  }
+});
+
+async function start() {
+  if (isAuthed()) {
+    try {
+      await refreshMe();
+    } catch (err) {
+      showError(err);
+    }
+  }
+  router.start();
+}
+
+start();

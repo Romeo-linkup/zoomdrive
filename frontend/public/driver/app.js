@@ -5,12 +5,23 @@ import { registerServiceWorker, initInstallPrompt, initOfflineNotice } from '../
 import { isAuthed, refreshMe, getSession } from '../shared/auth.js';
 import { createRouter } from '../shared/router.js';
 import { createBottomNav } from '../shared/components/bottom-nav.js';
-import { clear } from '../shared/ui.js';
+import { clear, toast } from '../shared/ui.js';
 
 initErrors();
 registerServiceWorker(APP_ID);
 initInstallPrompt();
 initOfflineNotice();
+
+const paymentReturnParams = new URLSearchParams(location.search);
+const hasPlusPaymentReturn = paymentReturnParams.has('reference') || paymentReturnParams.has('trxref');
+if (hasPlusPaymentReturn) {
+  history.replaceState(history.state, '', location.pathname + location.hash);
+  location.hash = '#/plus';
+  const nextHistoryState = history.state && typeof history.state === 'object' ? { ...history.state } : {};
+  nextHistoryState.plusPaymentReturn = true;
+  history.replaceState(nextHistoryState, '', location.pathname + location.hash);
+  toast('Checking your payment...', 'info');
+}
 
 if (isAuthed()) {
   refreshMe().catch(() => {
@@ -65,6 +76,13 @@ const router = createRouter({
       path: '/account',
       load: () => import('./pages/account.js'),
       nav: true,
+    },
+    '/plus': {
+      path: '/plus',
+      load: () => import('./pages/plus.js'),
+      auth: true,
+      nav: true,
+      navPath: '/account',
     },
     '/saved-places': {
       path: '/saved-places',

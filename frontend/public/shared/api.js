@@ -95,6 +95,11 @@ export async function apiFetch(path, { method = 'GET', body, auth = true, timeou
       requestId: json && json.requestId ? json.requestId : null,
       details: err.details || null,
     });
+    try {
+      window.dispatchEvent(new CustomEvent('zd:apierror', { detail: apiErr }));
+    } catch (e) {
+      try { console.debug(e); } catch (e2) {}
+    }
     if (res.status === 401 && auth && apiErr.code === 'ZD-AUTH-001') {
       try { if (clearToken) clearToken(); } catch (e) {}
       try { window.dispatchEvent(new CustomEvent('zd:unauthorized')); } catch (e) {}

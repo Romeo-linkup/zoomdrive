@@ -1,11 +1,11 @@
 // driver/pages/account.js
 import { el, modal } from '../../shared/ui.js';
+import { apiFetch } from '../../shared/api.js';
 import { isAuthed, getUser, logout } from '../../shared/auth.js';
-import { goToLogin } from '../../shared/router.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
 import { formatPhone } from '../../shared/ui.js';
 
-export default (ctx) => {
+export default async (ctx) => {
   const screen = el('div', { class: 'screen' });
   screen.appendChild(createBrandBar('driver'));
 
@@ -70,6 +70,19 @@ export default (ctx) => {
       }
       screen.appendChild(item);
     });
+
+    try {
+      const plus = await apiFetch('/drivers/me/plus', { signal: ctx.signal });
+      if (plus.enabled) {
+        const plusItem = el('button', { class: 'item', type: 'button' });
+        plusItem.appendChild(el('div', { class: 'ic' }, '✨'));
+        plusItem.appendChild(el('div', { class: 't' }, 'ZoomDrive Plus'));
+        plusItem.addEventListener('click', () => ctx.navigate('/plus'));
+        screen.appendChild(plusItem);
+      }
+    } catch (err) {
+      if (ctx.signal && ctx.signal.aborted) return screen;
+    }
 
     const logoutBtn = el('button', { class: 'btn red', type: 'button' }, 'Log out');
     logoutBtn.addEventListener('click', async () => {

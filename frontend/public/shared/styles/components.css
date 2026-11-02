@@ -182,3 +182,14 @@ button{font-family:inherit;cursor:pointer}
 .settings-section{margin:18px 0}
 .settings-notification{gap:10px}
 .settings-notification input{width:24px;height:24px;accent-color:var(--am)}
+
+/* P10 provider pages */
+.provider-earning{color:var(--ok);font-weight:800}
+.provider-week-bars{align-items:flex-end}
+.provider-week-labels{display:flex;gap:8px;margin-top:8px;color:var(--mu);font-size:11px;text-align:center}
+.provider-week-labels span{flex:1}
+.provider-job-row{gap:10px}
+.provider-profile-menu{align-items:center}
+.offer-card .offer-actions,.job-actions{display:flex;gap:8px;flex-wrap:wrap}
+.offer-card .offer-actions .btn,.job-actions .btn{flex:1;min-width:120px}
+.offer-card .provider-earning{font-size:18px}

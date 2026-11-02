@@ -1,12 +1,11 @@
 // admin/pages/settings.js
-import { el, clear } from '../../shared/ui.js';
+import { el, clear, formatZAR } from '../../shared/ui.js';
 import { apiFetch } from '../../shared/api.js';
 import { showError, clearError, clearFieldErrors } from '../../shared/errors.js';
 import { toast } from '../../shared/ui.js';
 import { formatDate } from '../../shared/ui.js';
 
 const SETTING_FIELDS = [
-  { key: 'commission_pct', label: 'Platform commission (%)', hint: 'Taken from the provider side of every job', type: 'number' },
   { key: 'road_factor', label: 'Road distance factor', hint: 'Straight-line distance multiplied by this to estimate road distance', type: 'number' },
   { key: 'avg_speed_kmh', label: 'Average speed (km/h)', hint: 'Used for ETA estimates', type: 'number' },
   { key: 'offer_radius_km', label: 'Offer radius (km)', hint: 'How far from the driver we look for providers', type: 'number' },
@@ -14,6 +13,16 @@ const SETTING_FIELDS = [
   { key: 'request_expiry_seconds', label: 'Request expires after (seconds)', hint: '', type: 'number' },
   { key: 'provider_stale_seconds', label: 'Provider location counts as stale after (seconds)', hint: '', type: 'number' },
   { key: 'cancel_fee_cents', label: 'Cancellation fee (R)', hint: 'Display rands, send cents', type: 'number', isCents: true },
+];
+
+const PROTECTED_PRICING_FIELDS = [
+  { key: 'commission_pct', label: 'Platform commission', format: value => value + '%' },
+  { key: 'provider_registration_fee_cents', label: 'Provider registration fee', format: value => formatZAR(Number(value)) },
+  { key: 'provider_registration_fee_enabled', label: 'Charge registration fee', format: value => value === true || value === 'true' ? 'On' : 'Off' },
+  { key: 'driver_plus_enabled', label: 'ZoomDrive Plus', format: value => value === true || value === 'true' ? 'On' : 'Off' },
+  { key: 'driver_plus_monthly_cents', label: 'ZoomDrive Plus monthly price', format: value => formatZAR(Number(value)) },
+  { key: 'driver_plus_trial_days', label: 'ZoomDrive Plus free-trial days', format: value => String(value) },
+  { key: 'driver_plus_extra_offers', label: 'ZoomDrive Plus extra offers', format: value => String(value) },
 ];
 
 export default async function render(ctx) {
@@ -25,6 +34,8 @@ export default async function render(ctx) {
   
   const form = el('div', { class: 'settings-form' });
   screen.appendChild(form);
+
+  screen.appendChild(el('div', { class: 'mu' }, 'Change these on the Pricing page.'));
   
   const saveBtn = el('button', { class: 'btn', type: 'button' }, 'Save settings');
   screen.appendChild(saveBtn);
@@ -54,6 +65,19 @@ export default async function render(ctx) {
     originalValues.clear();
     
     let lastUpdatedAt = null;
+
+    const pricingCard = el('div', { class: 'card' });
+    pricingCard.appendChild(el('h2', {}, 'Pricing (read-only)'));
+    for (const fieldDef of PROTECTED_PRICING_FIELDS) {
+      const setting = settings.find(s => s.key === fieldDef.key);
+      const field = el('div', { class: 'field' });
+      field.appendChild(el('label', {}, fieldDef.label));
+      field.appendChild(el('div', {}, setting ? fieldDef.format(setting.value) : 'Not set'));
+      field.appendChild(el('small', {}, 'Change these on the Pricing page'));
+      pricingCard.appendChild(field);
+      if (setting && setting.updatedAt) lastUpdatedAt = setting.updatedAt;
+    }
+    form.appendChild(pricingCard);
     
     for (const fieldDef of SETTING_FIELDS) {
       const setting = settings.find(s => s.key === fieldDef.key);

@@ -111,6 +111,14 @@ export default async function render(ctx) {
     
     kv.appendChild(el('dt', {}, 'Joined'));
     kv.appendChild(el('dd', {}, formatDate(user.createdAt, 'date')));
+
+    const registration = data.registration || {};
+    kv.appendChild(el('dt', {}, 'Registration fee'));
+    let registrationText = 'Not required';
+    if (registration.paid) registrationText = 'Paid on ' + formatDate(registration.paidAt, 'date');
+    else if (registration.waived) registrationText = 'Waived';
+    else if (registration.enabled && registration.required) registrationText = 'Unpaid';
+    kv.appendChild(el('dd', {}, registrationText));
     
     profileCard.appendChild(kv);
     
@@ -236,6 +244,35 @@ export default async function render(ctx) {
         }
       });
       actionBar.appendChild(rejectProviderBtn);
+    }
+
+    if (registration.enabled && !registration.paid && !registration.waived) {
+      const waiveButton = el('button', { class: 'btn soft', type: 'button' }, 'Waive fee');
+      waiveButton.addEventListener('click', async () => {
+        const confirmed = await modal({
+          title: 'Waive registration fee?',
+          body: 'This provider will not need to pay the registration fee.',
+          actions: [
+            { label: 'Cancel', kind: 'soft', value: false },
+            { label: 'Waive fee', kind: 'primary', value: true },
+          ],
+        });
+        if (!confirmed) return;
+        await withSpinner(waiveRegistration());
+      });
+      actionBar.appendChild(waiveButton);
+    }
+  }
+
+  async function waiveRegistration() {
+    clearError();
+    try {
+      await apiFetch('/admin/providers/' + userId + '/waive-registration', { method: 'POST' });
+      toast('Registration fee waived', 'ok');
+      await load();
+    } catch (err) {
+      await load();
+      showError(err);
     }
   }
   

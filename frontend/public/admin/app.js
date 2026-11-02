@@ -26,6 +26,7 @@ function renderAdminHeader(path) {
     { path: '/providers', label: 'Providers' },
     { path: '/users', label: 'Users' },
     { path: '/services', label: 'Services' },
+    { path: '/pricing', label: 'Pricing' },
     { path: '/settings', label: 'Settings' },
   ];
 
@@ -110,6 +111,11 @@ const router = createRouter({
     '/services': {
       path: '/services',
       load: () => import('./pages/services.js'),
+      nav: true,
+    },
+    '/pricing': {
+      path: '/pricing',
+      load: () => import('./pages/pricing.js'),
       nav: true,
     },
     '/settings': {
