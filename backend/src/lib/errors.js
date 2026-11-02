@@ -25,6 +25,8 @@ const ERRORS = Object.freeze({
   'ZD-REQ-005': { status: 409, message: 'Invalid status transition' },
   'ZD-REQ-006': { status: 409, message: 'Offer already taken' },
   'ZD-REQ-007': { status: 403, message: 'Not a party to this request' },
+  'ZD-REQ-008': { status: 409, message: 'Price changed since the quote (details.newTotalCents)' },
+  'ZD-REQ-009': { status: 409, message: 'Provider already has an active job' },
   'ZD-PAY-001': { status: 502, message: 'Paystack error' },
   'ZD-PAY-002': { status: 400, message: 'Webhook signature invalid' },
   'ZD-ADM-001': { status: 401, message: 'Admin login failed' },

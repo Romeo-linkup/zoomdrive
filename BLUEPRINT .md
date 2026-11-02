@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 7  (Admin panel: backend and frontend complete)
-LAST COMPLETED PHASE . 6
-LAST TASK DONE ....... P7.4 (admin review backend, notifications, signed document URLs)
-NEXT ACTION .......... Romeo manual tests for Phases 3 to 7, then Phase 8 task P8.1
+CURRENT PHASE ........ 8  (Requests, pricing, dispatch)
+LAST COMPLETED PHASE . 7
+LAST TASK DONE ....... P8.5 (request service and atomic state transitions)
+NEXT ACTION .......... Romeo manual tests for Phases 3 to 8 (and the admin UI test for Phase 7), then Phase 9 task P9.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 2 Nov 2026
@@ -495,6 +495,8 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-REQ-005 | 409 | Invalid status transition |
 | ZD-REQ-006 | 409 | Offer already taken |
 | ZD-REQ-007 | 403 | Not a party to this request |
+| ZD-REQ-008 | 409 | Price changed since the quote (details.newTotalCents) |
+| ZD-REQ-009 | 409 | Provider already has an active job |
 | ZD-PAY-001 | 502 | Paystack error |
 | ZD-PAY-002 | 400 | Webhook signature invalid |
 | ZD-ADM-001 | 401 | Admin login failed |
@@ -675,11 +677,11 @@ Verification: `npm run check`; approving a non-submitted provider returns a clea
 Manual test: log in as admin; approve the provider from phase 6; log in as that provider and confirm the app unlocks; reject another with a reason and confirm it shows in the provider app.
 
 ### PHASE 8: Requests, pricing, dispatch (backend)
-- [ ] P8.1 `lib/money.js`, `lib/geo.js`, `lib/pricing.js` (9.3).
-- [ ] P8.2 `stateMachine.js` and `requests.service.js` (create, accept, decline, arrived, complete, cancel).
-- [ ] P8.3 `dispatch.service.js` (offers to nearest providers; manual assign for admin) and `expiry.job.js` (30s interval).
-- [ ] P8.4 Provider online/heartbeat/offers/jobs endpoints; `GET /services`; `POST /requests/quote`.
-- [ ] P8.5 Atomic accept (9.4 step 3) and audit rows for every transition.
+- [x] P8.1 `lib/money.js`, `lib/geo.js`, `lib/pricing.js` (9.3).
+- [x] P8.2 `stateMachine.js` and `requests.service.js` (create, accept, decline, arrived, complete, cancel).
+- [x] P8.3 `dispatch.service.js` (offers to nearest providers; manual assign for admin) and `expiry.job.js` (30s interval).
+- [x] P8.4 Provider online/heartbeat/offers/jobs endpoints; `GET /services`; `POST /requests/quote`.
+- [x] P8.5 Atomic accept (9.4 step 3) and audit rows for every transition.
 Verification: `npm run check`; scripted curl scenario in `docs/manual-tests.md`: quote → create → offer visible to provider → accept (second accept returns `ZD-REQ-006`) → arrived → complete; cancel from each state; expiry job expires an unaccepted request.
 Manual test: run the scripted scenario with one driver and one approved provider.
 
@@ -758,6 +760,8 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | 7 | P7.1 (adminAuth, create-admin.js), P7.2 backend (login, overview, users, services, settings), P7.4 (notifications, signed URLs, provider review) | npm run check | Admin auth middleware with timing-safe bcrypt, login rate limiter, error codes ZD-ADM-002/003/004, admin APIs with audit rows, notifications service, signed Cloudinary document URLs, provider review with approve/reject/document review workflows | P7.3 (admin frontend) |
 | 2 Nov 2026 | 7 | P7.3 (admin frontend: login, overview, providers list, provider detail with documents, users, services, settings) | npm run check | Admin app with login screen, overview dashboard, providers queue with filters and search, provider detail page with profile info, document cards with previews, approve/reject workflows, users list, services price editor, settings form, CSS additions for banners and link buttons | Manual test |
 | 2 Nov 2026 | 7 | P7.3 (provider review interaction fixes and final frontend check) | npm run check | Preserved document/provider rejection reasons, refreshed details after API errors, and used API page size for provider pagination | Romeo manual tests for Phases 3 to 7, then P8.1 |
+| 2 Nov 2026 | 8 | P8.1, P8.2, P8.3, P8.5 (request pricing, lifecycle, dispatch and expiry) | npm run check | Added request pricing/lifecycle services, candidate dispatch, admin assignment, expiry job, atomic provider acceptance and audit events; added ZD-REQ-008/009 | P8.4 |
+| 2 Nov 2026 | 8 | P8.4 (request/provider/admin controllers and routes) | npm run check | Mounted request routes, added provider online/heartbeat/offers/jobs and admin request list/detail/assign/cancel; documented the Phase 8 end-to-end manual test | Romeo manual tests for Phases 3 to 8 (and Phase 7 admin UI), then P9.1 |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -797,6 +801,16 @@ Manual test: one real driver and one real provider complete a live job.
 | 1 Nov 2026 | The profile is saved before the photo upload, and a photo failure does not undo the profile | Prevents data loss if photo upload fails; profile is always saved |
 | 2 Nov 2026 | Admin login uses bcrypt.compare against a DUMMY_HASH for unknown emails to prevent timing attacks | Security best practice: timing-safe password comparison prevents email enumeration |
 | 2 Nov 2026 | Provider review auto-rejects the provider when a required document is rejected while the provider is pending | Improves UX: providers immediately see rejection reason instead of staying in pending limbo |
+| 2 Nov 2026 | Pricing, geo, money and the status table are pure modules (`lib/money.js`, `geo.js`, `pricing.js`, `requests/stateMachine.js`) written and unit-tested outside Kilo; services only call them | Keeps core calculations deterministic and independently testable |
+| 2 Nov 2026 | A request is created even when no provider is available (`offersSent` 0), so an admin can assign it manually (pilot mode); it expires after `request_expiry_seconds` | Allows requests to remain dispatchable in a sparse pilot area |
+| 2 Nov 2026 | POST `/requests` accepts `expectedTotalCents`; a changed price returns ZD-REQ-008 so the driver always confirms the price they pay | Prevents a changed quote from silently changing the driver's price |
+| 2 Nov 2026 | One active job per provider is enforced by an application check and partial unique index (migration 009); conflicts return ZD-REQ-009 | Prevents simultaneous accepts from assigning multiple active jobs |
+| 2 Nov 2026 | Contact details are revealed only after acceptance; offers show area, distance and earning; GET `/requests/:id` is limited to the driver and assigned provider | Protects personal contact information before a match |
+| 2 Nov 2026 | Candidates exclude busy providers and use two radius checks: offer radius from the provider's live position, provider service radius from their base | Combines availability location with the provider's service coverage |
+| 2 Nov 2026 | Completing a job inserts the payments row and increments `jobs_completed`; ledger entries come in Phase 11 | Records completion now while reserving accounting entries for the ledger phase |
+| 2 Nov 2026 | The expiry job is started in `server.js` (not `app.js`), overlap-guarded and unref'd | Keeps background work out of app imports and avoids overlapping expiry runs |
+| 2 Nov 2026 | New files: `modules/providers/jobs.controller.js`, migration 009; admin request endpoints (list, detail with candidates, assign, cancel) are in place; the admin Requests page is built later | Delivers backend dispatch tooling while deferring the admin UI |
+| 2 Nov 2026 | New codes ZD-REQ-008 and ZD-REQ-009 | Makes stale-quote and provider-capacity failures explicit |
 | 2 Nov 2026 | Admin tokens use a separate signing key derived from JWT_SECRET (HMAC) and expire after 12 hours, so user tokens can never act as admin tokens | Separates admin credentials from user sessions |
 | 2 Nov 2026 | Extra endpoints GET /admin/overview and GET /admin/auth/me and file adminOverview.controller.js were added; the admin session is separate from shared/auth.js refreshMe | Keeps admin identity and session refresh isolated |
 | 2 Nov 2026 | Approving a provider requires every required document to be approved (ZD-ADM-004); approving or rejecting a provider that is not pending returns ZD-ADM-002 | Enforces the provider review state machine |

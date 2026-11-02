@@ -1,6 +1,7 @@
 const { env, validateEnv } = require('./config/env');
 const { logger } = require('./lib/logger');
 const { checkDb, query } = require('./db/pool');
+const { startExpiryJob } = require('./modules/dispatch/expiry.job');
 const fs = require('fs');
 const path = require('path');
 const app = require('./app');
@@ -56,6 +57,8 @@ async function boot() {
   }
 
   const server = app.listen(env.PORT, () => {
+    startExpiryJob();
+    console.log('[ZD][BOOT] expiry job . started (30s)');
     console.log(`[ZD][BOOT] listening on :${env.PORT}`);
   });
 

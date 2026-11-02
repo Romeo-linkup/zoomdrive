@@ -9,6 +9,7 @@ const wrap = require('../../lib/asyncHandler');
 const providers = require('./providers.controller');
 const docs = require('./documents.controller');
 const orgs = require('./organisations.controller');
+const jobs = require('./jobs.controller');
 
 const router = express.Router();
 
@@ -41,6 +42,19 @@ const docSchema = z.object({
   }),
 });
 
+const onlineSchema = z.object({
+  online: z.boolean(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+}).refine((value) => !value.online || (value.lat !== undefined && value.lng !== undefined), {
+  message: 'Location is required to go online',
+  path: ['lat'],
+});
+const heartbeatSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+
 router.use(auth, requireRole('provider'));
 
 router.put('/me', validate(profileSchema), wrap(providers.upsertMe));
@@ -50,10 +64,9 @@ router.get('/me/documents', wrap(docs.listDocuments));
 router.post('/me/documents', documentUpload, validate(docSchema), wrap(docs.uploadDocument));
 router.post('/me/submit', wrap(providers.submit));
 
-// Phase 8 replaces these stubs. Until a provider is approved they answer ZD-PROV-005.
-const stub = (req, res) => res.ok({ stub: true });
-router.post('/me/online', wrap(requireApproved), stub);
-router.post('/me/heartbeat', wrap(requireApproved), stub);
-router.get('/me/offers', wrap(requireApproved), stub);
+router.post('/me/online', wrap(requireApproved), validate(onlineSchema), wrap(jobs.online));
+router.post('/me/heartbeat', wrap(requireApproved), validate(heartbeatSchema), wrap(jobs.heartbeat));
+router.get('/me/offers', wrap(requireApproved), wrap(jobs.offers));
+router.get('/me/jobs', wrap(jobs.jobs));
 
 module.exports = router;

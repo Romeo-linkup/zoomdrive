@@ -10,6 +10,7 @@ const providers = require('./providersReview.controller');
 const users = require('./adminUsers.controller');
 const services = require('./adminServices.controller');
 const settings = require('./adminSettings.controller');
+const adminRequests = require('./adminRequests.controller');
 
 const router = express.Router();
 
@@ -35,6 +36,16 @@ const userListQuery = z.object({
   status: z.enum(['all', 'active', 'suspended']).default('all'),
   q: search,
   page,
+});
+
+const requestListQuery = z.object({
+  status: z.enum(['all', 'searching', 'accepted', 'arrived', 'completed', 'cancelled', 'expired']).default('all'),
+  q: search,
+  page,
+});
+const assignSchema = z.object({ providerId: z.number().int().positive() });
+const adminCancelSchema = z.object({
+  reason: z.string().trim().min(3, 'Give a short reason').max(200),
 });
 
 const rejectSchema = z.object({
@@ -86,6 +97,11 @@ router.get('/users', validate(userListQuery, 'query'), wrap(users.listUsers));
 
 router.get('/services', wrap(services.listAll));
 router.put('/services/:id', validate(idParams, 'params'), validate(serviceSchema), wrap(services.update));
+
+router.get('/requests', validate(requestListQuery, 'query'), wrap(adminRequests.listRequests));
+router.get('/requests/:id', validate(idParams, 'params'), wrap(adminRequests.getRequest));
+router.post('/requests/:id/assign', validate(idParams, 'params'), validate(assignSchema), wrap(adminRequests.assign));
+router.post('/requests/:id/cancel', validate(idParams, 'params'), validate(adminCancelSchema), wrap(adminRequests.cancel));
 
 router.get('/settings', wrap(settings.getSettings));
 router.put('/settings', validate(settingsSchema), wrap(settings.updateSettings));

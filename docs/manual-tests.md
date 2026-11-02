@@ -177,3 +177,94 @@ Backend and frontend running; frontend at http://localhost:3100; admin created w
 10. Users: lists drivers and providers; filter by role; search by part of a phone number; click a provider row to open its detail.
 11. Security: a driver or provider token on GET /api/v1/admin/overview returns ZD-AUTH-001 (smoke test); the admin token on GET /api/v1/auth/me returns ZD-AUTH-001.
 
+## Phase 8
+Preconditions: backend running; provider +27820000031 is approved (Phase 7 test) and offers Flat tyre; run the SQL steps in the Neon SQL editor where marked; admin email and password are entered at the prompts below.
+
+```powershell
+$base = "http://localhost:4000/api/v1"
+function Show($e) { $e.ErrorDetails.Message }
+function Login($phone, $app) {
+  $r = Invoke-RestMethod -Method Post -Uri "$base/auth/otp/request" -ContentType "application/json" -Body (@{ phone=$phone; app=$app } | ConvertTo-Json)
+  $v = Invoke-RestMethod -Method Post -Uri "$base/auth/otp/verify" -ContentType "application/json" -Body (@{ phone=$phone; code=$r.data.devCode; app=$app } | ConvertTo-Json)
+  $v.data.token
+}
+function Api($method, $path, $token, $body) {
+  $h = @{ Authorization = "Bearer $token" }
+  if ($body) { Invoke-RestMethod -Method $method -Uri "$base$path" -Headers $h -ContentType "application/json" -Body ($body | ConvertTo-Json -Depth 5) }
+  else { Invoke-RestMethod -Method $method -Uri "$base$path" -Headers $h }
+}
+$d = Login "082 000 0041" "driver"
+Api Put "/drivers/me" $d @{ firstName="Test"; lastName="Driver"; consent=$true } | Out-Null
+$p = Login "082 000 0031" "provider"
+$tyre = ((Invoke-RestMethod -Uri "$base/services").data.services | Where-Object code -eq "flat_tyre").id
+# 1. Provider goes online near the driver; a driver cannot use provider routes (ZD-AUTH-004)
+(Api Post "/providers/me/online" $p @{ online=$true; lat=-29.86; lng=31.03 }).data
+try { Api Post "/providers/me/online" $d @{ online=$true; lat=-29.86; lng=31.03 } } catch { Show $_ }
+# 2. Quote: price, eta, providersNearby = 1
+$q = Api Post "/requests/quote" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02 }
+$q.data
+# 3. Create with the quoted total: status searching, offersSent 1
+$r = Api Post "/requests" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02; addressText="12 Test Rd, Durban"; expectedTotalCents=$q.data.totalCents }
+$r.data.offersSent
+$rid = $r.data.request.id
+# 4. A second open request must fail with ZD-REQ-003
+try { Api Post "/requests" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02 } } catch { Show $_ }
+# 5. Provider sees the offer (no phone or surname), the driver cannot accept (ZD-AUTH-004)
+(Api Get "/providers/me/offers" $p).data.offers | ConvertTo-Json -Depth 4
+try { Api Post "/requests/$rid/accept" $d } catch { Show $_ }
+# 6. Accept; the second accept must fail with ZD-REQ-006
+(Api Post "/requests/$rid/accept" $p).data.request.status
+try { Api Post "/requests/$rid/accept" $p } catch { Show $_ }
+# 7. Driver now sees the provider (phone, rating, vehicle) and an ETA
+(Api Get "/requests/$rid" $d).data.request | ConvertTo-Json -Depth 5
+# 8. Arrived, completed; then cancelling a completed job must fail with ZD-REQ-005
+(Api Post "/requests/$rid/arrived" $p).data.request.status
+(Api Post "/requests/$rid/complete" $p).data.request.status
+try { Api Post "/requests/$rid/cancel" $d @{ reason="x" } } catch { Show $_ }
+(Api Get "/requests" $d).data.requests | Format-Table id, status, totalCents
+(Api Get "/providers/me/jobs" $p).data | ConvertTo-Json -Depth 4
+# 9. Price protection: a wrong expected total must fail with ZD-REQ-008
+try { Api Post "/requests" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02; expectedTotalCents=1 } } catch { Show $_ }
+# 10. Cancel while searching: provider's offers disappear
+$r2 = Api Post "/requests" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02 }
+(Api Post "/requests/$($r2.data.request.id)/cancel" $d @{ reason="Changed my mind" }).data.request.status
+(Api Get "/providers/me/offers" $p).data.offers.Count
+# 11. Outside the service area must fail with ZD-REQ-004
+try { Api Post "/requests/quote" $d @{ serviceId=$tyre; lat=51.5; lng=-0.12 } } catch { Show $_ }
+# 12. Expiry: create a request, then in Neon run: update requests set expires_at = now() - interval '1 minute' where status = 'searching'; wait 35 seconds
+$r3 = Api Post "/requests" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02 }
+$r3.data.request.id
+# ... after the wait the status must be "expired":
+# (Api Get "/requests/$($r3.data.request.id)" $d).data.request.status
+# 13. No providers online: offersSent is 0 and the request still exists for manual dispatch
+(Api Post "/providers/me/online" $p @{ online=$false }).data
+Start-Sleep -Seconds 35
+$r4 = Api Post "/requests" $d @{ serviceId=$tyre; lat=-29.85; lng=31.02 }
+$r4.data.offersSent
+# 14. Admin: list, detail with candidates, manual assign, and the provider completes it
+$adminEmail = Read-Host "Admin email"
+$sec = Read-Host "Admin password" -AsSecureString
+$pw = [System.Net.NetworkCredential]::new("", $sec).Password
+$login = Invoke-RestMethod -Method Post -Uri "$base/admin/auth/login" -ContentType "application/json" -Body (@{ email=$adminEmail; password=$pw } | ConvertTo-Json)
+$h = @{ Authorization = "Bearer $($login.data.token)" }
+(Invoke-RestMethod -Uri "$base/admin/requests?status=searching" -Headers $h).data.requests | Format-Table id, status, noProvidersOffered
+$rid4 = $r4.data.request.id
+(Invoke-RestMethod -Uri "$base/admin/requests/$rid4" -Headers $h).data.candidates | Format-Table providerId, firstName, isOnline, isBusy, distanceKm
+$provId = (Api Get "/auth/me" $p).data.user.id
+(Invoke-RestMethod -Method Post -Uri "$base/admin/requests/$rid4/assign" -Headers $h -ContentType "application/json" -Body (@{ providerId=$provId } | ConvertTo-Json)).data.request | Select-Object status, assignedByAdmin
+(Api Get "/providers/me/jobs" $p).data.active.Count
+(Api Post "/requests/$rid4/arrived" $p).data.request.status
+(Api Post "/requests/$rid4/complete" $p).data.request.status
+```
+
+Neon checks:
+
+```sql
+select action, entity, entity_id, actor_type from audit_log where entity = 'requests' order by id desc limit 20;
+select status, count(*) from request_offers group by status;
+select request_id, method, status, amount_cents from payments order by id desc limit 3;
+select user_id, jobs_completed from provider_profiles where jobs_completed > 0;
+select indexname from pg_indexes where indexname = 'uq_requests_one_active_job_per_provider';
+```
+
+Confirm audit rows for each exercised transition (`request.create`, `request.accept`, `request.arrived`, `request.complete`, `request.cancel`, `request.expire`, `admin.request_assign`).
