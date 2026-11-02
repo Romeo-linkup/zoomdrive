@@ -193,3 +193,5 @@ button{font-family:inherit;cursor:pointer}
 .offer-card .offer-actions,.job-actions{display:flex;gap:8px;flex-wrap:wrap}
 .offer-card .offer-actions .btn,.job-actions .btn{flex:1;min-width:120px}
 .offer-card .provider-earning{font-size:18px}
+.provider-balance-positive{color:var(--ok)}
+.provider-balance-negative{color:var(--amd);font-weight:700}

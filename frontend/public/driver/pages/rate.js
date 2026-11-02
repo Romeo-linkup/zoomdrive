@@ -1,13 +1,23 @@
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError } from '../../shared/errors.js';
 import { el, formatZAR, toast } from '../../shared/ui.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 
 // Phase 12 (P12.1): wire this submit to POST /requests/:id/rate
-export default function render(ctx) {
+export default async function render(ctx) {
+  const screen = el('div', { class: 'screen' });
+  try {
+    await renderRate(ctx, screen);
+    return screen;
+  } catch (err) {
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+async function renderRate(ctx, screen) {
   let active = true;
   let selectedStars = 0;
-  const screen = el('div', { class: 'screen' });
   screen.appendChild(createTopbar({ title: 'Rate your experience', onBack: () => ctx.navigate('/home') }));
   const summary = el('div', { class: 'card' }, el('p', {}, 'Loading request details…'));
   screen.appendChild(summary);
@@ -61,10 +71,7 @@ export default function render(ctx) {
         el('b', {}, formatZAR(request.price && request.price.totalCents))
       ));
     } catch (err) {
-      if (active && !ctx.signal.aborted) {
-        summary.textContent = 'Request details could not be loaded.';
-        showError(err);
-      }
+      if (active && !ctx.signal.aborted) throw err;
     }
   }
 
@@ -77,6 +84,5 @@ export default function render(ctx) {
   ctx.onLeave(() => {
     active = false;
   });
-  loadSummary();
-  return screen;
+  await loadSummary();
 }

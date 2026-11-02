@@ -1,5 +1,5 @@
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 import { clear, el, formatDate, formatZAR, modal } from '../../shared/ui.js';
 import { isAuthed } from '../../shared/auth.js';
 import { goToLogin } from '../../shared/router.js';
@@ -41,6 +41,11 @@ function makeRequestRow(request, onClick) {
   row.appendChild(info);
   const detail = el('div', { class: 'request-row-detail' });
   detail.appendChild(statusBadge(request.status));
+  if (TERMINAL_STATUSES.includes(request.status) && request.paymentStatus) {
+    const paymentBadge = createStatusBadge(request.paymentStatus === 'paid' ? 'approved' : 'pending');
+    paymentBadge.textContent = request.paymentStatus === 'paid' ? 'Paid' : 'Unpaid';
+    detail.appendChild(paymentBadge);
+  }
   detail.appendChild(el('small', {}, formatZAR(request.totalCents)));
   row.appendChild(detail);
   row.addEventListener('click', onClick);
@@ -48,6 +53,16 @@ function makeRequestRow(request, onClick) {
 }
 
 export default function render(ctx) {
+  try {
+    return renderActivity(ctx);
+  } catch (err) {
+    const screen = el('div', { class: 'screen' });
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderActivity(ctx) {
   let active = true;
   let page = 0;
   let pageSize = 0;
@@ -152,6 +167,25 @@ export default function render(ctx) {
         el('span', {}, 'Date'),
         el('b', {}, formatDate(detail.completedAt || detail.createdAt))
       ));
+      if (detail.payment) {
+        const paymentState = detail.payment.status === 'paid' ? 'Paid' : 'Unpaid';
+        const paymentMethod = detail.payment.method === 'card'
+          ? 'Card'
+          : detail.payment.method === 'cash'
+            ? 'Cash'
+            : detail.payment.method === 'eft'
+              ? 'EFT'
+              : 'Not paid';
+        body.appendChild(el('div', { class: 'line' },
+          el('span', {}, 'Payment'),
+          el('b', {}, paymentState + ' · ' + paymentMethod)
+        ));
+        if (detail.status === 'completed' && detail.payment.status === 'pending') {
+          const payNow = el('button', { class: 'btn', type: 'button' }, 'Pay now');
+          payNow.addEventListener('click', () => ctx.navigate('/pay/' + encodeURIComponent(request.id)));
+          body.appendChild(payNow);
+        }
+      }
       if (detail.provider && detail.provider.firstName) {
         body.appendChild(el('div', { class: 'line' }, el('span', {}, 'Provider'), el('b', {}, detail.provider.firstName)));
       }

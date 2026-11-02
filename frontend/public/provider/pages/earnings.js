@@ -1,96 +1,117 @@
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 import { el, formatDate, formatZAR } from '../../shared/ui.js';
-import { createPageError } from './pageError.js';
 
-function dateKey(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Johannesburg',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
-}
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const ENTRY_LABELS = {
+  earning: 'Card payment',
+  commission: 'Cash job commission',
+  payout: 'Payout',
+  adjustment: 'Adjustment',
+};
 
 export default async function render(ctx) {
+  const screen = el('div', { class: 'screen' });
   try {
-    return await renderEarnings(ctx);
+    await renderEarnings(ctx, screen);
+    return screen;
   } catch (err) {
-    return createPageError(err, () => ctx.navigate(ctx.path));
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
   }
 }
 
-async function renderEarnings(ctx) {
-  const screen = el('div', { class: 'screen' });
+async function renderEarnings(ctx, screen) {
   screen.appendChild(createTopbar({ title: 'Earnings' }));
-  screen.appendChild(el('p', { class: 'mu' }, 'Based on your last 50 jobs. Payout balance arrives with payments.'));
-  const summary = el('div', { class: 'card' });
-  summary.appendChild(el('h2', {}, 'Today'));
-  const todayTotal = el('div', { class: 'big' }, 'R0.00');
-  summary.appendChild(todayTotal);
-  screen.appendChild(summary);
-  const weekCard = el('div', { class: 'card' });
-  weekCard.appendChild(el('h2', {}, 'This week'));
-  const bars = el('div', { class: 'bars provider-week-bars' });
-  weekCard.appendChild(bars);
-  const dayLabels = el('div', { class: 'provider-week-labels' });
-  weekCard.appendChild(dayLabels);
-  screen.appendChild(weekCard);
-  const recent = el('div', { class: 'card' });
-  recent.appendChild(el('h2', {}, 'Recent jobs'));
-  screen.appendChild(recent);
+  const data = await apiFetch('/providers/me/earnings', { signal: ctx.signal });
+  if (ctx.signal.aborted) return;
 
-  try {
-    const data = await apiFetch('/providers/me/jobs', { signal: ctx.signal });
-    const past = Array.isArray(data.past) ? data.past.slice(0, 50) : [];
-    const completed = past.filter((job) => job.status === 'completed');
-    const today = dateKey(new Date());
-    const todayCents = completed
-      .filter((job) => dateKey(job.completedAt) === today)
-      .reduce((sum, job) => sum + (Number(job.earningCents) || 0), 0);
-    todayTotal.textContent = formatZAR(todayCents);
-
-    const weekStart = new Date(today + 'T00:00:00Z');
-    const weekday = weekStart.getUTCDay();
-    weekStart.setUTCDate(weekStart.getUTCDate() - ((weekday + 6) % 7));
-    const weekDays = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(weekStart);
-      date.setUTCDate(date.getUTCDate() + index);
-      return date.toISOString().slice(0, 10);
-    });
-    const totals = weekDays.map((key) => completed
-      .filter((job) => dateKey(job.completedAt) === key)
-      .reduce((sum, job) => sum + (Number(job.earningCents) || 0), 0));
-    const maxTotal = Math.max(1, ...totals);
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    totals.forEach((value, index) => {
-      const bar = el('i', { attrs: { title: labels[index] + ': ' + formatZAR(value) } });
-      bar.style.height = Math.max(4, Math.round((value / maxTotal) * 90)) + 'px';
-      bars.appendChild(bar);
-      dayLabels.appendChild(el('span', {}, labels[index]));
-    });
-
-    if (!past.length) {
-      recent.appendChild(el('div', { class: 'empty' }, 'No completed jobs yet.'));
-    } else {
-      past.forEach((job) => {
-        const row = el('div', { class: 'item provider-job-row' });
-        row.appendChild(el('div', { class: 'ic' }, job.service && job.service.icon ? job.service.icon : '🔧'));
-        const text = el('div', { class: 't' });
-        text.appendChild(el('span', {}, job.service && job.service.name ? job.service.name : 'Roadside job'));
-        text.appendChild(el('small', {}, formatDate(job.completedAt || job.cancelledAt, 'datetime')));
-        row.appendChild(text);
-        row.appendChild(el('div', { class: 'p provider-earning' }, formatZAR(job.earningCents)));
-        recent.appendChild(row);
-      });
-    }
-  } catch (err) {
-    if (!ctx.signal.aborted) showError(err);
-    recent.appendChild(el('div', { class: 'empty' }, 'Earnings could not be loaded.'));
+  const balanceCard = el('div', { class: 'card' });
+  balanceCard.appendChild(el('h2', {}, data.balanceCents >= 0
+    ? 'We owe you ' + formatZAR(data.balanceCents)
+    : 'You owe ZoomDrive ' + formatZAR(Math.abs(data.balanceCents))));
+  if (data.balanceCents >= 0) {
+    balanceCard.classList.add('provider-balance-positive');
+  } else {
+    balanceCard.classList.add('provider-balance-negative');
+    balanceCard.appendChild(el('p', {}, 'This is commission on cash jobs. It is subtracted from your next payout.'));
   }
-  return screen;
+  screen.appendChild(balanceCard);
+
+  if (data.pendingPaymentsCount > 0) {
+    screen.appendChild(el('div', { class: 'banner warn' },
+      el('span', {}, data.pendingPaymentsCount + ' completed jobs are waiting for payment')
+    ));
+  }
+
+  const todayCard = el('div', { class: 'card' });
+  todayCard.appendChild(el('h2', {}, 'Today'));
+  todayCard.appendChild(el('div', { class: 'big' }, formatZAR(data.today && data.today.earningCents)));
+  todayCard.appendChild(el('p', { class: 'mu' }, (Number(data.today && data.today.jobs) || 0) + ' completed jobs'));
+  screen.appendChild(todayCard);
+
+  const weekCard = el('div', { class: 'card' });
+  weekCard.appendChild(el('h2', {}, 'Last 7 days'));
+  const bars = el('div', { class: 'bars provider-week-bars' });
+  const labels = el('div', { class: 'provider-week-labels' });
+  const week = Array.isArray(data.week) ? data.week : [];
+  const maxAmount = Math.max(1, ...week.map((day) => Number(day.earningCents) || 0));
+  week.forEach((day) => {
+    const amount = Number(day.earningCents) || 0;
+    const weekday = DAY_NAMES[new Date(day.date + 'T00:00:00Z').getUTCDay()];
+    const bar = el('i', { attrs: { title: weekday + ': ' + formatZAR(amount) } });
+    bar.style.height = Math.max(4, Math.round((amount / maxAmount) * 90)) + 'px';
+    if (amount === 0) bar.classList.add('z');
+    bars.appendChild(bar);
+    labels.appendChild(el('span', {}, weekday));
+  });
+  weekCard.appendChild(bars);
+  weekCard.appendChild(labels);
+  if (week.length === 0) weekCard.appendChild(el('div', { class: 'empty' }, 'No weekly earnings yet.'));
+  screen.appendChild(weekCard);
+
+  const activityCard = el('div', { class: 'card' });
+  activityCard.appendChild(el('h2', {}, 'Activity'));
+  const entries = Array.isArray(data.entries) ? data.entries : [];
+  if (entries.length === 0) {
+    activityCard.appendChild(el('div', { class: 'empty' }, 'No ledger activity yet.'));
+  } else {
+    entries.forEach((entry) => {
+      const row = el('div', { class: 'item provider-job-row' });
+      row.appendChild(el('div', { class: 'ic' }, entry.type === 'payout' ? '🏦' : '💰'));
+      const text = el('div', { class: 't' });
+      text.appendChild(el('span', {}, ENTRY_LABELS[entry.type] || 'Adjustment'));
+      text.appendChild(el('small', {}, formatDate(entry.createdAt, 'datetime') +
+        (entry.requestId ? ' · Job ' + entry.requestId : '') +
+        (entry.note ? ' · ' + entry.note : '')));
+      row.appendChild(text);
+      const amount = Number(entry.amountCents) || 0;
+      const amountClass = amount > 0 ? 'provider-earning' : amount < 0 ? 'provider-balance-negative' : '';
+      row.appendChild(el('b', { class: amountClass }, (amount > 0 ? '+' : '') + formatZAR(amount)));
+      activityCard.appendChild(row);
+    });
+  }
+  screen.appendChild(activityCard);
+
+  const payoutsCard = el('div', { class: 'card' });
+  payoutsCard.appendChild(el('h2', {}, 'Payouts'));
+  const payouts = Array.isArray(data.payouts) ? data.payouts : [];
+  if (payouts.length === 0) {
+    payoutsCard.appendChild(el('div', { class: 'empty' }, 'No payouts yet.'));
+  } else {
+    payouts.forEach((payout) => {
+      const row = el('div', { class: 'item provider-job-row' });
+      row.appendChild(el('div', { class: 'ic' }, '🏦'));
+      const info = el('div', { class: 't' });
+      info.appendChild(el('span', {}, formatZAR(payout.amountCents)));
+      const description = [payout.method, payout.reference, formatDate(payout.paidAt, 'date')]
+        .filter(Boolean)
+        .join(' · ');
+      info.appendChild(el('small', {}, description));
+      row.appendChild(info);
+      payoutsCard.appendChild(row);
+    });
+  }
+  screen.appendChild(payoutsCard);
 }

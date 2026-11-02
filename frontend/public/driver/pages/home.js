@@ -1,6 +1,6 @@
 // driver/pages/home.js
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 import { el, clear, formatZAR, toast } from '../../shared/ui.js';
 import { isAuthed } from '../../shared/auth.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
@@ -33,9 +33,21 @@ function resumePath(request) {
 }
 
 export default function render(ctx) {
+  try {
+    return renderHome(ctx);
+  } catch (err) {
+    const screen = el('div', { class: 'screen' });
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderHome(ctx) {
   let active = true;
   const screen = el('div', { class: 'screen' });
   screen.appendChild(createBrandBar('driver'));
+  const paymentDueBanner = el('div', { class: 'banner warn hidden' });
+  screen.appendChild(paymentDueBanner);
   const activeRequestBanner = el('div', { class: 'card hidden' });
   screen.appendChild(activeRequestBanner);
 
@@ -152,6 +164,17 @@ export default function render(ctx) {
     try {
       const data = await apiFetch('/requests', { signal: ctx.signal });
       if (!active) return;
+      const paymentDue = (data.requests || []).find((request) =>
+        request.status === 'completed' && request.paymentStatus === 'pending'
+      );
+      clear(paymentDueBanner);
+      paymentDueBanner.classList.toggle('hidden', !paymentDue);
+      if (paymentDue) {
+        paymentDueBanner.appendChild(el('span', {}, 'Payment due'));
+        const payNow = el('button', { class: 'link-btn', type: 'button' }, 'Pay now');
+        payNow.addEventListener('click', () => ctx.navigate('/pay/' + encodeURIComponent(paymentDue.id)));
+        paymentDueBanner.appendChild(payNow);
+      }
       const current = (data.requests || []).find((request) =>
         ['searching', 'accepted', 'arrived'].includes(request.status)
       );

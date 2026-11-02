@@ -13,8 +13,13 @@ initInstallPrompt();
 initOfflineNotice();
 
 const paymentReturnParams = new URLSearchParams(location.search);
-const hasPlusPaymentReturn = paymentReturnParams.has('reference') || paymentReturnParams.has('trxref');
-if (hasPlusPaymentReturn) {
+const paymentReference = paymentReturnParams.get('reference') || paymentReturnParams.get('trxref');
+const rideReference = paymentReference && paymentReference.match(/^zd_ride_(\d+)_/);
+if (rideReference) {
+  history.replaceState(history.state, '', location.pathname + location.hash);
+  location.hash = '#/pay/' + encodeURIComponent(rideReference[1]) + '?check=1';
+  toast('Checking your payment...', 'info');
+} else if (paymentReference && paymentReference.startsWith('zd_plus_')) {
   history.replaceState(history.state, '', location.pathname + location.hash);
   location.hash = '#/plus';
   const nextHistoryState = history.state && typeof history.state === 'object' ? { ...history.state } : {};
@@ -138,6 +143,12 @@ const router = createRouter({
     '/rate/:id': {
       path: '/rate/:id',
       load: () => import('./pages/rate.js'),
+      auth: true,
+      nav: false,
+    },
+    '/pay/:id': {
+      path: '/pay/:id',
+      load: () => import('./pages/pay.js'),
       auth: true,
       nav: false,
     },

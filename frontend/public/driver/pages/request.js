@@ -1,5 +1,5 @@
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 import { DURBAN, getPosition } from '../../shared/geo.js';
 import { createMap } from '../../shared/map.js';
 import { clear, el, formatZAR, modal, spinner, toast } from '../../shared/ui.js';
@@ -48,6 +48,16 @@ function locationMessage(code) {
 }
 
 export default function render(ctx) {
+  try {
+    return renderRequest(ctx);
+  } catch (err) {
+    const screen = el('div', { class: 'screen' });
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderRequest(ctx) {
   let active = true;
   if (!isAuthed()) {
     ctx.navigate(goToLogin('/request'));
@@ -401,6 +411,20 @@ export default function render(ctx) {
           if (!found && active) showError(err);
         } catch (lookupError) {
           if (active && !ctx.signal.aborted) showError(lookupError);
+        }
+      } else if (err.code === 'ZD-PAY-006') {
+        const body = el('div', {}, 'Please pay your previous job total of ' +
+          formatZAR(err.details && err.details.totalCents) + ' before requesting help again.');
+        const payNow = await modal({
+          title: 'Please pay for your last job first',
+          body,
+          actions: [
+            { label: 'Cancel', kind: 'soft', value: false },
+            { label: 'Pay now', kind: 'primary', value: true },
+          ],
+        });
+        if (payNow && active && err.details && err.details.requestId) {
+          ctx.navigate('/pay/' + encodeURIComponent(err.details.requestId));
         }
       } else if (err.code === 'ZD-USR-001') {
         ctx.navigate('/profile-setup');

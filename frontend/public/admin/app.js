@@ -27,6 +27,8 @@ function renderAdminHeader(path) {
     { path: '/users', label: 'Users' },
     { path: '/services', label: 'Services' },
     { path: '/pricing', label: 'Pricing' },
+    { path: '/payouts', label: 'Payouts' },
+    { path: '/requests', label: 'Requests' },
     { path: '/settings', label: 'Settings' },
   ];
 
@@ -101,6 +103,26 @@ const router = createRouter({
     '/providers/:userId': {
       path: '/providers/:userId',
       load: () => import('./pages/providerDetail.js'),
+      nav: true,
+    },
+    '/payouts': {
+      path: '/payouts',
+      load: () => import('./pages/payouts.js'),
+      nav: true,
+    },
+    '/payouts/:providerId': {
+      path: '/payouts/:providerId',
+      load: () => import('./pages/payouts.js'),
+      nav: true,
+    },
+    '/requests': {
+      path: '/requests',
+      load: () => import('./pages/requests.js'),
+      nav: true,
+    },
+    '/requests/:id': {
+      path: '/requests/:id',
+      load: () => import('./pages/requests.js'),
       nav: true,
     },
     '/users': {

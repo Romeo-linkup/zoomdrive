@@ -30,6 +30,8 @@ async function renderJob(ctx) {
   let stopped = false;
   let inFlight = false;
   let pollTimer = null;
+  let paymentPollCount = 0;
+  let cashRecordingOff = false;
   let mapController = null;
   let mapLoading = false;
   let currentRequest = null;
@@ -40,6 +42,12 @@ async function renderJob(ctx) {
     if (pollTimer !== null) clearTimeout(pollTimer);
     pollTimer = null;
     document.removeEventListener('visibilitychange', onVisibilityChange);
+  }
+
+  function schedulePoll(delay) {
+    if (!active || stopped || document.hidden) return;
+    if (pollTimer !== null) clearTimeout(pollTimer);
+    pollTimer = setTimeout(poll, delay);
   }
 
   function homeButton() {
@@ -114,21 +122,82 @@ async function renderJob(ctx) {
   }
 
   function renderTerminal(request) {
-    stopPolling();
+    const completed = request.status === 'completed';
+    const paymentStatus = request.payment && request.payment.status;
+    if (!completed || paymentStatus === 'paid') stopPolling();
     mapCard.hidden = true;
     if (mapController) mapController.destroy();
     mapController = null;
     clear(content);
     const card = el('div', { class: 'card' });
-    if (request.status === 'completed') {
+    if (completed) {
+      const price = request.price || {};
+      const commission = Math.max(0, Number(price.totalCents) - Number(price.providerEarningCents));
       card.appendChild(el('h2', {}, 'Job complete'));
-      card.appendChild(el('p', { class: 'provider-earning' }, 'You earn ' + formatZAR(request.price && request.price.providerEarningCents)));
+      card.appendChild(el('p', { class: 'provider-earning' }, 'You earn ' + formatZAR(price.providerEarningCents)));
+      if (paymentStatus === 'paid') {
+        if (request.payment.method === 'card') {
+          card.appendChild(el('p', {}, 'Paid by card. ' + formatZAR(price.providerEarningCents) + ' was added to your balance.'));
+        } else {
+          const method = request.payment.method === 'cash' ? 'cash' : 'EFT';
+          card.appendChild(el('p', {}, 'Recorded as ' + method + '. ' + formatZAR(commission) + ' will be deducted from your balance.'));
+        }
+      } else {
+        card.appendChild(el('p', {}, 'Waiting for payment'));
+        if (cashRecordingOff) {
+          card.appendChild(el('p', { class: 'banner warn' }, 'Cash recording is switched off. Ask the driver to pay by card.'));
+        } else {
+          const received = el('button', { class: 'btn', type: 'button' }, 'Cash or EFT received');
+          received.addEventListener('click', () => recordOfflinePayment(commission));
+          card.appendChild(received);
+        }
+      }
     } else {
       card.appendChild(el('h2', {}, request.status === 'expired' ? 'Offer expired' : 'Job cancelled'));
       card.appendChild(el('p', {}, request.cancelReason || 'This job is no longer active.'));
     }
     card.appendChild(homeButton());
     content.appendChild(card);
+  }
+
+  async function recordOfflinePayment(commission) {
+    const confirmedMethod = await modal({
+      title: 'Cash or EFT received',
+      body: el('div', {},
+        el('p', {}, 'R' + (commission / 100).toFixed(2) + ' platform commission will be deducted from your balance.')
+      ),
+      actions: [
+        { label: 'Cancel', kind: 'soft', value: false },
+        { label: 'Cash', kind: 'primary', value: 'cash' },
+        { label: 'EFT', kind: 'primary', value: 'eft' },
+      ],
+    });
+    if (!confirmedMethod || !active) return;
+    try {
+      const result = await apiFetch('/requests/' + encodeURIComponent(requestId) + '/record-payment', {
+        method: 'POST',
+        body: { method: confirmedMethod },
+        signal: ctx.signal,
+      });
+      if (!active || !currentRequest) return;
+      currentRequest.payment = result.payment;
+      renderTerminal(currentRequest);
+    } catch (err) {
+      if (!active || ctx.signal.aborted) return;
+      if (err.code === 'ZD-PAY-009') {
+        cashRecordingOff = true;
+        if (currentRequest) renderTerminal(currentRequest);
+      } else if (err.code === 'ZD-PAY-008') {
+        try {
+          const data = await apiFetch('/requests/' + encodeURIComponent(requestId), { signal: ctx.signal });
+          if (active && data.request) renderRequest(data.request);
+        } catch (reloadError) {
+          if (active && !ctx.signal.aborted) showError(reloadError);
+        }
+      } else {
+        showError(err);
+      }
+    }
   }
 
   function renderRequest(request) {
@@ -224,7 +293,12 @@ async function renderJob(ctx) {
         method: 'POST',
         signal: ctx.signal,
       });
-      if (active && data.request) renderRequest(data.request);
+      if (active && data.request) {
+        renderRequest(data.request);
+        if (data.request.status === 'completed' && data.request.payment && data.request.payment.status !== 'paid') {
+          schedulePoll(15000);
+        }
+      }
     } catch (err) {
       if (!requestError(err)) showError(err);
     }
@@ -270,6 +344,15 @@ async function renderJob(ctx) {
   async function poll() {
     pollTimer = null;
     if (!active || stopped || document.hidden || inFlight) return;
+    const countedPaymentPoll = Boolean(currentRequest && currentRequest.status === 'completed'
+      && (!currentRequest.payment || currentRequest.payment.status !== 'paid'));
+    if (countedPaymentPoll) {
+      if (paymentPollCount >= 20) {
+        stopPolling();
+        return;
+      }
+      paymentPollCount += 1;
+    }
     inFlight = true;
     try {
       const data = await apiFetch('/requests/' + encodeURIComponent(requestId), { signal: ctx.signal });
@@ -279,12 +362,19 @@ async function renderJob(ctx) {
         return;
       }
       renderRequest(data.request);
+      if (data.request.status === 'completed' && (!data.request.payment || data.request.payment.status !== 'paid')) {
+        if (!countedPaymentPoll) paymentPollCount += 1;
+        if (paymentPollCount >= 20) stopPolling();
+      }
     } catch (err) {
       if (!active || ctx.signal.aborted) return;
       if (!requestError(err)) showError(err);
     } finally {
       inFlight = false;
-      if (active && !stopped && !document.hidden) pollTimer = setTimeout(poll, 5000);
+      if (active && !stopped && !document.hidden) {
+        const delay = currentRequest && currentRequest.status === 'completed' ? 15000 : 5000;
+        schedulePoll(delay);
+      }
     }
   }
 

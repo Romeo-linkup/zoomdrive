@@ -1,5 +1,5 @@
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 import { clear, el, formatZAR, modal, toast } from '../../shared/ui.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 
@@ -21,6 +21,16 @@ function showRequestError(screen, err, navigate) {
 }
 
 export default function render(ctx) {
+  try {
+    return renderSearching(ctx);
+  } catch (err) {
+    const screen = el('div', { class: 'screen' });
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderSearching(ctx) {
   let active = true;
   let stopped = false;
   let pollTimer = null;
@@ -74,7 +84,7 @@ export default function render(ctx) {
     if (request.status === 'accepted' || request.status === 'arrived') {
       ctx.navigate('/track/' + encodeURIComponent(request.id), { replace: true });
     } else if (request.status === 'completed') {
-      ctx.navigate('/rate/' + encodeURIComponent(request.id), { replace: true });
+      ctx.navigate('/pay/' + encodeURIComponent(request.id), { replace: true });
     } else if (request.status === 'cancelled') {
       toast('Request cancelled', 'info');
       ctx.navigate('/home', { replace: true });

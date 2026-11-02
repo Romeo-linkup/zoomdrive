@@ -1,5 +1,5 @@
 import { apiFetch } from '../../shared/api.js';
-import { showError } from '../../shared/errors.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 import { createMap } from '../../shared/map.js';
 import { clear, el, formatZAR, modal, toast } from '../../shared/ui.js';
 import { createStatusBadge } from '../../shared/components/status-badge.js';
@@ -52,6 +52,16 @@ function hasCoordinate(value) {
 }
 
 export default function render(ctx) {
+  try {
+    return renderTrack(ctx);
+  } catch (err) {
+    const screen = el('div', { class: 'screen' });
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderTrack(ctx) {
   let active = true;
   let stopped = false;
   let pollTimer = null;
@@ -127,7 +137,7 @@ export default function render(ctx) {
   function finishStatus(request) {
     stopPolling();
     if (request.status === 'completed') {
-      ctx.navigate('/rate/' + encodeURIComponent(request.id), { replace: true });
+      ctx.navigate('/pay/' + encodeURIComponent(request.id), { replace: true });
     } else if (request.status === 'cancelled' || request.status === 'expired') {
       renderCancelled(request);
     }
