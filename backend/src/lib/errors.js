@@ -28,6 +28,9 @@ const ERRORS = Object.freeze({
   'ZD-PAY-001': { status: 502, message: 'Paystack error' },
   'ZD-PAY-002': { status: 400, message: 'Webhook signature invalid' },
   'ZD-ADM-001': { status: 401, message: 'Admin login failed' },
+  'ZD-ADM-002': { status: 409, message: 'Provider is not waiting for review' },
+  'ZD-ADM-003': { status: 404, message: 'Admin target not found' },
+  'ZD-ADM-004': { status: 409, message: 'Required documents are not approved yet' },
 });
 
 module.exports = { ERRORS };

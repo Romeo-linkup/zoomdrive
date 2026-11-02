@@ -8,13 +8,13 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 6  (Provider sign-up, profile, documents)
-LAST COMPLETED PHASE . 5
-LAST TASK DONE ....... P6.3
-NEXT ACTION .......... Romeo manual tests for Phase 6, then Phase 7 task P7.1
+CURRENT PHASE ........ 7  (Admin panel: backend and frontend complete)
+LAST COMPLETED PHASE . 6
+LAST TASK DONE ....... P7.4 (admin review backend, notifications, signed document URLs)
+NEXT ACTION .......... Romeo manual tests for Phases 3 to 7, then Phase 8 task P8.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
-LAST UPDATED ......... 1 Nov 2026 by Devin
+LAST UPDATED ......... 2 Nov 2026
 ```
 
 **To catch up (Claude or Windsurf):** read this file only. Read section 0, then 1 (rules), then the section for the CURRENT PHASE in section 13, then the Build Log (section 14). Do not ask Romeo to re-upload anything. Everything needed is in here.
@@ -498,6 +498,9 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-PAY-001 | 502 | Paystack error |
 | ZD-PAY-002 | 400 | Webhook signature invalid |
 | ZD-ADM-001 | 401 | Admin login failed |
+| ZD-ADM-002 | 409 | Provider is not waiting for review |
+| ZD-ADM-003 | 404 | Admin target not found |
+| ZD-ADM-004 | 409 | Required documents are not approved yet |
 
 Add new codes to this table in the same commit that uses them.
 
@@ -664,10 +667,10 @@ Verification: `npm run check`; attempt submit without photo shows `ZD-PROV-001` 
 Manual test: register as an individual provider and as a company provider; try to submit without a photo (must be blocked); upload documents; confirm Pending screen.
 
 ### PHASE 7: Admin panel (review and configuration)
-- [ ] P7.1 `adminAuth` middleware, `scripts/create-admin.js` (prompts for email and password; never echoes the password).
-- [ ] P7.2 Admin APIs: login, providers queue/detail (signed document URLs), approve/reject (reason), document review, users list, services CRUD, settings.
-- [ ] P7.3 Admin frontend: login, overview, providers list, provider detail (photo, documents, approve/reject), users, services and prices, settings.
-- [ ] P7.4 Approve/reject writes audit rows and a notification to the provider.
+- [x] P7.1 `adminAuth` middleware, `scripts/create-admin.js` (prompts for email and password; never echoes the password).
+- [x] P7.2 Admin APIs: login, providers queue/detail (signed document URLs), approve/reject (reason), document review, users list, services CRUD, settings.
+- [x] P7.3 Admin frontend: login, overview, providers list, provider detail (photo, documents, approve/reject), users, services and prices, settings.
+- [x] P7.4 Approve/reject writes audit rows and a notification to the provider.
 Verification: `npm run check`; approving a non-submitted provider returns a clear coded error.
 Manual test: log in as admin; approve the provider from phase 6; log in as that provider and confirm the app unlocks; reject another with a reason and confirm it shows in the provider app.
 
@@ -752,6 +755,9 @@ Manual test: one real driver and one real provider complete a live job.
 | 29 Oct 2026 | 3 | P3.4-P3.5 (providers, organisations, documents, app mount) | npm run check | Implemented provider flows, upload/delete lifecycle, submit order, added /api/v1/providers mount | Manual test |
 | 1 Nov 2026 | 4 | P4.1-P4.7 (frontend shell, shared modules, components, PWA, router, static checks) | npm run check | Full frontend foundation: config, API, auth, errors, UI, router, PWA, components, driver/provider app shells with welcome route, check.js with 7 frontend rules | Manual test |
 | 1 Nov 2026 | 5 | P5.1-P5.5 (driver auth flow, profile setup, guest mode, account, router edits, check rule 12) | npm run check | Driver sign-up and profile: phone/OTP validation, photo upload, consent, guest browsing, account page, logout modal, needsProfile guard, NOFETCH check rule | Manual test |
+| 2 Nov 2026 | 7 | P7.1 (adminAuth, create-admin.js), P7.2 backend (login, overview, users, services, settings), P7.4 (notifications, signed URLs, provider review) | npm run check | Admin auth middleware with timing-safe bcrypt, login rate limiter, error codes ZD-ADM-002/003/004, admin APIs with audit rows, notifications service, signed Cloudinary document URLs, provider review with approve/reject/document review workflows | P7.3 (admin frontend) |
+| 2 Nov 2026 | 7 | P7.3 (admin frontend: login, overview, providers list, provider detail with documents, users, services, settings) | npm run check | Admin app with login screen, overview dashboard, providers queue with filters and search, provider detail page with profile info, document cards with previews, approve/reject workflows, users list, services price editor, settings form, CSS additions for banners and link buttons | Manual test |
+| 2 Nov 2026 | 7 | P7.3 (provider review interaction fixes and final frontend check) | npm run check | Preserved document/provider rejection reasons, refreshed details after API errors, and used API page size for provider pagination | Romeo manual tests for Phases 3 to 7, then P8.1 |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -789,6 +795,16 @@ Manual test: one real driver and one real provider complete a live job.
 | 1 Nov 2026 | '/request' is a placeholder route until Phase 9; route flag needsProfile sends signed-in drivers without a complete profile to /profile-setup | Provides a clear path for incomplete profiles to complete setup before using core features |
 | 1 Nov 2026 | The driver profile page doubles as the edit page (edit mode when profileComplete is true) | Reuses the same component for create and edit flows with conditional UI |
 | 1 Nov 2026 | The profile is saved before the photo upload, and a photo failure does not undo the profile | Prevents data loss if photo upload fails; profile is always saved |
+| 2 Nov 2026 | Admin login uses bcrypt.compare against a DUMMY_HASH for unknown emails to prevent timing attacks | Security best practice: timing-safe password comparison prevents email enumeration |
+| 2 Nov 2026 | Provider review auto-rejects the provider when a required document is rejected while the provider is pending | Improves UX: providers immediately see rejection reason instead of staying in pending limbo |
+| 2 Nov 2026 | Admin tokens use a separate signing key derived from JWT_SECRET (HMAC) and expire after 12 hours, so user tokens can never act as admin tokens | Separates admin credentials from user sessions |
+| 2 Nov 2026 | Extra endpoints GET /admin/overview and GET /admin/auth/me and file adminOverview.controller.js were added; the admin session is separate from shared/auth.js refreshMe | Keeps admin identity and session refresh isolated |
+| 2 Nov 2026 | Approving a provider requires every required document to be approved (ZD-ADM-004); approving or rejecting a provider that is not pending returns ZD-ADM-002 | Enforces the provider review state machine |
+| 2 Nov 2026 | Rejecting a document on a pending provider automatically rejects the provider with the document label and note as the reason | Gives the provider actionable rejection feedback |
+| 2 Nov 2026 | New codes ZD-ADM-002, ZD-ADM-003 and ZD-ADM-004 added to the registry and section 10.1 | Keeps admin API failures consistently coded |
+| 2 Nov 2026 | Document previews use 5-minute signed Cloudinary download URLs; file URLs and public ids are never returned or logged | Limits access to private provider documents |
+| 2 Nov 2026 | notifications.service.js created in Phase 7 (createNotification); Phase 12 extends it with the inbox endpoints | Reuses the notification foundation for the future inbox |
+| 2 Nov 2026 | Admin accounts are created only with scripts/create-admin.js (interactive, hidden password, --reset to change a password); there is no public admin signup | Prevents public registration of privileged accounts |
 
 ### Known issues
 (none yet)

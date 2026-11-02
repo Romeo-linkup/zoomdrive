@@ -148,3 +148,32 @@ try { Api Post "/providers/me/online" $p @{ online=$true; lat=-29.86; lng=31.03 
 9. Role mismatch: in the provider app enter the driver number 082 000 0021: friendly card with an 'Open ZoomDrive' button.
 10. 360px width in DevTools: no horizontal scroll on welcome, type, profile, documents, pending.
 
+## Phase 7
+Backend and frontend running; frontend at http://localhost:3100; admin created with `node scripts/create-admin.js` from backend, a strong password you do not reuse anywhere else.
+
+1. Open http://localhost:3100/admin/: login screen. A wrong password shows a red banner with Code ZD-ADM-001. The right one opens the Overview with counts. Reload: still signed in; Log out returns to the login screen.
+2. Reset the Phase 6 test provider to 'pending' in the Neon SQL editor:
+   ```
+   update provider_profiles set verification_status='pending', approved_at=null, approved_by=null, rejection_reason=null where user_id=(select id from users where phone='+27820000031');
+   update provider_documents set status='pending', note=null, reviewed_at=null, reviewed_by=null where provider_user_id=(select id from users where phone='+27820000031');
+   ```
+   Overview now shows 1 pending provider.
+3. Providers > Pending review lists the provider. Open it: photo, vehicle, services, location link and three document cards with previews (images) or 'Open PDF'. 'Approve provider' is disabled.
+4. Reject the ID document with the note 'ID is unreadable': the provider's status becomes Rejected automatically with that reason. In the provider app (signed in as 082 000 0031, press Refresh status) the red banner shows the reason; Fix and resubmit shows the note on the ID row; re-upload and Submit: the admin sees the provider as Pending again.
+5. In admin approve the three documents one by one, then 'Approve provider': status Approved. In the provider app the 'You are approved' screen appears within 20 seconds.
+6. In Neon:
+   ```
+   select action, entity, entity_id, actor_type from audit_log order by id desc limit 10;
+   ```
+   (admin.login, admin.document_review, admin.provider_reject, admin.provider_approve);
+   ```
+   select kind, title from notifications order by id desc limit 5;
+   ```
+   (provider_rejected, provider_approved);
+   and approved_by is set on provider_profiles.
+7. Try to approve the same provider again from PowerShell (copy the token from the login call in the smoke test): expect ZD-ADM-002.
+8. Services: set Flat tyre base price to R200 and Save; reload the page: R200.00. http://localhost:4000/api/v1/services shows basePriceCents 20000. Set it back to R180.
+9. Settings: set commission to 15 and Save; set it to 80: a red field error 'Must be between 0 and 50'. Neon: select key, value from app_settings; Set commission back to 12.
+10. Users: lists drivers and providers; filter by role; search by part of a phone number; click a provider row to open its detail.
+11. Security: a driver or provider token on GET /api/v1/admin/overview returns ZD-AUTH-001 (smoke test); the admin token on GET /api/v1/auth/me returns ZD-AUTH-001.
+

@@ -5,6 +5,10 @@ function tooMany(req, res, next) {
   next(new ApiError('ZD-AUTH-003', { message: 'Too many requests. Please try again later.' }));
 }
 
+function tooManyLogin(req, res, next) {
+  next(new ApiError('ZD-AUTH-003', { message: 'Too many login attempts. Try again later.' }));
+}
+
 // 10 OTP requests per IP per hour (the 3-per-phone-per-10-minutes rule lives in otp.service.js).
 const otpRequestIpLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -23,4 +27,13 @@ const otpVerifyIpLimiter = rateLimit({
   handler: tooMany,
 });
 
-module.exports = { otpRequestIpLimiter, otpVerifyIpLimiter };
+// 10 admin login attempts per IP per 15 minutes.
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: tooManyLogin,
+});
+
+module.exports = { otpRequestIpLimiter, otpVerifyIpLimiter, adminLoginLimiter };

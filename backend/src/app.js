@@ -38,6 +38,7 @@ app.use('/api/v1/users', require('./modules/users/users.routes'));
 app.use('/api/v1/drivers', require('./modules/drivers/drivers.routes'));
 app.use('/api/v1/providers', require('./modules/providers/providers.routes'));
 app.use('/api/v1/services', require('./modules/services/services.routes'));
+app.use('/api/v1/admin', require('./modules/admin/admin.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

@@ -80,10 +80,22 @@ async function deleteDocumentAsset(publicId) {
   }
 }
 
+function signedDocumentUrl(publicId, fileUrl) {
+  configure();
+  const urlWithoutQuery = fileUrl.split('?')[0];
+  const extMatch = urlWithoutQuery.match(/\.([^.]+)$/);
+  const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+  return cloudinary.utils.private_download_url(publicId, ext, {
+    resource_type: 'image',
+    type: 'authenticated',
+    expires_at: Math.floor(Date.now() / 1000) + 300,
+  });
+}
+
 async function ping() {
   configure();
   await cloudinary.api.ping();
   return true;
 }
 
-module.exports = { uploadProfilePhoto, uploadDocument, deleteDocumentAsset, ping };
+module.exports = { uploadProfilePhoto, uploadDocument, deleteDocumentAsset, signedDocumentUrl, ping };
