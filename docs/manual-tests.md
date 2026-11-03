@@ -422,3 +422,41 @@ Moderation:
 16. Delete a driver with a completed job: phone becomes deleted-<id>, name 'Deleted User', saved places gone, but the request, payment and ledger rows remain. Their old token is refused.
 17. Delete a provider with a non-zero balance: refused (ZD-ADM-010). Record a payout or adjustment to zero, then delete: documents and bank details are gone, ledger and payouts remain.
 18. Deleting without typing DELETE is impossible in the UI.
+
+## Phase 13
+
+Environment and security:
+1. Start the backend with NODE_ENV=production and FRONTEND_ORIGINS=http://localhost:3000: it refuses to boot and names FRONTEND_ORIGINS. Try FRONTEND_ORIGINS=* and https://example.com/ (trailing slash): both refused.
+2. With NODE_ENV=production and OTP_DRIVER=console and no override: refuses and names OTP_DRIVER. With OTP_ALLOW_CONSOLE_IN_PRODUCTION=true it boots and prints the WARN line. With OTP_DRIVER=bulksms and no SMS_API_KEY it refuses naming SMS_API_KEY.
+3. CORS: Invoke-WebRequest -Uri <API>/api/v1/health -Headers @{Origin='https://evil.example'} -UseBasicParsing | Select-Object -ExpandProperty Headers: no Access-Control-Allow-Origin header. Repeat with an allowed origin: the header is present and exact.
+4. In production mode /api/v1/health shows no list of missing env names.
+5. Run git log --all --oneline -- backend/.env: prints nothing. Check Render's dashboard: JWT_SECRET is a real random 32+ character value (Romeo, deployment step).
+6. npm audit --omit=dev in backend and frontend: note the counts; fix 'high' or 'critical' findings in a separate commit.
+
+Rate limits and input limits:
+7. Request an OTP 4 times for one phone within 10 minutes: the 4th returns ZD-AUTH-003.
+8. Fire 70 quick authenticated writes (for example repeated saved-place creates or notification read-all) in one minute: a 429 with ZD-SYS-004 appears; normal use never hits it. The provider heartbeat and request polling are not blocked while online for 10 minutes.
+9. Upload 21 photos within an hour: the 21st returns ZD-SYS-004. A 6 MB file returns ZD-UPL-002; a .exe renamed .jpg returns ZD-UPL-001.
+10. Submit a 5000-character comment or note: rejected with ZD-VAL-001 naming the field.
+11. Create 11 requests in an hour as one driver (cancel each): the 11th returns ZD-SYS-004.
+
+SMS (skip until a provider is chosen):
+12. With OTP_DRIVER=bulksms and valid credentials, a real number receives the code; a deliberately wrong secret returns ZD-SMS-001 and no code is shown anywhere, even with OTP_DEV_ECHO=true; that OTP cannot be verified.
+
+Responsive and PWA (browser devtools, device toolbar at 360x640 and 390x844):
+13. For each driver and provider screen (welcome, phone, otp, profile setup, home, request, searching, track, pay, rate, activity, account, inbox; provider: type, documents, pending, home, job, earnings, inbox, menu, payout methods, registration fee) and each admin page: no horizontal scroll, nothing hidden behind the bottom nav or the notch area, all buttons at least 44px tall, typing in an input does not zoom the page.
+14. On a desktop window the driver and provider apps are a centred 480px column.
+15. Install: on Android Chrome (after deployment over HTTPS) the Install app button appears and installs; on iPhone Safari the Add to Home Screen card appears once; neither shows inside the installed app.
+16. Offline: switch devtools to Offline: the offline banner appears; reload shows the offline message, not a blank page; back online the banner disappears.
+17. Update toast: change the cache version string in driver/sw.js, reload twice: the 'Update available' toast appears; Reload applies it once.
+18. Open the browser console on each app: no CSP violation messages while using the map, photo upload and Paystack redirect (after deployment, because CSP only applies on Vercel).
+19. Errors: switch devtools to Offline and tap an action that calls the API: a visible coded banner or offline message appears, never a silent failure.
+
+Full regression (run in this order, record failures with the ZD- code and ref):
+20. Phase 5 and 6: sign up as a driver and as a company provider; try the wrong app (ZD-AUTH-004).
+21. Phase 7: approve the provider; reject another.
+22. Phase 8 to 10: request, accept, arrive, complete, cancel from each side; go online and offline.
+23. Phase 11: one card job and one cash job; record a payout; reconcile with the queries in the Phase 11 section.
+24. Phase 12: rate, inbox on both apps, audit page, request timeline, suspend and unsuspend a throwaway user.
+
+select action, count(*) from audit_log where created_at > now() - interval '1 day' group by action order by 2 desc;

@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 12  (Ratings, notifications, audit and disputes)
-LAST COMPLETED PHASE . 11
-LAST TASK DONE ....... P12.2
-NEXT ACTION .......... Prompt W4 (P12.6, P12.7)
+CURRENT PHASE ........ 13  (Hardening)
+LAST COMPLETED PHASE . 12
+LAST TASK DONE ....... P13.6
+NEXT ACTION .......... Romeo manual tests for Phases 12 and 13, then Phase 14 task P14.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 3 Nov 2026
@@ -197,7 +197,8 @@ zoomdrive/
 │  │  │  ├─ 008_admin_audit.sql               (phase 1)
 │  │  │  ├─ 009_provider_active_job.sql       (phase 8)
 │  │  │  ├─ 010_pricing_governance_charges.sql (phase 10; read-only once present)
-│  │  │  └─ 011_ledger_payouts_bank.sql        (phase 11; applied)
+│  │  │  ├─ 011_ledger_payouts_bank.sql        (phase 11; applied)
+│  │  │  └─ 012_ratings_moderation.sql         (phase 12; applied)
 │  │  └─ seed/
 │  │     ├─ services.sql                      (phase 1)
 │  │     └─ settings.sql                      (phase 1)
@@ -240,9 +241,9 @@ zoomdrive/
 │        ├─ dispatch/      dispatch.service.js, expiry.job.js             (phase 8)
 │        ├─ payments/      payments.routes.js, payments.controller.js, charges.service.js, ridePayments.service.js, ledger.service.js, paystack.service.js   (phase 10-11)
 │        ├─ plus/          plus.service.js, plus.controller.js                            (phase 10)
-│        ├─ ratings/       ratings.routes.js, ratings.controller.js       (phase 12)
-│        ├─ notifications/ notifications.routes.js, notifications.service.js   (phase 12)
-│        └─ admin/         admin.routes.js, adminAuth.controller.js, providersReview.controller.js, adminUsers.controller.js, adminRequests.controller.js, adminServices.controller.js, adminSettings.controller.js, pricingPolicy.js, adminPricing.controller.js, adminPayouts.controller.js, adminAudit.controller.js   (phase 7, extended 10-12)
+│        ├─ ratings/       ratings.routes.js, ratings.controller.js, ratings.service.js   (phase 12)
+│        ├─ notifications/ notifications.routes.js, notifications.controller.js, notifications.service.js   (phase 12)
+│        └─ admin/         admin.routes.js, adminAuth.controller.js, providersReview.controller.js, adminUsers.controller.js, accountDeletion.service.js, adminRequests.controller.js, requestTimeline.service.js, adminServices.controller.js, adminSettings.controller.js, pricingPolicy.js, adminPricing.controller.js, adminPayouts.controller.js, adminAudit.controller.js   (phase 7, extended 10-12)
 ├─ frontend/
 │  ├─ package.json                      (phase 4)  devDependencies: sharp
 │  ├─ vercel.json                       (phase 4)  headers (sw no-cache), no rewrites needed
@@ -263,13 +264,13 @@ zoomdrive/
 │     │  ├─ map.js                      (phase 9)  Leaflet wrapper
 │     │  ├─ geo.js                      (phase 9)  geolocation helper
 │     │  ├─ pwa.js                      (phase 4)  install prompt (works on mobile), sw register
-│     │  ├─ components/ topbar.js, bottom-nav.js, field.js, photo-upload.js, doc-upload.js, status-badge.js   (phase 4-6)
+│     │  ├─ components/ topbar.js, bottom-nav.js, field.js, photo-upload.js, doc-upload.js, status-badge.js, rating-stars.js   (phase 4-12)
 │     │  └─ styles/ tokens.css, base.css, components.css                     (phase 4)
 │     ├─ driver/
 │     │  ├─ index.html, app.js, manifest.webmanifest, sw.js                  (phase 4)
 │     │  ├─ icons/ icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon-180.png   (phase 4)
 │     │  └─ pages/ welcome.js, phone.js, otp.js, profileSetup.js            (phase 5)
-│     │          home.js, request.js, searching.js, track.js, pay.js, rate.js, activity.js, account.js, savedPlaces.js, paymentMethods.js, safety.js, support.js, settings.js   (phase 9-11)
+│     │          home.js, request.js, searching.js, track.js, pay.js, rate.js, activity.js, account.js, inbox.js, savedPlaces.js, paymentMethods.js, safety.js, support.js, settings.js   (phase 9-12)
 │     │          plus.js   (phase 10)
 │     ├─ provider/
 │     │  ├─ index.html, app.js, heartbeat.js, manifest.webmanifest, sw.js    (phase 4, extended 10)
@@ -301,7 +302,9 @@ Real values only in Render's dashboard and a local git-ignored `backend/.env`. `
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | from phase 3 | uploads |
 | `OTP_DRIVER` | yes | `console` (dev) or `bulksms` (prod) |
 | `OTP_DEV_ECHO` | no | `true` returns the code in the API response (development only; boot refuses `true` in production) |
-| `SMS_API_KEY`, `SMS_API_SECRET`, `SMS_SENDER_ID` | when `OTP_DRIVER=bulksms` | SMS provider |
+| `OTP_ALLOW_CONSOLE_IN_PRODUCTION` | no | default `false`; explicitly permits console OTP only for private production testing, with a loud boot warning |
+| `SMS_API_KEY`, `SMS_API_SECRET` | when `OTP_DRIVER=bulksms` | BulkSMS credentials |
+| `SMS_SENDER_ID` | no | optional SMS sender ID, maximum 11 characters |
 | `SIGNUP_ENABLED` | no | `true`/`false` kill-switch for new signups |
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` | from phase 10 | platform charges and card payments |
 | `PAYSTACK_FALLBACK_EMAIL_DOMAIN` | when Paystack is configured | valid domain used for accounts without an email |
@@ -472,6 +475,7 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 - OTP: 4 digits, hashed, expires in 5 minutes, 5 attempts max, rate limit 3 requests per phone per 10 minutes and 10 per IP per hour.
 - `profileComplete`: driver = first and last name set and consent recorded; provider = status `submitted` only after photo + documents + services + consent.
 - `SIGNUP_ENABLED=false` blocks new accounts with `ZD-AUTH-009`.
+- OTP delivery failure returns ZD-SMS-001 and invalidates the code.
 - Phone normalisation: `082 123 4567`, `0821234567`, `+27 82 123 4567` all become `+27821234567`.
 
 ### 9.2 Provider verification
@@ -538,6 +542,7 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-SYS-001 | 500 | Unexpected server error |
 | ZD-SYS-002 | 503 | Database unavailable |
 | ZD-SYS-003 | 404 | Route not found |
+| ZD-SMS-001 | 502 | SMS delivery failed |
 | ZD-VAL-001 | 400 | Validation failed (field named in `error.field`) |
 | ZD-AUTH-001 | 401 | Missing or invalid token |
 | ZD-AUTH-002 | 400 | OTP invalid or expired |
@@ -584,6 +589,8 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-ADM-006 | 400 | Pricing challenge is invalid, expired or exhausted |
 | ZD-ADM-007 | 409 | Pricing changes are in cooldown |
 | ZD-ADM-008 | 429 | Too many pricing challenge attempts |
+| ZD-ADM-009 | 409 | User has an active request or job |
+| ZD-ADM-010 | 409 | User status or provider balance does not allow this action |
 | ZD-EML-001 | 502 | Email delivery failed |
 
 Add new codes to this table in the same commit that uses them.
@@ -621,6 +628,9 @@ Fails the phase if any rule trips, printing `file:line rule`:
 8. Backend: every `throw new Error(` outside `lib/` and `scripts/` is flagged; use `ApiError`.
 9. Every error code used in code exists in `errors.js`, and every code in `errors.js` appears in section 10.1 (checked by regex on this file).
 10. Frontend: every `<button>` tap target class has min-height 44px in `components.css` (spot check).
+11. Frontend: no empty catch blocks; comment-only bodies are allowed.
+12. Frontend: no inline `onclick`, `onchange` or `onsubmit` handler attributes in HTML or `innerHTML` templates.
+13. Frontend: `vercel.json` contains a Content-Security-Policy with `frame-ancestors 'none'`.
 
 ---
 
@@ -641,10 +651,11 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/searching/:id`: animated "Finding help nearby", countdown to expiry, Cancel.
 - `#/track/:id`: map with driver pin and provider pin, ETA, provider card (photo, name, rating, jobs, verified badge, company name if any, vehicle and plate), Call (`tel:` link), Share trip (Web Share API), Safety, Cancel; completed jobs continue to payment.
 - `#/pay/:id`: fixed-total card payment after completion, Paystack return verification, and Pay later to rating; payment must be settled before a new request when configured.
-- `#/rate/:id`: stars + comment after payment.
+- `#/rate/:id`: stars + optional comment after completion; ratings can be edited for 24 hours.
 - `#/plus` (sign-in required, Account tab): Plus benefits, trial/active/lapsed membership state, trial join or Paystack pass purchase, and payment-return status refresh without a client verify endpoint. Show this Account row only while Plus is enabled.
 - `#/activity`: upcoming (empty state), past requests with status and total; tap for detail.
-- `#/account`: name + photo, optional "Verify identity" banner (placeholder), Profile, Payment, Support, Safety, Saved places, Settings, Promotions (placeholder), Log out. No role-switch item.
+- `#/inbox` (sign-in required): paginated notifications, read actions and request navigation.
+- `#/account`: name + photo, Notifications with unread count, optional "Verify identity" banner (placeholder), Profile, Payment, Support, Safety, Saved places, Settings, Promotions (placeholder), Log out. No role-switch item.
 
 ### 11.3 Provider app (`/provider/`) bottom nav: Home, Earnings, Inbox, Menu
 - `#/welcome`, `#/phone`, `#/otp`: as driver, provider branding.
@@ -653,14 +664,14 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/documents`: upload rows: ID document, driver's licence, vehicle and insurance, company registration certificate (company only). Each shows Upload, Uploaded ✓ or Rejected with the admin's note. **Submit for review** is disabled until everything required is present.
 - `#/pending`: "Profile under review" (shows rejected state with reason and a fix button).
 - `#/home`: status ("You're offline/online"), map card, Opportunities card (static for now), big **Go Online** button (requests location permission, starts heartbeat). While online, a job offer card appears: service, distance, driver rating, "You earn R…", Accept/Decline.
-- `#/job/:id`: driver details, **Navigate** (opens Google Maps/Waze link with coordinates), Call, Arrived, Complete, Cancel; wait for payment or record received cash/EFT.
+- `#/job/:id`: driver details, **Navigate** (opens Google Maps/Waze link with coordinates), Call, Arrived, Complete, Cancel; wait for payment or record received cash/EFT; optionally rate the driver after completion.
 - `#/earnings`: ledger-backed balance, today's and seven-day earnings, ledger activity and payout history; cash/EFT commission is shown as an amount owed to ZoomDrive.
-- `#/inbox`: notifications.
+- `#/inbox`: notifications with unread dot and read actions.
 - `#/menu`: profile card (photo, name, rating, acceptance), Help, Safety, Settings, More ways to earn (Opportunities, Referrals placeholders), Manage (Vehicle, Services offered, Documents), Registration fee, Money (Tax info placeholder, Payout methods), Log out.
 - `#/registration-fee`: one-time fee state and Paystack checkout/return.
 
 ### 11.4 Admin panel (`/admin/`)
-Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users; Requests (filters, detail with offers/candidates, manual assign, cancel, mark paid); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts (provider balances, audited bank reveal, payouts, adjustments, CSV export); Audit log.
+Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users (status filter, suspend/unsuspend, account deletion); Requests (filters, detail with offers/candidates, manual assign, cancel, mark paid and dispute timeline); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts (provider balances, audited bank reveal, payouts, adjustments, CSV export); Audit log (filters, metadata details and pagination).
 
 ### 11.5 PWA requirements
 - Each app: manifest with `id`, `name`, `short_name`, `start_url` (`/driver/` or `/provider/`), `scope`, `display: standalone`, `theme_color #FFB400`, `background_color #FFFFFF`, 192/512/maskable icons.
@@ -808,21 +819,23 @@ Manual test: pay a test request with Paystack test keys; record a payout in admi
 Note: confirm with Paystack whether split payments/subaccounts suit this marketplace before automating provider payouts. Decided: ledger-manual with manual EFT payouts for the pilot.
 
 ### PHASE 12: Ratings, notifications, audit and disputes
-- [ ] P12.1 Ratings endpoints and rating average updates.
-- [ ] P12.2 Notifications service (events: offer received, request accepted, provider arrived, job completed, provider approved/rejected) and inbox endpoints.
+- [x] P12.1 Ratings endpoints and rating average updates.
+- [x] P12.2 Notifications service (events: offer received, request accepted, provider arrived, job completed, provider approved/rejected) and inbox endpoints.
 - [ ] P12.3 Admin audit log page with filters (actor, entity, date, request id) and a request timeline view for disputes.
 - [ ] P12.4 Admin tools: suspend/unsuspend user, delete account on request (anonymise, keep ledger).
 - [x] P12.5 Driver and provider frontend ratings, notifications inboxes and unread indicators.
+- [x] P12.6 Admin audit log, request timeline and user moderation frontend.
+- [x] P12.7 Phase 12 manual tests and Blueprint wrap-up.
 Verification: `npm run check`; every status transition has an audit row (scripted check query in `docs/manual-tests.md`).
 Manual test: complete a job, rate it, check inbox on both apps, open the request timeline in admin.
 
 ### PHASE 13: Hardening
 - [ ] P13.1 Security pass: `.env` never in git history (`git log --all -- backend/.env`), `JWT_SECRET` real in Render, CORS exact origins, helmet CSP for frontend, no secrets in repo (run check rule 5 across history).
 - [ ] P13.2 Rate limits on all write endpoints, upload limits, input length limits.
-- [ ] P13.3 SMS OTP via `bulksms` driver (or chosen provider), `OTP_DEV_ECHO=false` in production.
-- [ ] P13.4 360px width review of every screen, tap targets 44px, safe areas, desktop centred column.
-- [ ] P13.5 PWA polish: install button works on mobile, offline notice, icon audit, update-available toast.
-- [ ] P13.6 Error review: every API failure path shows a coded banner; remove any silent catch blocks (`catch(e){}`).
+- [x] P13.3 SMS OTP via `bulksms` driver (or chosen provider), `OTP_DEV_ECHO=false` in production.
+- [x] P13.4 360px width review of every screen, tap targets 44px, safe areas, desktop centred column.
+- [x] P13.5 PWA polish: install button works on mobile, offline notice, icon audit, update-available toast.
+- [x] P13.6 Error review: every API failure path shows a coded banner; remove any silent catch blocks (`catch(e){}`).
 Verification: `npm run check` both sides; grep for empty catch blocks returns none.
 Manual test: full regression using `docs/manual-tests.md`.
 
@@ -871,7 +884,16 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | 11 | P11.3-P11.4 (provider earnings/bank details, admin payouts) | `npm run check` (backend) | Added AES-256-GCM bank-detail storage and masked provider/admin views, provider earnings summaries, payout/adjustment workflows, bank-detail reveal auditing, and formula-safe ledger CSV export. | P11.5-P11.6 |
 | 2 Nov 2026 | 11 | P11.5-P11.6 (driver payments and provider earnings frontend) | `npm run check` (frontend; only the then-empty P11.7 pages failed) | Added driver card-payment return/verification, unpaid-payment entry points, provider payment polling and cash/EFT recording, ledger-backed earnings, and masked bank-detail editing. | P11.7-P11.8 |
 | 2 Nov 2026 | 11 | P11.7-P11.8 (admin Payouts and Requests, manual tests, Blueprint) | `npm run check` (frontend and backend) | Added searchable/paginated payout and request admin workflows, audited temporary bank-number reveal, payout/adjustment/export controls, request assignment/cancellation/payment actions and active-request refresh; appended Phase 11 manual tests and reconciliation queries. | Romeo manual tests for Phases 9 to 11, then P12.1 |
-| 3 Nov 2026 | 12 | P12.5 (driver/provider ratings, notifications inboxes, unread indicators) | `npm run check` (only expected empty `admin/pages/audit.js`) | Wired request ratings, paginated inboxes, read actions, notification routing and unread badges without backend changes. | Prompt W4 (P12.6, P12.7) |
+| 3 Nov 2026 | 12 | W3 (P12.5 driver/provider ratings, notification inboxes and unread indicators) | `npm run check` (only expected empty `admin/pages/audit.js`) | Wired request ratings, paginated inboxes, read actions, notification routing and unread badges without backend changes. | W4 |
+| 3 Nov 2026 | 12 | W1 (P12.1 ratings backend status) | `npm run check` (backend; blocked) | The rating controller, routes and service remain empty; not changed in this frontend/docs-only task. | W2 |
+| 3 Nov 2026 | 12 | W2 (P12.2-P12.4 backend status) | `npm run check` (backend; blocked) | Notification controller and routes remain empty; audit, timeline and moderation backend files are present. | W3 |
+| 3 Nov 2026 | 12 | W4 (P12.6-P12.7 admin frontend, manual tests and Blueprint) | `npm run check` (frontend passed; backend blocked) | Added the admin audit log, timeline and moderation UI, Phase 12 manual checklist, and Blueprint updates; backend check still finds five empty Phase 12 modules. | Romeo manual tests for Phase 12, then P13.1 |
+| 3 Nov 2026 | 12 | Phase 12 W1 recovery | `npm run check` (backend) | Implemented ratings and notification inbox endpoints, completed post-commit best-effort events, and standardized payment/security notification kinds. | Romeo manual tests for Phase 12, then P13.1 |
+| 3 Nov 2026 | 13 | W1 (P13.1-P13.2 security and limits) | Git history check (blocked) | Matching secret-pattern commits were found; no code changes made. Romeo must rotate potentially exposed secrets and consult Claude about history cleanup. | W2 |
+| 3 Nov 2026 | 13 | W2 (P13.3 BulkSMS OTP driver) | `npm run check` (backend) | Added timed BulkSMS delivery, consumed OTPs on delivery failure, production console-OTP guard, and ZD-SMS-001. | W3 |
+| 3 Nov 2026 | 13 | W3 (P13.4-P13.5 responsive and PWA polish) | `npm run check` (frontend) | Added mobile input/tap sizing, safe-area and dynamic viewport handling, install/offline/update UI, and hardened deployment headers. Driver/provider icons are all present; HTML has no inline scripts or event handlers. Admin remains intentionally non-installable. | W4 |
+| 3 Nov 2026 | 13 | W4 (P13.6 error review, manual tests and Blueprint) | `npm run check` (backend and frontend) | Appended the Phase 13 manual checklist, documented hardening decisions and the P14.3 CSP follow-up, and completed the frontend static error-review rules. | Romeo manual tests for Phases 12 and 13, then Phase 14 task P14.1 |
+| 3 Nov 2026 | 13 | P13.3 BulkSMS OTP driver | `npm run check` (backend) | Added timed BulkSMS delivery, consumed OTPs on delivery failure, production console-OTP guard, and ZD-SMS-001. | Prompt W3 (P13.4, P13.5, frontend P13.6) |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -958,15 +980,33 @@ Manual test: one real driver and one real provider complete a live job.
 | 3 Nov 2026 | Pricing changes use an emailed, one-use admin challenge and transactional cooldown/locking; generic settings writes cannot change protected pricing | Adds an auditable second confirmation for high-impact price changes |
 | 3 Nov 2026 | Email delivery uses a development-only console driver or configured SMTP; production boot rejects console email mode | Prevents production verification codes from being written to application logs |
 | 3 Nov 2026 | Migration 010 is read-only and moves the commission default from 12% to 15% only when it remains unchanged | Preserves prior operator edits while adopting the new default |
+| 3 Nov 2026 | Ratings never depend on payment; they are editable for 24 hours then locked | Feedback remains tied to completed work rather than payment timing |
+| 3 Nov 2026 | Rating comments are visible to admins only; other users see averages | Keeps private feedback out of user-facing screens |
+| 3 Nov 2026 | A driver's average rating is calculated on demand from ratings; only providers have a stored average | Avoids duplicating driver aggregates |
+| 3 Nov 2026 | Notifications are best-effort and sent after commit, so a failure never blocks a request or payment; the inbox is in-app only until SMS arrives in Phase 13 | Keeps operational workflows independent of notification delivery |
+| 3 Nov 2026 | The auth middleware checks account status on every request, so suspension takes effect immediately despite 30-day tokens | Makes account moderation effective without waiting for token expiry |
+| 3 Nov 2026 | Suspension and deletion are refused while the user has an active request; deletion also needs a zero provider balance | Prevents moderation from stranding active work or balances |
+| 3 Nov 2026 | Account deletion anonymises the user and keeps requests, payments, ledger and payouts; documents, bank details, saved places and notifications are deleted | Preserves financial records while removing personal account data |
+| 3 Nov 2026 | The request timeline merges audit, offers, ratings and ledger rows for dispute handling | Gives admins a chronological dispute record |
+| 3 Nov 2026 | The audit log page filters by the HTTP request id so an error ref from a banner finds its audit rows | Connects user-visible error references to audit events |
+
+| 3 Nov 2026 | Production boot refuses unsafe CORS origins, placeholder secrets, console OTP and console email; console OTP needs an explicit override flag for private testing | Keeps insecure development defaults from silently reaching production |
+| 3 Nov 2026 | Writes are rate-limited per IP (loose, for shared mobile networks) and per user; polling and the webhook are exempt; counters are in memory for now | Limits abuse without interrupting routine polling or signed payment webhooks |
+| 3 Nov 2026 | trust proxy is set so rate limits and logs use the real client IP behind Render | Preserves correct request attribution behind the deployment proxy |
+| 3 Nov 2026 | Every zod string has a maximum length and every list endpoint clamps page size | Bounds request sizes and pagination work |
+| 3 Nov 2026 | The SMS driver is an adapter around BulkSMS REST v1 and can be swapped by editing one file; the provider choice is deferred until after Phase 14 | Keeps SMS integration replaceable until the provider decision |
+| 3 Nov 2026 | The frontend CSP is set in vercel.json and the custom API domain is added in P14.3 | Restricts browser resource origins while preserving the planned API domain change |
+| 3 Nov 2026 | The service worker only skips waiting when the user taps Reload on the update toast | Gives users control over applying an app update |
+| 3 Nov 2026 | Empty catch blocks are banned by static checks; intentional ignores need a comment | Makes swallowed failures explicit during review |
 
 ### Known issues
-(none yet)
+P14.3 adds the custom API domain to connect-src.
 
 ---
 
 ## 15. OPEN QUESTIONS (resolve and move to the decision log)
 
-1. **SMS/OTP provider** for production (BulkSMS, Clickatell, other) and per-message budget.
+1. **SMS/OTP provider** for production (BulkSMS, Clickatell, other) and per-message budget. Code supports BulkSMS; provider decision deferred until after Phase 14.
 2. **Fuel top-up**: legal and insurance position before activating the service.
 3. **Pilot city** and radius defaults.
 4. **Payments**: confirm Paystack split-payment support and whether the pilot starts with cash/EFT plus ledger.
@@ -976,6 +1016,7 @@ Manual test: one real driver and one real provider complete a live job.
 8. **Company staff accounts** and fleet profiles (planned after the pilot, not in this build).
 9. **WhatsApp request channel** for the pilot (optional addition after Phase 10).
 10. **Privacy policy and terms** text (POPIA) before public launch.
+11. **Provider terms and a dispute policy** (needed before the pilot).
 node_modules/
 .env
 .env.*
