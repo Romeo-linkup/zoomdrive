@@ -4,7 +4,7 @@ const IS_LOCAL = host === 'localhost' || host === '127.0.0.1';
 const IS_LAN = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
 
 // Set the real production API origin in task P14.2.
-const PROD_API_ORIGIN = 'https://api.zoomdrive.co.za';
+const PROD_API_ORIGIN = 'https://zoomdrive.onrender.com';
 
 const apiOrigin = IS_LOCAL ? 'http://localhost:4000' : IS_LAN ? `http://${host}:4000` : PROD_API_ORIGIN;
 
