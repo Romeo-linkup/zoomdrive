@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { pool, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
-const { createNotification } = require('../notifications/notifications.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 const paystack = require('./paystack.service');
 const ledger = require('./ledger.service');
 const { env } = require('../../config/env');
@@ -127,9 +127,11 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
     throw new ApiError('ZD-PAY-001', { message: 'Payment amount could not be verified' });
   }
 
-  const payment = await withTransaction(async (client) => {
+  const settlement = await withTransaction(async (client) => {
     const current = await loadPaymentAndRequest(requestId, client, true);
-    if (current.payment_status === 'paid') return paymentView(current);
+    if (current.payment_status === 'paid') {
+      return { payment: paymentView(current), notifyProviderId: null };
+    }
     if (current.payment_status !== 'pending' || current.request_status !== 'completed') {
       throw new ApiError('ZD-PAY-008');
     }
@@ -146,7 +148,9 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
     );
     if (!updated.rows[0]) {
       const latest = await getPaymentView(requestId, client);
-      if (latest && latest.status === 'paid') return latest;
+      if (latest && latest.status === 'paid') {
+        return { payment: latest, notifyProviderId: null };
+      }
       throw new ApiError('ZD-PAY-008');
     }
 
@@ -156,12 +160,6 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
       amountCents: Number(current.provider_earning_cents),
       note: 'Card payment',
     });
-    await createNotification({
-      userId: current.provider_id,
-      title: 'Payment received',
-      body: 'Payment for your completed job has been received.',
-      kind: 'ride_payment_received',
-    }, client);
     await writeAudit({
       actorType: 'system',
       action: 'payment.ride_paid',
@@ -171,9 +169,18 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
       requestId: requestIdHeader,
       ip,
     }, client);
-    return paymentView(updated.rows[0]);
+    return { payment: paymentView(updated.rows[0]), notifyProviderId: current.provider_id };
   });
-  return { payment };
+  if (settlement.notifyProviderId !== null) {
+    await notifyBestEffort({
+      userId: settlement.notifyProviderId,
+      title: 'Payment received',
+      body: 'Payment for your completed job has been received.',
+      kind: 'payment',
+      data: { requestId },
+    });
+  }
+  return { payment: settlement.payment };
 }
 
 async function readBooleanSetting(client, key) {

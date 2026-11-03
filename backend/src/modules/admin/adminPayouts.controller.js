@@ -1,7 +1,7 @@
 const { pool, query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
-const { createNotification } = require('../notifications/notifications.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 const ledger = require('../payments/ledger.service');
 const { decrypt } = require('../../lib/crypto');
 
@@ -268,11 +268,11 @@ async function createPayout(req, res) {
       requestId: req.id,
       ip: req.ip,
     }, client);
-    await createNotification({
-      userId: providerId,
-      title: `A payout of R${(amountCents / 100).toFixed(2)} was recorded`,
-      kind: 'provider.payout_recorded',
-    }, client);
+  });
+  await notifyBestEffort({
+    userId: providerId,
+    title: `A payout of R${(amountCents / 100).toFixed(2)} was recorded`,
+    kind: 'payment',
   });
   res.ok(await buildDetail(providerId));
 }

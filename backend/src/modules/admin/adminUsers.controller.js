@@ -1,7 +1,7 @@
 const { query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
-const { createNotification } = require('../notifications/notifications.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 
 async function listUsers(req, res) {
   const { role, status, q, page } = req.validated;
@@ -186,17 +186,14 @@ async function unsuspendUser(req, res) {
       ip: req.ip,
     }, client);
 
-    await createNotification(
-      {
-        userId,
-        title: 'Your account is active again',
-        body: 'Your ZoomDrive account has been reactivated.',
-        kind: 'account_reactivated',
-      },
-      client
-    );
   });
 
+  await notifyBestEffort({
+    userId,
+    title: 'Your account is active again',
+    body: 'Your ZoomDrive account has been reactivated.',
+    kind: 'security',
+  });
   const updatedResult = await query(
     `SELECT id, role, phone, first_name AS "firstName", last_name AS "lastName",
             photo_url AS "photoUrl", status, suspended_reason AS "suspendedReason",

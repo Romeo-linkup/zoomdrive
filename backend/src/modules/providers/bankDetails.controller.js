@@ -1,7 +1,7 @@
 const { pool, withTransaction } = require('../../db/pool');
 const { writeAudit } = require('../../lib/audit');
 const { encrypt } = require('../../lib/crypto');
-const { createNotification } = require('../notifications/notifications.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 
 async function bankDetailsPayload(providerId) {
   const result = await pool.query(
@@ -59,13 +59,13 @@ async function put(req, res) {
       requestId: req.id,
       ip: req.ip,
     }, client);
-    await createNotification({
-      userId: req.user.id,
-      title: 'Your payout bank details were changed. If this was not you, contact support now.',
-      kind: 'provider.bank_details_changed',
-    }, client);
   });
 
+  await notifyBestEffort({
+    userId: req.user.id,
+    title: 'Your payout bank details were changed. If this was not you, contact support now.',
+    kind: 'security',
+  });
   res.ok(await bankDetailsPayload(req.user.id));
 }
 

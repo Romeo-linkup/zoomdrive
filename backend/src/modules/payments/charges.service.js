@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { pool, query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
-const { createNotification } = require('../notifications/notifications.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 const paystack = require('./paystack.service');
 const { env } = require('../../config/env');
 const pricing = require('../admin/pricingPolicy');
@@ -127,14 +127,14 @@ async function settleByReference(reference, { expectUserId } = {}) {
       throw new ApiError('ZD-PAY-001', { message: 'Payment amount could not be verified' });
     }
 
-    return withTransaction(async (client) => {
+    const settlement = await withTransaction(async (client) => {
       const { rows } = await client.query(
         'SELECT * FROM platform_charges WHERE id = $1 FOR UPDATE',
         [initialCharge.id]
       );
       const charge = rows[0];
       if (!charge) throw new ApiError('ZD-PAY-004');
-      if (charge.status === 'paid') return mapCharge(charge);
+      if (charge.status === 'paid') return { charge: mapCharge(charge), notification: null };
       if (Number(charge.amount_cents) !== verified.amountCents) {
         throw new ApiError('ZD-PAY-001', { message: 'Payment amount could not be verified' });
       }
@@ -148,9 +148,10 @@ async function settleByReference(reference, { expectUserId } = {}) {
       );
       if (!updated.rows[0]) {
         const current = await client.query('SELECT * FROM platform_charges WHERE id = $1', [charge.id]);
-        return mapCharge(current.rows[0]);
+        return { charge: mapCharge(current.rows[0]), notification: null };
       }
 
+      let notification = null;
       if (charge.purpose === 'provider_registration') {
         const profile = await client.query(
           `UPDATE provider_profiles
@@ -160,12 +161,12 @@ async function settleByReference(reference, { expectUserId } = {}) {
           [charge.id, charge.user_id]
         );
         if (profile.rows.length === 0) throw new ApiError('ZD-PAY-004');
-        await createNotification({
+        notification = {
           userId: charge.user_id,
           title: 'Registration fee received',
           body: 'Your provider registration fee has been received.',
-          kind: 'provider_registration_paid',
-        }, client);
+          kind: 'payment',
+        };
       } else if (charge.purpose === 'driver_plus') {
         await client.query(
           `INSERT INTO driver_memberships (user_id, paid_until)
@@ -184,8 +185,10 @@ async function settleByReference(reference, { expectUserId } = {}) {
         entityId: charge.id,
         meta: { purpose: charge.purpose, amountCents: charge.amount_cents },
       }, client);
-      return mapCharge(updated.rows[0]);
+      return { charge: mapCharge(updated.rows[0]), notification };
     });
+    if (settlement.notification) await notifyBestEffort(settlement.notification);
+    return settlement.charge;
   }
 
   if (verified.status === 'failed' || verified.status === 'abandoned') {

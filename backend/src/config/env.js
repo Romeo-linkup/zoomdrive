@@ -15,6 +15,7 @@ const env = Object.freeze({
     .filter(s => s.length > 0),
   OTP_DRIVER: process.env.OTP_DRIVER,
   OTP_DEV_ECHO: process.env.OTP_DEV_ECHO === 'true',
+  OTP_ALLOW_CONSOLE_IN_PRODUCTION: process.env.OTP_ALLOW_CONSOLE_IN_PRODUCTION === 'true',
   SIGNUP_ENABLED: process.env.SIGNUP_ENABLED !== 'false',
   APP_VERSION: process.env.APP_VERSION || packageJson.version,
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || null,
@@ -68,6 +69,25 @@ function validateEnv() {
 
   if (!env.OTP_DRIVER || (env.OTP_DRIVER !== 'console' && env.OTP_DRIVER !== 'bulksms')) {
     problems.push({ name: 'OTP_DRIVER', problem: 'missing or invalid (must be console or bulksms)' });
+  }
+
+  if (process.env.OTP_ALLOW_CONSOLE_IN_PRODUCTION !== undefined
+      && !['true', 'false'].includes(process.env.OTP_ALLOW_CONSOLE_IN_PRODUCTION)) {
+    problems.push({ name: 'OTP_ALLOW_CONSOLE_IN_PRODUCTION', problem: 'must be true or false' });
+  }
+  if (env.NODE_ENV === 'production' && env.OTP_DRIVER === 'console'
+      && !env.OTP_ALLOW_CONSOLE_IN_PRODUCTION) {
+    problems.push({
+      name: 'OTP_DRIVER',
+      problem: 'console is refused in production unless OTP_ALLOW_CONSOLE_IN_PRODUCTION=true',
+    });
+  }
+  if (env.OTP_DRIVER === 'bulksms') {
+    if (!env.SMS_API_KEY) problems.push({ name: 'SMS_API_KEY', problem: 'missing for OTP_DRIVER=bulksms' });
+    if (!env.SMS_API_SECRET) problems.push({ name: 'SMS_API_SECRET', problem: 'missing for OTP_DRIVER=bulksms' });
+  }
+  if (env.SMS_SENDER_ID && env.SMS_SENDER_ID.length > 11) {
+    problems.push({ name: 'SMS_SENDER_ID', problem: 'must be at most 11 characters' });
   }
 
   if (env.OTP_DEV_ECHO && env.NODE_ENV === 'production') {

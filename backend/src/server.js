@@ -17,6 +17,9 @@ async function boot() {
   }
 
   console.log('[ZD][BOOT] env ........ OK');
+  if (env.NODE_ENV === 'production' && env.OTP_DRIVER === 'console') {
+    console.warn('[ZD][BOOT][WARN] OTP codes are written to the server logs. Private testing only.');
+  }
   console.log(paystack.isConfigured()
     ? '[ZD][BOOT] paystack .. OK'
     : '[ZD][BOOT] paystack .. NOT CONFIGURED (ok until keys are set)');

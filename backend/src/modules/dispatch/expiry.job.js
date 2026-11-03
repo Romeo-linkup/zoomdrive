@@ -1,34 +1,41 @@
 const { withTransaction } = require('../../db/pool');
 const { writeAudit } = require('../../lib/audit');
 const { logger } = require('../../lib/logger');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 
 async function runExpiryOnce() {
-  return withTransaction(async (client) => {
+  const expiredRequests = await withTransaction(async (client) => {
     const result = await client.query(
       `UPDATE requests
        SET status = 'expired'
        WHERE status = 'searching' AND expires_at <= now()
-       RETURNING id`
+       RETURNING id, driver_id`
     );
-    const requestIds = result.rows.map((row) => row.id);
-    if (requestIds.length === 0) return 0;
+    if (result.rows.length === 0) return [];
 
     await client.query(
       `UPDATE request_offers SET status = 'expired', responded_at = now()
        WHERE request_id = ANY($1::bigint[]) AND status = 'offered'`,
-      [requestIds]
+      [result.rows.map((row) => row.id)]
     );
 
-    for (const requestId of requestIds) {
+    for (const request of result.rows) {
       await writeAudit({
         actorType: 'system',
         action: 'request.expire',
         entity: 'requests',
-        entityId: requestId,
+        entityId: request.id,
       }, client);
     }
-    return requestIds.length;
+    return result.rows;
   });
+  await Promise.all(expiredRequests.map((request) => notifyBestEffort({
+    userId: request.driver_id,
+    title: 'No provider was found',
+    kind: 'request_expired',
+    data: { requestId: request.id },
+  })));
+  return expiredRequests.length;
 }
 
 function startExpiryJob() {

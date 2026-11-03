@@ -50,15 +50,24 @@ async function requestOtp({ phone, app, ip, requestId }) {
   const userExists = await query('SELECT id FROM users WHERE phone = $1', [phone]);
   const purpose = userExists.rows.length > 0 ? 'login' : 'signup';
 
-  await query(
+  const otpResult = await query(
     `INSERT INTO otp_codes (phone, code_hash, purpose, expires_at, attempts)
-     VALUES ($1, $2, $3, now() + interval '5 minutes', 0)`,
+     VALUES ($1, $2, $3, now() + interval '5 minutes', 0)
+     RETURNING id`,
     [phone, codeHash, purpose]
   );
 
   const driverName = env.OTP_DRIVER === 'console' ? './otp.drivers/console' : './otp.drivers/bulksms';
   const driver = require(driverName);
-  await driver.send({ phone, code });
+  try {
+    await driver.send({ phone, code });
+  } catch (error) {
+    await query(
+      'UPDATE otp_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL',
+      [otpResult.rows[0].id]
+    );
+    throw error;
+  }
 
   logger.info({
     reqId: requestId,

@@ -9,6 +9,8 @@ const { isPlusActive } = require('../plus/plus.service');
 const pricingPolicy = require('../admin/pricingPolicy');
 const paystack = require('../payments/paystack.service');
 const ridePayments = require('../payments/ridePayments.service');
+const { getMyRating, getAverageFor } = require('../ratings/ratings.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 
 function queryWith(client, text, params) {
   return client ? client.query(text, params) : query(text, params);
@@ -67,7 +69,7 @@ async function getJoinedRequest(requestId, client) {
   return result.rows[0] || null;
 }
 
-async function buildView(requestRow, viewerRole, client = null) {
+async function buildView(requestRow, viewerRole, client = null, viewerId = null) {
   const settings = await loadSettings(client || undefined);
   const row = requestRow;
   const assigned = row.provider_id !== null && row.provider_id !== undefined;
@@ -155,6 +157,9 @@ async function buildView(requestRow, viewerRole, client = null) {
     etaMinutes,
     provider,
     driver,
+    myRating: ['driver', 'provider'].includes(viewerRole) && viewerId !== null && viewerId !== undefined
+      ? await getMyRating(row.id, viewerId, client || undefined)
+      : null,
     payment: await ridePayments.getPaymentView(row.id, client || undefined),
   };
 }
@@ -247,7 +252,7 @@ async function createRequest({ driverId, body, requestId, ip }) {
     + (plusActive ? pricingValues.driverPlusExtraOffers : 0);
 
   try {
-    return await withTransaction(async (client) => {
+    const created = await withTransaction(async (client) => {
       const insertResult = await client.query(
         `INSERT INTO requests (
            driver_id, service_id, status, lat, lng, address_text, notes, distance_km,
@@ -301,10 +306,22 @@ async function createRequest({ driverId, body, requestId, ip }) {
       }, client);
       const row = await getJoinedRequest(id, client);
       return {
-        request: await buildView(row, 'driver', client),
-        offersSent: offersSent.length,
+        request: await buildView(row, 'driver', client, driverId),
+        offeredProviderIds: offersSent,
       };
     });
+    await Promise.all(created.offeredProviderIds.map(async (providerId) => {
+      const candidate = computed.candidates.find((item) => Number(item.providerId) === Number(providerId));
+      const distance = candidate ? Number(candidate.straightKm).toFixed(1) : '—';
+      await notifyBestEffort({
+        userId: providerId,
+        title: 'New job nearby',
+        body: `${computed.service.name}, about ${distance} km away`,
+        kind: 'offer_received',
+        data: { requestId: created.request.id },
+      });
+    }));
+    return { request: created.request, offersSent: created.offeredProviderIds.length };
   } catch (err) {
     if (err && err.code === '23505') throw new ApiError('ZD-REQ-003');
     throw err;
@@ -318,7 +335,7 @@ async function getRequestView({ requestId, user }) {
   const isProvider = user.role === 'provider' && row.provider_id === user.id;
   const isAdmin = user.role === 'admin';
   if (!isDriver && !isProvider && !isAdmin) throw new ApiError('ZD-REQ-007');
-  return buildView(row, user.role);
+  return buildView(row, user.role, null, user.id);
 }
 
 async function listDriverRequests({ driverId, page = 1 }) {
@@ -358,7 +375,7 @@ async function listDriverRequests({ driverId, page = 1 }) {
 
 async function acceptRequest({ providerId, requestId, requestIdHeader, ip }) {
   try {
-    return await withTransaction(async (client) => {
+    const accepted = await withTransaction(async (client) => {
       const busyResult = await client.query(
         `SELECT 1 FROM requests
          WHERE provider_id = $1 AND status IN ('accepted', 'arrived')
@@ -409,8 +426,20 @@ async function acceptRequest({ providerId, requestId, requestIdHeader, ip }) {
         ip,
       }, client);
       const row = await getJoinedRequest(requestId, client);
-      return { request: await buildView(row, 'provider', client) };
+      return {
+        request: await buildView(row, 'provider', client, providerId),
+        driverId: row.driver_id,
+        providerFirstName: row.provider_first_name,
+      };
     });
+    await notifyBestEffort({
+      userId: accepted.driverId,
+      title: 'Help is on the way',
+      body: `${accepted.providerFirstName} accepted your request`,
+      kind: 'request_accepted',
+      data: { requestId },
+    });
+    return { request: accepted.request };
   } catch (err) {
     if (err && err.code === '23505' && err.constraint === 'uq_requests_one_active_job_per_provider') {
       throw new ApiError('ZD-REQ-009');
@@ -449,7 +478,7 @@ async function declineRequest({ providerId, requestId, requestIdHeader, ip }) {
 }
 
 async function transitionProviderRequest({ providerId, requestId, requestIdHeader, ip }, to) {
-  return withTransaction(async (client) => {
+  const transitioned = await withTransaction(async (client) => {
     const locked = await client.query('SELECT * FROM requests WHERE id = $1 FOR UPDATE', [requestId]);
     if (locked.rows.length === 0) throw new ApiError('ZD-REQ-001');
     const request = locked.rows[0];
@@ -486,8 +515,28 @@ async function transitionProviderRequest({ providerId, requestId, requestIdHeade
       ip,
     }, client);
     const row = await getJoinedRequest(result.rows[0].id, client);
-    return { request: await buildView(row, 'provider', client) };
+    return {
+      request: await buildView(row, 'provider', client, providerId),
+      driverId: row.driver_id,
+    };
   });
+  if (to === 'arrived') {
+    await notifyBestEffort({
+      userId: transitioned.driverId,
+      title: 'Your provider has arrived',
+      kind: 'provider_arrived',
+      data: { requestId },
+    });
+  } else if (to === 'completed') {
+    await notifyBestEffort({
+      userId: transitioned.driverId,
+      title: 'Job completed',
+      body: 'Please pay and rate your provider',
+      kind: 'job_completed',
+      data: { requestId },
+    });
+  }
+  return { request: transitioned.request };
 }
 
 async function markArrived(args) {
@@ -499,7 +548,7 @@ async function completeRequest(args) {
 }
 
 async function cancelRequest({ requestId, actor, reason, requestIdHeader, ip }) {
-  return withTransaction(async (client) => {
+  const cancelled = await withTransaction(async (client) => {
     const locked = await client.query('SELECT * FROM requests WHERE id = $1 FOR UPDATE', [requestId]);
     if (locked.rows.length === 0) throw new ApiError('ZD-REQ-001');
     const request = locked.rows[0];
@@ -533,8 +582,25 @@ async function cancelRequest({ requestId, actor, reason, requestIdHeader, ip }) 
       ip,
     }, client);
     const row = await getJoinedRequest(updateResult.rows[0].id, client);
-    return { request: await buildView(row, actor.role, client) };
+    return {
+      request: await buildView(row, actor.role, client, actor.id),
+      driverId: request.driver_id,
+      providerId: request.provider_id,
+      isOperator,
+    };
   });
+  const recipients = cancelled.isOperator
+    ? [cancelled.driverId, cancelled.providerId]
+    : [actor.role === 'driver' ? cancelled.providerId : cancelled.driverId];
+  await Promise.all([...new Set(recipients.filter((userId) => userId !== null && userId !== undefined))]
+    .map((userId) => notifyBestEffort({
+      userId,
+      title: 'Request cancelled',
+      body: 'The request was cancelled.',
+      kind: 'request_cancelled',
+      data: { requestId },
+    })));
+  return { request: cancelled.request };
 }
 
 async function listProviderOffers(providerId) {
@@ -549,7 +615,7 @@ async function listProviderOffers(providerId) {
   const result = await query(
     `SELECT ro.request_id, ro.offered_at, r.expires_at, r.service_id, s.code,
             s.name, s.icon, r.address_text, r.lat, r.lng, r.notes, r.distance_km,
-            r.provider_earning_cents, r.total_cents, d.first_name
+            r.provider_earning_cents, r.total_cents, d.id AS driver_id, d.first_name
      FROM request_offers ro
      JOIN requests r ON r.id = ro.request_id
      JOIN services s ON s.id = r.service_id
@@ -559,8 +625,9 @@ async function listProviderOffers(providerId) {
      ORDER BY ro.offered_at DESC`,
     [providerId]
   );
-  return result.rows.map((row) => {
+  return Promise.all(result.rows.map(async (row) => {
     let distanceKm = null;
+    const driverRating = await getAverageFor(row.driver_id, 'provider');
     if (hasPosition) {
       distanceKm = Math.round(
         geo.haversineKm(Number(profile.last_lat), Number(profile.last_lng), Number(row.lat), Number(row.lng)) *
@@ -579,9 +646,13 @@ async function listProviderOffers(providerId) {
       totalCents: row.total_cents,
       offeredAt: row.offered_at,
       expiresAt: row.expires_at,
-      driver: { firstName: row.first_name },
+      driver: {
+        firstName: row.first_name,
+        ratingAvg: driverRating.avg,
+        ratingCount: driverRating.count,
+      },
     };
-  });
+  }));
 }
 
 async function listProviderJobs(providerId) {
@@ -594,7 +665,7 @@ async function listProviderJobs(providerId) {
   const active = [];
   for (const row of activeResult.rows) {
     const joined = await getJoinedRequest(row.id);
-    active.push(await buildView(joined, 'provider'));
+    active.push(await buildView(joined, 'provider', null, providerId));
   }
 
   const pastResult = await query(

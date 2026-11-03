@@ -4,6 +4,7 @@ const geo = require('../../lib/geo');
 const dispatch = require('../dispatch/dispatch.service');
 const requests = require('../requests/requests.service');
 const ridePayments = require('../payments/ridePayments.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 
 async function listRequests(req, res) {
   const { status, q, page } = req.validated;
@@ -191,6 +192,21 @@ async function assign(req, res) {
     ip: req.ip,
   });
   const detail = await loadAdminRequest(requestId);
+  await Promise.all([
+    notifyBestEffort({
+      userId: req.body.providerId,
+      title: 'You were assigned a job',
+      kind: 'offer_received',
+      data: { requestId },
+    }),
+    notifyBestEffort({
+      userId: detail.request.driver.id,
+      title: 'Help is on the way',
+      body: `${detail.request.provider.firstName} accepted your request`,
+      kind: 'request_accepted',
+      data: { requestId },
+    }),
+  ]);
   res.ok({ request: detail.request });
 }
 

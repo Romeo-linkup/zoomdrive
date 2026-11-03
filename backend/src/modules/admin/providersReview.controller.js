@@ -1,7 +1,7 @@
 const { pool, query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
-const { createNotification } = require('../notifications/notifications.service');
+const { notifyBestEffort } = require('../notifications/notifications.service');
 const { signedDocumentUrl } = require('../uploads/cloudinary.service');
 const { getRegistrationState } = require('../payments/charges.service');
 
@@ -272,17 +272,14 @@ async function approve(req, res) {
       client
     );
 
-    await createNotification(
-      {
-        userId,
-        title: 'You are approved',
-        body: 'Your ZoomDrive Partner profile is approved. You can now go online and accept jobs.',
-        kind: 'provider_approved',
-      },
-      client
-    );
   });
 
+  await notifyBestEffort({
+    userId,
+    title: 'You are approved',
+    body: 'Your ZoomDrive Partner profile is approved. You can now go online and accept jobs.',
+    kind: 'provider_approved',
+  });
   res.ok(await buildProviderDetail(userId));
 }
 
@@ -323,23 +320,21 @@ async function reject(req, res) {
       client
     );
 
-    await createNotification(
-      {
-        userId,
-        title: 'Your profile needs changes',
-        body: reason,
-        kind: 'provider_rejected',
-      },
-      client
-    );
   });
 
+  await notifyBestEffort({
+    userId,
+    title: 'Your profile needs changes',
+    body: reason,
+    kind: 'provider_rejected',
+  });
   res.ok(await buildProviderDetail(userId));
 }
 
 async function reviewDocument(req, res) {
   const id = Number(req.params.id);
   const { status, note } = req.body;
+  let rejectionNotification = null;
 
   await withTransaction(async (client) => {
     const docResult = await client.query(
@@ -399,18 +394,16 @@ async function reviewDocument(req, res) {
         client
       );
 
-      await createNotification(
-        {
-          userId,
-          title: 'A document needs to be replaced',
-          body: rejectionReason,
-          kind: 'provider_rejected',
-        },
-        client
-      );
+      rejectionNotification = {
+        userId,
+        title: 'A document needs to be replaced',
+        body: rejectionReason,
+        kind: 'provider_rejected',
+      };
     }
   });
 
+  if (rejectionNotification) await notifyBestEffort(rejectionNotification);
   const docResult = await query('SELECT provider_user_id FROM provider_documents WHERE id = $1', [id]);
   if (docResult.rows.length > 0) {
     res.ok(await buildProviderDetail(docResult.rows[0].provider_user_id));
