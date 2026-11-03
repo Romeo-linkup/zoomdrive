@@ -238,6 +238,28 @@ export function formatDate(iso, style = 'datetime') {
   }
 }
 
+export function formatRelativeTime(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return '';
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const units = [
+    ['year', 31536000],
+    ['month', 2592000],
+    ['week', 604800],
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60],
+  ];
+  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  for (const [unit, interval] of units) {
+    if (Math.abs(seconds) >= interval) {
+      return formatter.format(Math.round(seconds / interval), unit);
+    }
+  }
+  return formatter.format(seconds, 'second');
+}
+
 export function formatPhone(e164) {
   if (typeof e164 !== 'string') return e164;
   if (/^\+278[0-9]{8}$/.test(e164)) {

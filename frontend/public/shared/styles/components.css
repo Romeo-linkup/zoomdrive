@@ -167,7 +167,7 @@ button{font-family:inherit;cursor:pointer}
 .upcoming-empty{padding:18px 12px}
 .request-detail-skeleton{min-height:110px}
 .rating-stars{display:flex;justify-content:center;gap:8px;margin:18px 0}
-.rating-star{min-width:44px;min-height:44px;border:0;border-radius:12px;background:var(--soft);color:var(--mu);font-size:28px}
+.rating-star{min-width:var(--tap);min-height:var(--tap);border:0;border-radius:12px;background:var(--soft);color:var(--mu);font-size:28px}
 .rating-star.selected{background:var(--am);color:var(--tx)}
 
 /* P9 account pages */
@@ -195,3 +195,27 @@ button{font-family:inherit;cursor:pointer}
 .offer-card .provider-earning{font-size:18px}
 .provider-balance-positive{color:var(--ok)}
 .provider-balance-negative{color:var(--amd);font-weight:700}
+
+.admin-audit-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:end}
+.admin-audit-filter{display:flex;flex-direction:column;gap:4px;margin:0}
+.admin-audit-filter>span{font-size:12px;font-weight:700;color:var(--mu)}
+.admin-audit-filter small{font-size:11px;color:var(--mu)}
+.admin-audit-actions{grid-column:1/-1;display:flex;gap:8px}
+.admin-audit-actions .btn,.admin-audit-filters .btn,.admin-user-actions .btn,.admin-timeline-heading .btn,.admin-audit-meta+.btn{width:auto;min-width:100px;margin:0;padding:10px 14px;font-size:14px}
+.admin-audit-meta{max-height:60vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--soft);border-radius:12px;padding:12px;font-size:12px}
+.admin-timeline-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.admin-timeline-heading h2{margin:0}
+.admin-timeline-list{list-style:none;padding:0;margin:12px 0 0}
+.admin-timeline-list li{display:grid;grid-template-columns:minmax(135px,auto) auto minmax(100px,1fr) minmax(100px,1fr);align-items:start;gap:8px;padding:12px 0;border-top:1px solid var(--line);font-size:13px}
+.admin-timeline-list time,.admin-timeline-detail{color:var(--mu)}
+.admin-timeline-source{justify-self:start}
+.admin-user-reason{display:block;color:var(--mu);font-size:12px;margin-top:4px}
+.admin-user-actions{min-width:150px}
+.admin-user-actions .btn{display:inline-flex;margin:2px}
+.admin-dialog-actions{display:flex;gap:8px;margin-top:14px}
+.admin-dialog-actions .btn{flex:1;margin:0}
+
+@media(max-width:700px){
+  .admin-audit-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-timeline-list li{grid-template-columns:1fr 1fr}
+}

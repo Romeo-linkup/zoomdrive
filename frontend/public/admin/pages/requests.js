@@ -1,7 +1,7 @@
 import { apiFetch } from '../../shared/api.js';
 import { clearError, renderPageError, showError } from '../../shared/errors.js';
 import { createStatusBadge } from '../../shared/components/status-badge.js';
-import { clear, el, formatDate, formatPhone, formatZAR, modal, toast, withSpinner } from '../../shared/ui.js';
+import { clear, el, formatDate, formatZAR, modal, toast, withSpinner } from '../../shared/ui.js';
 
 const STATUSES = [
   ['all', 'All statuses'],
@@ -177,6 +177,7 @@ async function renderRequestDetail(ctx, screen) {
   let active = true;
   let busy = false;
   let currentDetail = null;
+  let currentTimeline = [];
 
   function isActiveRequest(request) {
     return request && ['searching', 'accepted', 'arrived'].includes(request.status);
@@ -201,10 +202,14 @@ async function renderRequestDetail(ctx, screen) {
   async function loadDetail(isPoll = false) {
     clearError();
     try {
-      const data = await apiFetch('/admin/requests/' + requestId, { signal: ctx.signal });
+      const [data, timeline] = await Promise.all([
+        apiFetch('/admin/requests/' + requestId, { signal: ctx.signal }),
+        apiFetch('/admin/requests/' + requestId + '/timeline', { signal: ctx.signal }),
+      ]);
       if (!active || ctx.signal.aborted) return;
       currentDetail = data;
-      renderDetail(data);
+      currentTimeline = Array.isArray(timeline.events) ? timeline.events : [];
+      renderDetail(data, currentTimeline);
     } catch (err) {
       if (!active || ctx.signal.aborted) return;
       showError(err);
@@ -214,7 +219,7 @@ async function renderRequestDetail(ctx, screen) {
     }
   }
 
-  function renderDetail(data) {
+  function renderDetail(data, timeline) {
     clear(content);
     const request = data.request;
     const summary = el('section', { class: 'card admin-request-summary' });
@@ -223,7 +228,6 @@ async function renderRequestDetail(ctx, screen) {
     summary.appendChild(title);
     summary.appendChild(createStatusBadge(request.status));
     summary.appendChild(el('p', {}, request.addressText || 'Address not provided'));
-    if (request.notes) summary.appendChild(el('p', { class: 'mu' }, 'Driver notes: ' + request.notes));
     const timeInfo = el('dl', { class: 'kv' });
     appendKv(timeInfo, 'Created', formatDate(request.createdAt, 'datetime'));
     appendKv(timeInfo, 'Expires', formatDate(request.expiresAt, 'datetime'));
@@ -231,8 +235,7 @@ async function renderRequestDetail(ctx, screen) {
     appendKv(timeInfo, 'Arrived', formatDate(request.arrivedAt, 'datetime'));
     appendKv(timeInfo, 'Completed', formatDate(request.completedAt, 'datetime'));
     appendKv(timeInfo, 'Driver', [request.driver && request.driver.firstName,
-      request.driver && request.driver.lastName].filter(Boolean).join(' ') +
-      (request.driver && request.driver.phone ? ' · ' + formatPhone(request.driver.phone) : ''));
+      request.driver && request.driver.lastName].filter(Boolean).join(' '));
     appendKv(timeInfo, 'Provider', request.provider
       ? [request.provider.firstName, request.provider.lastName].filter(Boolean).join(' ')
       : 'Unassigned');
@@ -263,6 +266,7 @@ async function renderRequestDetail(ctx, screen) {
     renderOffers(data.offers || [], content);
     renderCandidates(data.candidates || [], request, content);
     renderActions(request, content);
+    renderTimeline(timeline, content);
   }
 
   function renderOffers(offers, parent) {
@@ -295,7 +299,7 @@ async function renderRequestDetail(ctx, screen) {
     section.appendChild(el('h2', {}, 'Candidates'));
     const wrap = el('div', { class: 'table-wrap' });
     const table = el('table', { class: 'tbl' });
-    const labels = ['Provider', 'Phone', 'Online', 'Availability', 'Distance'];
+    const labels = ['Provider', 'Online', 'Availability', 'Distance'];
     if (request.status === 'searching') labels.push('Action');
     appendTableHeader(table, labels);
     const tbody = el('tbody');
@@ -310,7 +314,6 @@ async function renderRequestDetail(ctx, screen) {
       sorted.forEach((candidate) => {
         const row = el('tr');
         row.appendChild(el('td', {}, [candidate.firstName, candidate.lastName].filter(Boolean).join(' ')));
-        row.appendChild(el('td', {}, formatPhone(candidate.phone)));
         row.appendChild(el('td', {}, candidate.isOnline ? 'Online' : 'Offline'));
         row.appendChild(el('td', {}, candidate.isBusy ? 'Busy' : 'Available'));
         row.appendChild(el('td', {}, candidate.distanceKm === null
@@ -347,6 +350,66 @@ async function renderRequestDetail(ctx, screen) {
       actions.appendChild(paid);
     }
     if (actions.childNodes.length) parent.appendChild(actions);
+  }
+
+  function renderTimeline(events, parent) {
+    const section = el('section', { class: 'card admin-timeline' });
+    const heading = el('div', { class: 'admin-timeline-heading' });
+    heading.appendChild(el('h2', {}, 'Timeline'));
+    const copy = el('button', { class: 'btn soft', type: 'button' }, 'Copy timeline');
+    copy.addEventListener('click', copyTimeline);
+    heading.appendChild(copy);
+    section.appendChild(heading);
+
+    const ordered = events.slice().sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    if (!ordered.length) {
+      section.appendChild(el('p', { class: 'mu' }, 'No timeline events.'));
+    } else {
+      const list = el('ol', { class: 'admin-timeline-list' });
+      ordered.forEach((event) => {
+        const item = el('li');
+        const source = ['audit', 'offer', 'rating', 'ledger'].includes(event.source) ? event.source : 'event';
+        item.appendChild(el('time', {}, formatDate(event.at, 'datetime') || '—'));
+        item.appendChild(el('span', { class: 'badge admin-timeline-source' }, source));
+        item.appendChild(el('strong', {}, event.label || 'Event'));
+        item.appendChild(el('span', {}, event.actor || '—'));
+        const detail = formatTimelineDetail(event.detail);
+        if (detail) item.appendChild(el('span', { class: 'admin-timeline-detail' }, detail));
+        list.appendChild(item);
+      });
+      section.appendChild(list);
+    }
+    parent.appendChild(section);
+  }
+
+  async function copyTimeline() {
+    const ordered = currentTimeline.slice().sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    const text = ordered.map((event) => [
+      formatDate(event.at, 'datetime') || '—',
+      event.label || 'Event',
+      event.actor || '—',
+      formatTimelineDetail(event.detail),
+    ].join(' | ')).join('\n');
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const input = el('textarea');
+        input.value = text;
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        input.remove();
+        if (!copied) throw new Error('Clipboard copy was rejected');
+      }
+      if (active && !ctx.signal.aborted) toast('Timeline copied', 'ok');
+    } catch {
+      if (active && !ctx.signal.aborted) {
+        showError({ code: 'ZD-UI-001', message: 'Unable to copy the timeline.' });
+      }
+    }
   }
 
   async function assignProvider(candidate) {
@@ -463,6 +526,18 @@ async function renderRequestDetail(ctx, screen) {
 function appendKv(list, label, value) {
   list.appendChild(el('dt', {}, label));
   list.appendChild(el('dd', {}, value || '—'));
+}
+
+function formatTimelineDetail(detail) {
+  if (!detail || typeof detail !== 'object') return '';
+  if (Number.isInteger(detail.stars) && detail.stars >= 1 && detail.stars <= 5) {
+    return detail.stars + ' stars';
+  }
+  if (detail.amountCents !== undefined && detail.amountCents !== null
+      && Number.isFinite(Number(detail.amountCents))) {
+    return formatZAR(Number(detail.amountCents));
+  }
+  return '';
 }
 
 function appendTableHeader(table, labels) {

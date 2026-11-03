@@ -4,7 +4,7 @@ import { el, clear } from '../ui.js';
 export function createBottomNav({ items, current }) {
   const nav = el('nav', { class: 'nav', attrs: { 'aria-label': 'Main' } });
   items.forEach((item) => {
-    const btn = el('button', { class: 'nav-item', attrs: { 'aria-label': item.label } });
+    const btn = el('button', { class: 'nav-item', attrs: { 'aria-label': item.label, 'data-path': item.path } });
     if (item.path === current) {
       btn.classList.add('on');
       btn.setAttribute('aria-current', 'page');

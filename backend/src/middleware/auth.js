@@ -28,8 +28,8 @@ async function auth(req, res, next) {
 
   const user = result.rows[0];
 
-  if (user.status === 'suspended') {
-    return next(new ApiError('ZD-AUTH-005', { message: 'This account has been suspended' }));
+  if (user.status === 'suspended' || user.status === 'deleted') {
+    return next(new ApiError('ZD-AUTH-005', { message: 'This account is not active. Contact support.' }));
   }
 
   req.user = {

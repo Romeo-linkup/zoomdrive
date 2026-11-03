@@ -15,6 +15,9 @@ const settings = require('./adminSettings.controller');
 const adminRequests = require('./adminRequests.controller');
 const adminPricing = require('./adminPricing.controller');
 const adminPayouts = require('./adminPayouts.controller');
+const adminAudit = require('./adminAudit.controller');
+const requestTimeline = require('./requestTimeline.service');
+const accountDeletion = require('./accountDeletion.service');
 
 const router = express.Router();
 
@@ -38,7 +41,7 @@ const providerListQuery = z.object({
 
 const userListQuery = z.object({
   role: z.enum(['all', 'driver', 'provider']).default('all'),
-  status: z.enum(['all', 'active', 'suspended']).default('all'),
+  status: z.enum(['all', 'active', 'suspended', 'deleted']).default('all'),
   q: search,
   page,
 });
@@ -80,6 +83,27 @@ const markPaidSchema = z.object({
   method: z.enum(['cash', 'eft']),
   receivedBy: z.enum(['provider', 'platform']),
   note: z.string().trim().min(3).max(200),
+});
+
+const suspendSchema = z.object({
+  reason: z.string().trim().min(3).max(200),
+});
+
+const deleteSchema = z.object({
+  confirm: z.literal('DELETE'),
+  reason: z.string().trim().min(3).max(200),
+});
+
+const auditQuery = z.object({
+  actorType: z.enum(['user', 'admin', 'system']).optional(),
+  actorId: z.string().max(40).optional(),
+  action: z.string().max(80).optional(),
+  entity: z.string().max(40).optional(),
+  entityId: z.string().max(40).optional(),
+  requestId: z.string().max(64).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  page,
 });
 
 const rejectSchema = z.object({
@@ -162,6 +186,17 @@ router.post('/providers/:userId/waive-registration', validate(userIdParams, 'par
 router.post('/documents/:id/review', validate(idParams, 'params'), validate(docReviewSchema), wrap(providers.reviewDocument));
 
 router.get('/users', validate(userListQuery, 'query'), wrap(users.listUsers));
+router.post('/users/:userId/suspend', validate(userIdParams, 'params'), validate(suspendSchema), wrap(users.suspendUser));
+router.post('/users/:userId/unsuspend', validate(userIdParams, 'params'), wrap(users.unsuspendUser));
+router.post('/users/:userId/delete', validate(userIdParams, 'params'), validate(deleteSchema), wrap(async (req, res) => {
+  const { publicIds } = await accountDeletion.deleteAccount({
+    adminId: req.admin.id,
+    userId: Number(req.params.userId),
+    reason: req.body.reason,
+  });
+  await accountDeletion.cleanupDeletedAssets(publicIds);
+  res.ok({ deleted: true });
+}));
 
 router.get('/services', wrap(services.listAll));
 router.put('/services/:id', validate(idParams, 'params'), validate(serviceSchema), wrap(services.update));
@@ -171,6 +206,12 @@ router.get('/requests/:id', validate(idParams, 'params'), wrap(adminRequests.get
 router.post('/requests/:id/assign', validate(idParams, 'params'), validate(assignSchema), wrap(adminRequests.assign));
 router.post('/requests/:id/cancel', validate(idParams, 'params'), validate(adminCancelSchema), wrap(adminRequests.cancel));
 router.post('/requests/:id/mark-paid', validate(idParams, 'params'), validate(markPaidSchema), wrap(adminRequests.markPaid));
+router.get('/requests/:id/timeline', validate(idParams, 'params'), wrap(async (req, res) => {
+  const timeline = await requestTimeline.getTimeline(Number(req.params.id));
+  res.ok(timeline);
+}));
+
+router.get('/audit', validate(auditQuery, 'query'), wrap(adminAudit.list));
 
 router.get('/payouts', validate(payoutListQuery, 'query'), wrap(adminPayouts.list));
 router.get('/payouts/export', validate(payoutExportQuery, 'query'), wrap(adminPayouts.exportCsv));

@@ -373,3 +373,52 @@ select p.method, count(*), sum(r.provider_earning_cents) as owed_to_providers, s
 select entry_type, count(*), sum(amount_cents) from provider_ledger group by entry_type;
 select indexname from pg_indexes where indexname in ('uq_provider_ledger_request_entry','uq_payments_paystack_ref','uq_payouts_reference');
 ```
+
+## Phase 12
+
+Ratings:
+1. Complete a job and pay it. Driver lands on Rate: submit 4 stars with a comment. Neon: select * from ratings order by id desc limit 3; one row, rater_role driver. select rating_avg, rating_count from provider_profiles where user_id = <provider>; matches.
+2. Change the same rating to 5 stars immediately: still one row, updated_at set, provider average recalculated.
+3. In Neon set that rating's created_at to 25 hours ago: submitting again shows the locked state (ZD-RAT-002). Set it back if you want to retest.
+4. Driver uses 'Pay later' then rates before paying: works.
+5. Rating a job that is not completed is refused (ZD-RAT-001). A third user cannot rate it (ZD-REQ-007).
+6. Provider rates the driver from the Job complete card. The provider offer card on the next request shows the driver's average, or 'New' with no ratings. The driver never sees the provider's comment.
+
+Notifications:
+7. Run one full job. Driver inbox shows: accepted, arrived, completed. Provider inbox shows: offer received, payment received, new rating. Unread dots and the Account badge appear; tapping a row opens the right screen and marks it read; Mark all read clears the badge.
+8. Cancel a request from each side and let one expire: the other party gets 'cancelled' and the driver gets 'expired'.
+9. Approve and reject a provider from admin: the provider inbox shows both.
+10. Break notifications on purpose (Neon: rename the notifications table, run a job, rename it back): the job still completes and the backend logs a WARN.
+
+Audit and timeline:
+11. Admin > Audit log: filter by action prefix 'request.', by entity, by date, and by an Error ref copied from a driver error banner; details modal shows meta with no phone numbers or comments.
+12. Admin > Requests > open a completed job: Timeline shows created, offers, accepted, arrived, completed, payment, ledger and rating events in order. Copy timeline pastes plain text.
+13. Run the audit-coverage query from the end of this section: it returns no rows.
+
+```sql
+SELECT r.id, r.status
+FROM requests r
+WHERE (r.status = 'completed' AND NOT EXISTS (
+         SELECT 1 FROM audit_log a
+         WHERE a.entity = 'requests' AND a.entity_id = r.id AND a.action = 'request.complete'
+       ))
+   OR (r.status = 'cancelled' AND NOT EXISTS (
+         SELECT 1 FROM audit_log a
+         WHERE a.entity = 'requests' AND a.entity_id = r.id AND a.action = 'request.cancel'
+       ))
+   OR (r.status = 'accepted' AND NOT EXISTS (
+         SELECT 1 FROM audit_log a
+         WHERE a.entity = 'requests' AND a.entity_id = r.id
+           AND a.action IN ('request.accept', 'admin.request_assign')
+       ));
+
+select status, count(*) from users group by status;
+select count(*) from notifications where read_at is null;
+```
+
+Moderation:
+14. Suspend a driver who has no active request: their next API call shows the not-active message and login is refused. Unsuspend: works again.
+15. Try to suspend a user with an active request: ZD-ADM-009. Suspend an online provider with no job: they go offline (Neon is_online false).
+16. Delete a driver with a completed job: phone becomes deleted-<id>, name 'Deleted User', saved places gone, but the request, payment and ledger rows remain. Their old token is refused.
+17. Delete a provider with a non-zero balance: refused (ZD-ADM-010). Record a payout or adjustment to zero, then delete: documents and bank details are gone, ledger and payouts remain.
+18. Deleting without typing DELETE is impossible in the UI.

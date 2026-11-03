@@ -69,7 +69,7 @@ async function renderMenu(ctx) {
     clear(profileInfo);
     profileInfo.appendChild(el('strong', {}, [firstName, lastName].filter(Boolean).join(' ') || 'Provider'));
     const ratingCount = Number(profile && profile.ratingCount) || 0;
-    if (ratingCount > 0) {
+    if (profile && profile.ratingAvg !== null && profile.ratingAvg !== undefined && ratingCount > 0) {
       const rating = Number(profile.ratingAvg);
       profileInfo.appendChild(el('small', {}, (Number.isFinite(rating) ? rating.toFixed(1) : 'New') + ' rating'));
     } else {

@@ -32,7 +32,11 @@ async function main() {
     const content = fs.readFileSync(filePath, 'utf8');
 
     const trimmed = content.trim();
-    if (!trimmed || /^--[\s\S]*$/.test(trimmed)) {
+    const hasStatement = trimmed.split(/\r?\n/).some((line) => {
+      const l = line.trim();
+      return l.length > 0 && !l.startsWith('--');
+    });
+    if (!hasStatement) {
       console.log(`[ZD][MIGRATE][FAIL] ${file} is EMPTY`);
       await pool.end();
       process.exit(1);

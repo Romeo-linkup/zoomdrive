@@ -7,6 +7,7 @@ import { createRouter } from '../shared/router.js';
 import { createBrandBar } from '../shared/components/topbar.js';
 import { createBottomNav } from '../shared/components/bottom-nav.js';
 import { el, clear } from '../shared/ui.js';
+import { renderProviderUnreadBadge } from './notificationsBadge.js';
 import { onboardingRoute } from './onboarding.js';
 import './heartbeat.js';
 import { capturePaymentReturn } from './paymentReturn.js';
@@ -99,6 +100,7 @@ const router = createRouter({
     clear(navRoot);
     if (route.nav) {
       navRoot.appendChild(createBottomNav({ items: navItems, current: ctx.path }));
+      renderProviderUnreadBadge(navRoot);
     }
   },
 });

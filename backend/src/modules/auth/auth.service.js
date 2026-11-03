@@ -39,7 +39,7 @@ async function assertAppAccess({ phone, app }) {
         message: `This number is registered as a ${user.role}. Open the ${otherApp} app instead.`,
       });
     }
-    if (user.status === 'suspended') {
+    if (user.status === 'suspended' || user.status === 'deleted') {
       throw new ApiError('ZD-AUTH-005');
     }
     return user;
@@ -194,7 +194,7 @@ async function verifyLogin({ phone, code, app, ip, requestId }) {
       });
     }
 
-    if (user.status === 'suspended') {
+    if (user.status === 'suspended' || user.status === 'deleted') {
       throw new ApiError('ZD-AUTH-005');
     }
 

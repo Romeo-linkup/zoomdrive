@@ -4,9 +4,24 @@ import { apiFetch } from '../../shared/api.js';
 import { isAuthed, getUser, logout } from '../../shared/auth.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
 import { formatPhone } from '../../shared/ui.js';
+import { renderPageError, showError } from '../../shared/errors.js';
 
-export default async (ctx) => {
+export default async function render(ctx) {
   const screen = el('div', { class: 'screen' });
+  try {
+    await renderAccount(ctx, screen);
+    return screen;
+  } catch (err) {
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+async function renderAccount(ctx, screen) {
+  let active = true;
+  ctx.onLeave(() => {
+    active = false;
+  });
   screen.appendChild(createBrandBar('driver'));
 
   if (!isAuthed()) {
@@ -48,6 +63,7 @@ export default async (ctx) => {
     screen.appendChild(verifyBanner);
 
     const actions = [
+      { label: 'Notifications', path: '/inbox' },
       { label: 'Profile', path: '/profile-setup' },
       { label: 'Payment', path: '/payment' },
       { label: 'Saved places', path: '/saved-places' },
@@ -58,6 +74,7 @@ export default async (ctx) => {
       { label: 'Fleet Profile', placeholder: true },
     ];
 
+    let notificationBadge = null;
     actions.forEach((a) => {
       const item = a.placeholder
         ? el('div', { class: 'item' })
@@ -65,10 +82,23 @@ export default async (ctx) => {
       item.appendChild(el('div', { class: 'ic' }, '→'));
       item.appendChild(el('div', { class: 't' }, a.label));
       if (a.placeholder) item.appendChild(el('span', { class: 'badge off' }, 'Soon'));
+      if (a.label === 'Notifications') {
+        notificationBadge = el('span', { class: 'badge off hidden' });
+        item.appendChild(notificationBadge);
+      }
       if (a.path) {
         item.addEventListener('click', () => ctx.navigate(a.path));
       }
       screen.appendChild(item);
+    });
+
+    apiFetch('/notifications?unreadOnly=true&page=1', { signal: ctx.signal }).then((data) => {
+      if (!active || !notificationBadge) return;
+      const unreadCount = Number(data.unreadCount) || 0;
+      notificationBadge.textContent = String(unreadCount);
+      notificationBadge.classList.toggle('hidden', unreadCount === 0);
+    }).catch((err) => {
+      if (active && !ctx.signal.aborted) showError(err);
     });
 
     try {
@@ -82,6 +112,7 @@ export default async (ctx) => {
       }
     } catch (err) {
       if (ctx.signal && ctx.signal.aborted) return screen;
+      showError(err);
     }
 
     const logoutBtn = el('button', { class: 'btn red', type: 'button' }, 'Log out');
@@ -102,4 +133,4 @@ export default async (ctx) => {
   }
 
   return screen;
-};
+}

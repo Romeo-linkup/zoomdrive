@@ -46,6 +46,8 @@ const ERRORS = Object.freeze({
   'ZD-ADM-006': { status: 400, message: 'Pricing challenge is invalid or expired' },
   'ZD-ADM-007': { status: 409, message: 'Pricing changes are in cooldown' },
   'ZD-ADM-008': { status: 429, message: 'Too many pricing challenge attempts' },
+  'ZD-ADM-009': { status: 409, message: 'User has an active request or job' },
+  'ZD-ADM-010': { status: 409, message: 'Action is not allowed for the user\'s current status or balance' },
   'ZD-EML-001': { status: 502, message: 'Email delivery failed' },
 });
 

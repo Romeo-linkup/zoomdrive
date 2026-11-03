@@ -1,20 +1,20 @@
 # ZOOMDRIVE: MASTER BLUEPRINT
 
 > Single source of truth for Windsurf, Claude and Romeo. Lives at the repo root as `BLUEPRINT.md`.
-> Last revised: 25 Oct 2026. Blueprint version: 1.0
+> Last revised: 3 Nov 2026. Blueprint version: 1.1
 
 ---
 
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 11  (Payments, ledger, payouts)
-LAST COMPLETED PHASE . 10
-LAST TASK DONE ....... P11.8
-NEXT ACTION .......... Romeo manual tests for Phases 9 to 11, then Phase 12 task P12.1
+CURRENT PHASE ........ 12  (Ratings, notifications, audit and disputes)
+LAST COMPLETED PHASE . 11
+LAST TASK DONE ....... P12.2
+NEXT ACTION .......... Prompt W4 (P12.6, P12.7)
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
-LAST UPDATED ......... 2 Nov 2026
+LAST UPDATED ......... 3 Nov 2026
 ```
 
 **To catch up (Claude or Windsurf):** read this file only. Read section 0, then 1 (rules), then the section for the CURRENT PHASE in section 13, then the Build Log (section 14). Do not ask Romeo to re-upload anything. Everything needed is in here.
@@ -321,7 +321,7 @@ Frontend has no secrets. `shared/config.js` holds `API_BASE` (production URL, wi
 
 Conventions: `bigint generated always as identity` primary keys; `timestamptz` for all times (stored UTC, displayed in SAST); money as integer cents; `text` plus `CHECK` constraints for enums; indexes on every foreign key and every column used in a `WHERE`. Each migration is idempotent-safe, non-empty, and recorded in `schema_migrations` only after it succeeds.
 
-**users** `id, role CHECK(driver|provider), phone UNIQUE NOT NULL (E.164), email, first_name, last_name, photo_url, status CHECK(active|suspended) default active, created_at, updated_at, last_login_at`
+**users** `id, role CHECK(driver|provider), phone UNIQUE NOT NULL (E.164), email, first_name, last_name, photo_url, status CHECK(active|suspended|deleted) default active, suspended_reason, suspended_at, deleted_at, created_at, updated_at, last_login_at`
 
 **otp_codes** `id, phone, code_hash, purpose CHECK(login|signup), expires_at, attempts int default 0, consumed_at, created_at`
 
@@ -353,7 +353,7 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **payments** additionally has a unique partial index on non-null `paystack_ref` (`uq_payments_paystack_ref`).
 
-**ratings** `id, request_id→requests, rater_id→users, ratee_id→users, rater_role CHECK(driver|provider), stars int CHECK 1..5, comment, created_at, UNIQUE(request_id, rater_id)`
+**ratings** `id, request_id→requests, rater_id→users, ratee_id→users, rater_role CHECK(driver|provider), stars int CHECK 1..5, comment, created_at, updated_at, UNIQUE(request_id, rater_id)`
 
 **notifications** `id, user_id→users, title, body, kind, data jsonb, read_at, created_at`
 
@@ -419,7 +419,7 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | GET | `/services` | none | active services with prices |
 | POST | `/requests/quote` | driver | `{serviceId, lat, lng}` returns price breakdown |
 | POST | `/requests` | driver (profile complete) | create request and dispatch offers |
-| GET | `/requests/:id` | driver/provider involved | status, provider info, ETA, provider location |
+| GET | `/requests/:id` | driver/provider involved | status, provider info, ETA, provider location, myRating |
 | POST | `/requests/:id/cancel` | driver/provider involved | `{reason}` |
 | POST | `/requests/:id/accept` | provider | accept an offer (atomic, 409 if taken) |
 | POST | `/requests/:id/decline` | provider | decline an offer |
@@ -432,7 +432,8 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | POST | `/payments/:requestId/verify` | driver | verify and settle own ride payment |
 | POST | `/payments/paystack/webhook` | Paystack signature | confirm payment |
 | GET/PUT | `/providers/me/bank-details` | provider | read masked details or securely save bank details |
-| GET | `/notifications` | any | inbox |
+| GET | `/notifications?page&unreadOnly` | any | inbox with unreadCount |
+| POST | `/notifications/read-all` | any | |
 | POST | `/notifications/:id/read` | any | mark read |
 | POST | `/admin/auth/login` | none | `{email, password}` |
 | GET | `/admin/providers?status=pending` | admin | review queue |
@@ -457,6 +458,10 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | POST | `/admin/payouts/:providerId` | admin | record provider payout |
 | POST | `/admin/payouts/:providerId/adjustment` | admin | record signed ledger adjustment |
 | GET | `/admin/audit` | admin | audit log with filters |
+| GET | `/admin/requests/:id/timeline` | admin | request timeline |
+| POST | `/admin/users/:id/suspend` | admin | suspend user account |
+| POST | `/admin/users/:id/unsuspend` | admin | unsuspend user account |
+| POST | `/admin/users/:id/delete` | admin | delete user account |
 
 ---
 
@@ -500,7 +505,9 @@ All three are stored on the request at creation. Later admin changes never alter
 - Pilot payouts are manual EFT recorded by an admin (weekly batches recommended). Paystack transfers cost R3 each, so automatic payouts wait. Refunds are manual (Paystack dashboard plus an admin adjustment). Bank details are stored AES-256-GCM encrypted (DATA_ENCRYPTION_KEY), shown masked to the provider, and revealed to an admin only through the reveal endpoint, which writes an audit row.
 
 ### 9.6 Ratings
-Driver rates provider after completion (1 to 5 + comment). Provider rates driver optionally. Provider `rating_avg` updates transactionally. Ratings cannot be edited after 24 hours.
+- Only the two parties of a completed request can rate it. A driver rates the provider; a provider may rate the driver. Rating never depends on payment status. Stars are 1 to 5, comment is optional (max 300 characters) and visible to admins only; the other party sees averages only.
+- One rating per rater per request. Submitting again within 24 hours of the first rating updates it; after 24 hours it is locked (ZD-RAT-002).
+- A provider's rating_avg and rating_count (provider_profiles) are recalculated in the same transaction from ratings where ratee_id is the provider and rater_role is 'driver'. A driver's average is calculated on demand from ratings where ratee_id is the driver and rater_role is 'provider'; there is no stored driver average.
 
 ### 9.7 Guest browsing (driver app)
 Guests can open Home, service tiles, prices, Activity (empty), Account (sign-in prompt) and Safety/Support pages. Any action that creates data (request, saved place, payment method) redirects to `#/phone?next=<route>` with a banner "Create a profile to request help". After signup the user returns to `next`.
@@ -557,6 +564,8 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-REQ-007 | 403 | Not a party to this request |
 | ZD-REQ-008 | 409 | Price changed since the quote (details.newTotalCents) |
 | ZD-REQ-009 | 409 | Provider already has an active job |
+| ZD-RAT-001 | 409 | Request is not completed, so it cannot be rated |
+| ZD-RAT-002 | 409 | Rating can no longer be changed after 24 hours |
 | ZD-PAY-001 | 502 | Paystack error |
 | ZD-PAY-002 | 400 | Webhook signature invalid |
 | ZD-PAY-003 | 503 | Paystack is not configured |
@@ -803,6 +812,7 @@ Note: confirm with Paystack whether split payments/subaccounts suit this marketp
 - [ ] P12.2 Notifications service (events: offer received, request accepted, provider arrived, job completed, provider approved/rejected) and inbox endpoints.
 - [ ] P12.3 Admin audit log page with filters (actor, entity, date, request id) and a request timeline view for disputes.
 - [ ] P12.4 Admin tools: suspend/unsuspend user, delete account on request (anonymise, keep ledger).
+- [x] P12.5 Driver and provider frontend ratings, notifications inboxes and unread indicators.
 Verification: `npm run check`; every status transition has an audit row (scripted check query in `docs/manual-tests.md`).
 Manual test: complete a job, rate it, check inbox on both apps, open the request timeline in admin.
 
@@ -861,6 +871,7 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | 11 | P11.3-P11.4 (provider earnings/bank details, admin payouts) | `npm run check` (backend) | Added AES-256-GCM bank-detail storage and masked provider/admin views, provider earnings summaries, payout/adjustment workflows, bank-detail reveal auditing, and formula-safe ledger CSV export. | P11.5-P11.6 |
 | 2 Nov 2026 | 11 | P11.5-P11.6 (driver payments and provider earnings frontend) | `npm run check` (frontend; only the then-empty P11.7 pages failed) | Added driver card-payment return/verification, unpaid-payment entry points, provider payment polling and cash/EFT recording, ledger-backed earnings, and masked bank-detail editing. | P11.7-P11.8 |
 | 2 Nov 2026 | 11 | P11.7-P11.8 (admin Payouts and Requests, manual tests, Blueprint) | `npm run check` (frontend and backend) | Added searchable/paginated payout and request admin workflows, audited temporary bank-number reveal, payout/adjustment/export controls, request assignment/cancellation/payment actions and active-request refresh; appended Phase 11 manual tests and reconciliation queries. | Romeo manual tests for Phases 9 to 11, then P12.1 |
+| 3 Nov 2026 | 12 | P12.5 (driver/provider ratings, notifications inboxes, unread indicators) | `npm run check` (only expected empty `admin/pages/audit.js`) | Wired request ratings, paginated inboxes, read actions, notification routing and unread badges without backend changes. | Prompt W4 (P12.6, P12.7) |
 
 ### Decision log
 | Date | Decision | Reason |

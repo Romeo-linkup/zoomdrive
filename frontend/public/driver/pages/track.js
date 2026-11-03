@@ -171,7 +171,8 @@ function renderTrack(ctx) {
     info.appendChild(el('strong', {}, providerDisplayName(provider)));
     if (provider.companyName) info.appendChild(el('small', {}, provider.companyName));
     if (provider.verified) info.appendChild(createStatusBadge('verified'));
-    if (Number(provider.ratingCount) === 0) {
+    const ratingCount = Number(provider.ratingCount) || 0;
+    if (provider.ratingAvg === null || provider.ratingAvg === undefined || ratingCount === 0) {
       info.appendChild(el('small', {}, 'New'));
     } else {
       const rating = Number(provider.ratingAvg);

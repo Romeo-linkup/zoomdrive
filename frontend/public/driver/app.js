@@ -82,6 +82,12 @@ const router = createRouter({
       load: () => import('./pages/account.js'),
       nav: true,
     },
+    '/inbox': {
+      path: '/inbox',
+      load: () => import('./pages/inbox.js'),
+      auth: true,
+      nav: false,
+    },
     '/plus': {
       path: '/plus',
       load: () => import('./pages/plus.js'),

@@ -6,6 +6,7 @@ import { createTopbar } from '../../shared/components/topbar.js';
 import { el, clear, formatZAR, modal } from '../../shared/ui.js';
 import { createPageError } from './pageError.js';
 import * as heartbeat from '../heartbeat.js';
+import { createRatingStars } from '../../shared/components/rating-stars.js';
 
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'expired'];
 
@@ -35,6 +36,8 @@ async function renderJob(ctx) {
   let mapController = null;
   let mapLoading = false;
   let currentRequest = null;
+  let savedDriverRating = null;
+  let ratingSubmitted = false;
   const requestId = ctx.params.id;
 
   function stopPolling() {
@@ -152,12 +155,79 @@ async function renderJob(ctx) {
           card.appendChild(received);
         }
       }
+      renderDriverRating(card, request);
     } else {
       card.appendChild(el('h2', {}, request.status === 'expired' ? 'Offer expired' : 'Job cancelled'));
       card.appendChild(el('p', {}, request.cancelReason || 'This job is no longer active.'));
     }
     card.appendChild(homeButton());
     content.appendChild(card);
+  }
+
+  function renderDriverRating(card, request) {
+    card.appendChild(el('h3', {}, 'Rate the driver (optional)'));
+    const rating = request.myRating || savedDriverRating;
+    const readOnly = ratingSubmitted || Boolean(rating && rating.canEdit === false);
+    const ratingForm = el('div', { class: 'driver-rating' });
+    let submit = null;
+    const stars = createRatingStars({
+      value: rating && rating.stars,
+      readOnly,
+      onChange: () => {
+        if (submit) submit.disabled = stars.getValue() === 0;
+      },
+    });
+    ratingForm.appendChild(stars.el);
+    const comment = el('textarea', {
+      rows: 3,
+      maxLength: 300,
+      value: rating && typeof rating.comment === 'string' ? rating.comment : '',
+      attrs: { maxlength: '300', placeholder: 'Add a comment (optional)' },
+    });
+    comment.disabled = readOnly;
+    ratingForm.appendChild(el('div', { class: 'field' }, el('label', {}, 'Comment (optional)'), comment));
+
+    if (readOnly) {
+      if (rating && rating.canEdit === false) {
+        ratingForm.appendChild(el('p', { class: 'mu' }, "Ratings can't be changed after 24 hours."));
+      } else if (ratingSubmitted) {
+        ratingForm.appendChild(el('p', { class: 'mu' }, 'Rating submitted.'));
+      }
+    } else {
+      submit = el('button', { class: 'btn soft', type: 'button' }, 'Submit rating');
+      submit.disabled = stars.getValue() === 0;
+      submit.addEventListener('click', async () => {
+        const body = { stars: stars.getValue() };
+        if (comment.value.trim()) body.comment = comment.value.trim();
+        submit.disabled = true;
+        try {
+          const result = await apiFetch('/requests/' + encodeURIComponent(requestId) + '/rate', {
+            method: 'POST',
+            body,
+            signal: ctx.signal,
+          });
+          if (!active) return;
+          if (!result.myRating) throw new Error('The saved rating could not be confirmed.');
+          savedDriverRating = result.myRating;
+          ratingSubmitted = true;
+          currentRequest.myRating = result.myRating;
+          renderTerminal(currentRequest);
+        } catch (err) {
+          if (!active || ctx.signal.aborted) return;
+          if (err.code === 'ZD-RAT-002') {
+            savedDriverRating = { stars: stars.getValue(), comment: comment.value, canEdit: false };
+            ratingSubmitted = true;
+            currentRequest.myRating = savedDriverRating;
+            renderTerminal(currentRequest);
+          } else {
+            submit.disabled = stars.getValue() === 0;
+            showError(err);
+          }
+        }
+      });
+      ratingForm.appendChild(submit);
+    }
+    card.appendChild(ratingForm);
   }
 
   async function recordOfflinePayment(commission) {

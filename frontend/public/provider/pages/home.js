@@ -6,6 +6,7 @@ import { el, clear, formatZAR, toast, withSpinner } from '../../shared/ui.js';
 import { getSession } from '../../shared/auth.js';
 import { createPageError } from './pageError.js';
 import * as heartbeat from '../heartbeat.js';
+import { refreshProviderUnreadCount } from '../notificationsBadge.js';
 
 export default async function render(ctx) {
   try {
@@ -16,6 +17,7 @@ export default async function render(ctx) {
 }
 
 async function renderHome(ctx) {
+  refreshProviderUnreadCount();
   const screen = el('div', { class: 'screen' });
   screen.appendChild(el('h1', {}, "You're offline"));
   const stateText = screen.lastChild;
@@ -107,7 +109,17 @@ async function renderHome(ctx) {
       card.appendChild(el('p', {}, Number(offer.distanceKm).toFixed(1) + ' km away'));
     }
     if (offer.addressText) card.appendChild(el('p', {}, offer.addressText));
-    if (offer.driver && offer.driver.firstName) card.appendChild(el('p', {}, 'Driver: ' + offer.driver.firstName));
+    if (offer.driver && offer.driver.firstName) {
+      card.appendChild(el('p', {}, 'Driver: ' + offer.driver.firstName));
+      const ratingCount = Number(offer.driver.ratingCount) || 0;
+      const ratingValue = offer.driver.ratingAvg;
+      if (ratingValue === null || ratingValue === undefined || ratingCount === 0) {
+        card.appendChild(el('p', {}, 'Driver rating: New'));
+      } else {
+        const rating = Number(ratingValue);
+        card.appendChild(el('p', {}, 'Driver rating: ' + (Number.isFinite(rating) ? rating.toFixed(1) : 'New')));
+      }
+    }
     const earning = el('p', { class: 'provider-earning' }, 'You earn ' + formatZAR(offer.earningCents));
     card.appendChild(earning);
     const countdown = el('p', { class: 'mu' });
