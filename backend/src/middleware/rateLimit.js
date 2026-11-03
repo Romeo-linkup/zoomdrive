@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const ApiError = require('../lib/ApiError');
 
 function tooMany(req, res, next) {
@@ -53,7 +53,7 @@ const perUserWriteLimiter = rateLimit({
   limit: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
+  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : ipKeyGenerator(req.ip),
   skip: (req) => req.method === 'GET' || /\/heartbeat\/?$/.test((req.originalUrl || req.path || '').split('?')[0]) || !req.user,
   handler: tooManyWrite,
 });
@@ -63,7 +63,7 @@ const uploadLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
+  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : ipKeyGenerator(req.ip),
   handler: tooManyWrite,
 });
 
@@ -72,7 +72,7 @@ const createRequestLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
+  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : ipKeyGenerator(req.ip),
   handler: tooManyWrite,
 });
 
@@ -81,7 +81,7 @@ const adminWriteLimiter = rateLimit({
   limit: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => (req.admin && req.admin.id) ? String(req.admin.id) : req.ip,
+  keyGenerator: (req) => (req.admin && req.admin.id) ? String(req.admin.id) : ipKeyGenerator(req.ip),
   skip: (req) => !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method),
   handler: tooManyWrite,
 });
