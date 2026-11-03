@@ -55,7 +55,7 @@ function renderHome(ctx) {
     const banner = el('div', { class: 'banner' });
     banner.appendChild(el('b', {}, 'Browsing as a guest'));
     const link = el('button', { class: 'link-btn', type: 'button' }, 'Create a profile');
-    link.addEventListener('click', () => ctx.navigate('/phone?mode=signup'));
+    link.addEventListener('click', () => ctx.navigate('/email?mode=signup'));
     banner.appendChild(link);
     screen.appendChild(banner);
   }
@@ -82,7 +82,7 @@ function renderHome(ctx) {
   whereCard.appendChild(currentLocation);
   screen.appendChild(whereCard);
 
-  const savedPlaces = el('div');
+  const savedPlaces = el('div', { class: 'card-list' });
   screen.appendChild(savedPlaces);
 
   async function useGps() {

@@ -29,6 +29,7 @@ function renderAdminHeader(path) {
     { path: '/pricing', label: 'Pricing' },
     { path: '/payouts', label: 'Payouts' },
     { path: '/requests', label: 'Requests' },
+    { path: '/revenue', label: 'Revenue' },
     { path: '/audit', label: 'Audit log' },
     { path: '/settings', label: 'Settings' },
   ];
@@ -125,6 +126,11 @@ const router = createRouter({
     '/requests/:id': {
       path: '/requests/:id',
       load: () => import('./pages/requests.js'),
+      nav: true,
+    },
+    '/revenue': {
+      path: '/revenue',
+      load: () => import('./pages/revenue.js'),
       nav: true,
     },
     '/audit': {

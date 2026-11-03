@@ -1,7 +1,7 @@
 import { apiFetch } from '../../shared/api.js';
 import { showError } from '../../shared/errors.js';
 import { getPosition } from '../../shared/geo.js';
-import { createMap } from '../../shared/map.js';
+import { createMap, watchMapResize } from '../../shared/map.js';
 import { el, clear, formatZAR, toast, withSpinner } from '../../shared/ui.js';
 import { getSession } from '../../shared/auth.js';
 import { createPageError } from './pageError.js';
@@ -56,6 +56,16 @@ async function renderHome(ctx) {
 
   const onlineButton = el('button', { class: 'btn blue', type: 'button' }, 'Go Online');
   screen.appendChild(onlineButton);
+  const mapLayout = el('div', { class: 'layout-split provider-home-layout' });
+  const mapColumn = el('div', { class: 'layout-map-column' });
+  const detailsPanel = el('div', { class: 'layout-panel' });
+  mapColumn.appendChild(mapCard);
+  [stateText, connectionMessage, feeBanner, activeJobBanner, opportunities, offerRoot, onlineButton]
+    .forEach((node) => detailsPanel.appendChild(node));
+  mapLayout.appendChild(mapColumn);
+  mapLayout.appendChild(detailsPanel);
+  clear(screen);
+  screen.appendChild(mapLayout);
   let mapController = null;
   let mapLoading = false;
   let pendingMapPosition = null;
@@ -247,6 +257,7 @@ async function renderHome(ctx) {
         lng: Number(position.lng),
         draggablePin: false,
       });
+      watchMapResize(mapController, ctx);
       if (!active) {
         mapController.destroy();
         mapController = null;

@@ -5,8 +5,10 @@ import { clear, spinner } from './ui.js';
 import { clearError, clearFieldErrors, renderPageError } from './errors.js';
 
 export function goToLogin(nextPath) {
-  return '/phone?next=' + encodeURIComponent(nextPath);
+  return '/email?next=' + encodeURIComponent(nextPath);
 }
+
+const LEGACY_PHONE_HASH = '#/phone'; // Legacy deep links are replaced with the email route.
 
 export function consumeNext(fallback = '/home') {
   try {
@@ -89,6 +91,10 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
 
   async function handleRoute() {
     const hash = window.location.hash;
+    if (hash === LEGACY_PHONE_HASH || hash.startsWith(LEGACY_PHONE_HASH + '?')) {
+      location.replace('#/email' + hash.slice(LEGACY_PHONE_HASH.length));
+      return;
+    }
     const { path, query } = parseHash(hash);
     if (!path) {
       navigate(defaultRoute, { replace: true });
@@ -150,6 +156,11 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
       }
     }
 
+    if (mount) {
+      if (route.narrow) mount.dataset.width = 'narrow';
+      else delete mount.dataset.width;
+    }
+
     currentPath = path;
 
     try {
@@ -182,7 +193,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
         document.title = String(route.title);
       }
 
-      if (route.nav && navRoot && renderNav) {
+      if ((route.nav || route.desktopNav) && navRoot && renderNav) {
         try { renderNav(route, ctx); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
       } else if (navRoot) {
         clear(navRoot);
@@ -190,6 +201,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
 
       const appEl = document.querySelector('.app');
       if (appEl) {
+        appEl.classList.toggle('desktop-nav', Boolean(route.desktopNav));
         if (route.nav) {
           appEl.classList.remove('no-nav');
         } else {

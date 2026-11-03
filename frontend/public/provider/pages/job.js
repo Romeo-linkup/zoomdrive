@@ -1,6 +1,6 @@
 import { apiFetch } from '../../shared/api.js';
 import { renderPageError, showError } from '../../shared/errors.js';
-import { createMap } from '../../shared/map.js';
+import { createMap, watchMapResize } from '../../shared/map.js';
 import { createStatusBadge } from '../../shared/components/status-badge.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 import { el, clear, formatZAR, modal } from '../../shared/ui.js';
@@ -24,9 +24,15 @@ async function renderJob(ctx) {
   const mapCard = el('div', { class: 'card' });
   const mapElement = el('div', { class: 'zd-map job-map' }, 'Loading map…');
   mapCard.appendChild(mapElement);
-  screen.appendChild(mapCard);
+  const layout = el('div', { class: 'layout-split job-layout' });
+  const mapColumn = el('div', { class: 'layout-map-column' });
+  const detailsPanel = el('div', { class: 'layout-panel' });
+  mapColumn.appendChild(mapCard);
+  layout.appendChild(mapColumn);
+  layout.appendChild(detailsPanel);
+  screen.appendChild(layout);
   const content = el('div');
-  screen.appendChild(content);
+  detailsPanel.appendChild(content);
   let active = true;
   let stopped = false;
   let inFlight = false;
@@ -109,6 +115,7 @@ async function renderJob(ctx) {
     mapLoading = true;
     try {
       mapController = await createMap(mapElement, { lat, lng, draggablePin: false });
+      watchMapResize(mapController, ctx);
       if (!active || (currentRequest && TERMINAL_STATUSES.includes(currentRequest.status))) {
         mapController.destroy();
         mapController = null;

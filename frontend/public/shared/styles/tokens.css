@@ -4,4 +4,17 @@
   --r-sm:12px; --r-md:16px; --r-lg:22px; --shadow:0 6px 20px rgba(0,0,0,.05);
   --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --tap:44px; /* minimum tap target */
+  --pad:16px;
+  --nav-w:232px;
+  --content-max:1200px;
+  --form-max:560px;
+  --rail-bg:#ffffff;
+}
+
+@media (min-width:600px){
+  :root{--pad:24px}
+}
+
+@media (min-width:1024px){
+  :root{--pad:32px}
 }

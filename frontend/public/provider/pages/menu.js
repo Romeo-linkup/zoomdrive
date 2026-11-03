@@ -2,7 +2,7 @@ import { apiFetch } from '../../shared/api.js';
 import { showError } from '../../shared/errors.js';
 import { getSession, logout } from '../../shared/auth.js';
 import { createTopbar } from '../../shared/components/topbar.js';
-import { el, clear } from '../../shared/ui.js';
+import { el, clear, formatPhone } from '../../shared/ui.js';
 import { createPageError } from './pageError.js';
 
 export default async function render(ctx) {
@@ -68,6 +68,8 @@ async function renderMenu(ctx) {
     const lastName = user && user.lastName ? user.lastName : '';
     clear(profileInfo);
     profileInfo.appendChild(el('strong', {}, [firstName, lastName].filter(Boolean).join(' ') || 'Provider'));
+    if (user && user.email) profileInfo.appendChild(el('small', {}, user.email));
+    if (user && user.phone) profileInfo.appendChild(el('small', {}, formatPhone(user.phone)));
     const ratingCount = Number(profile && profile.ratingCount) || 0;
     if (profile && profile.ratingAvg !== null && profile.ratingAvg !== undefined && ratingCount > 0) {
       const rating = Number(profile.ratingAvg);
@@ -85,6 +87,7 @@ async function renderMenu(ctx) {
     }
   }
   renderProfile(session && session.user, session && session.profile);
+  addRow(screen, { icon: '✏️', title: 'Edit profile', path: '/profile-setup?edit=true' });
 
   try {
     const [me, fee] = await Promise.all([

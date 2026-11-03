@@ -1,6 +1,6 @@
 import { apiFetch } from '../../shared/api.js';
 import { renderPageError, showError } from '../../shared/errors.js';
-import { createMap } from '../../shared/map.js';
+import { createMap, watchMapResize } from '../../shared/map.js';
 import { clear, el, formatZAR, modal, toast } from '../../shared/ui.js';
 import { createStatusBadge } from '../../shared/components/status-badge.js';
 import { createTopbar } from '../../shared/components/topbar.js';
@@ -77,10 +77,15 @@ function renderTrack(ctx) {
   const statusHeading = el('h1', {}, 'Loading request…');
   const etaText = el('p', { class: 'track-eta hidden' });
   screen.appendChild(createTopbar({ title: 'Your provider' }));
-  screen.appendChild(statusHeading);
-  screen.appendChild(etaText);
+  const layout = el('div', { class: 'layout-split track-layout' });
+  const mapColumn = el('div', { class: 'layout-map-column' });
+  const detailsPanel = el('div', { class: 'layout-panel' });
+  layout.appendChild(mapColumn);
+  layout.appendChild(detailsPanel);
+  detailsPanel.appendChild(statusHeading);
+  detailsPanel.appendChild(etaText);
   const connectionBanner = el('div', { class: 'banner warn connection-banner hidden' }, 'Connection problem. Retrying…');
-  screen.appendChild(connectionBanner);
+  detailsPanel.appendChild(connectionBanner);
 
   const mapCard = el('div', { class: 'card' });
   const mapElement = el('div', {
@@ -88,22 +93,23 @@ function renderTrack(ctx) {
     attrs: { role: 'application', 'aria-label': 'Request and provider locations' },
   }, 'Loading map…');
   mapCard.appendChild(mapElement);
-  screen.appendChild(mapCard);
+  mapColumn.appendChild(mapCard);
 
   const providerCard = el('div', { class: 'card provider-card' });
-  screen.appendChild(providerCard);
+  detailsPanel.appendChild(providerCard);
   const priceCard = el('div', { class: 'card line tot' });
   priceCard.appendChild(el('span', {}, 'Total'));
   const totalValue = el('b', {}, '—');
   priceCard.appendChild(totalValue);
-  screen.appendChild(priceCard);
+  detailsPanel.appendChild(priceCard);
 
   const actions = el('div', { class: 'track-actions' });
-  screen.appendChild(actions);
+  detailsPanel.appendChild(actions);
   const cancelButton = el('button', { class: 'btn red', type: 'button' }, 'Cancel request');
-  screen.appendChild(cancelButton);
+  detailsPanel.appendChild(cancelButton);
   const terminalContent = el('div');
-  screen.appendChild(terminalContent);
+  detailsPanel.appendChild(terminalContent);
+  screen.appendChild(layout);
 
   function stopPolling() {
     stopped = true;
@@ -251,6 +257,7 @@ function renderTrack(ctx) {
         return;
       }
       mapController = controller;
+      watchMapResize(mapController, ctx);
       mapElement.textContent = '';
       mapController.invalidate();
       if (currentRequest) updateMap(currentRequest);

@@ -16,7 +16,7 @@ export default function render(ctx) {
     return screen;
   }
 
-  const list = el('div');
+  const list = el('div', { class: 'card-list saved-places-list' });
   const empty = el('div', { class: 'empty hidden' }, 'No saved places yet');
   screen.appendChild(list);
   screen.appendChild(empty);

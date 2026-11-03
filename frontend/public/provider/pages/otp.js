@@ -2,7 +2,7 @@ import { renderOtpPage } from '../../shared/authFlow.js';
 import { consumeNext } from '../../shared/router.js';
 
 function afterLogin(data, ctx) {
-  if (data.isNewUser || !data.profile) {
+  if (data.isNewUser || !data.profileComplete) {
     return '/type' + (ctx.query.next ? '?next=' + encodeURIComponent(ctx.query.next) : '');
   }
   if (data.providerStatus === 'pending' || data.providerStatus === 'rejected') {

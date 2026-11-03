@@ -2,14 +2,25 @@
 import { getSession, getUser, refreshMe } from '../../shared/auth.js';
 import { apiFetch } from '../../shared/api.js';
 import { clear, el, toast, withSpinner } from '../../shared/ui.js';
-import { clearFieldErrors, showError } from '../../shared/errors.js';
+import { clearFieldErrors, showError, renderPageError } from '../../shared/errors.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 import { createField } from '../../shared/components/field.js';
 import { createPhotoUpload } from '../../shared/components/photo-upload.js';
 import { loadServices, serviceEmoji } from '../../shared/services.js';
 import { onboardingRoute } from '../onboarding.js';
+import { validatePhone } from '../../shared/authFlow.js';
 
-export default (ctx) => {
+export default function render(ctx) {
+  const screen = el('div', { class: 'screen' });
+  try {
+    return renderProfileSetup(ctx, screen);
+  } catch (err) {
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderProfileSetup(ctx, screen) {
   const session = getSession();
   const user = getUser();
   const profile = session && session.profile ? session.profile : {};
@@ -23,10 +34,9 @@ export default (ctx) => {
   const isCompany = providerType === 'company';
   const isEdit = !!profile.providerType;
 
-  const screen = el('div', { class: 'screen' });
   screen.appendChild(createTopbar({
     title: 'Your details',
-    onBack: () => ctx.navigate('/type'),
+    onBack: () => ctx.navigate(isEdit ? '/menu' : '/type'),
   }));
 
   screen.appendChild(el('span', { class: 'badge dark' }, isCompany ? 'Company' : 'Individual'));
@@ -52,6 +62,19 @@ export default (ctx) => {
     value: user && user.lastName ? user.lastName : '',
   });
   screen.appendChild(lastName.el);
+  screen.appendChild(el('p', { class: 'mu' }, 'Signed in as ' + (user && user.email ? user.email : '')));
+
+  const phone = createField({
+    name: 'phone',
+    label: 'Mobile number',
+    type: 'tel',
+    inputmode: 'tel',
+    autocomplete: 'tel',
+    required: true,
+    value: user && user.phone ? user.phone : '',
+  });
+  screen.appendChild(phone.el);
+  screen.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
 
   let companyNameField;
   let regNumberField;
@@ -256,6 +279,7 @@ export default (ctx) => {
 
     const firstNameValue = firstName.getValue();
     const lastNameValue = lastName.getValue();
+    const phoneValue = validatePhone(phone.getValue());
     const vehicleValue = vehicleDescription.getValue();
     const plateValue = plate.getValue();
     const rawLat = baseLatField.getValue();
@@ -270,6 +294,10 @@ export default (ctx) => {
     }
     if (!lastNameValue) {
       lastName.setError('Surname is required');
+      return;
+    }
+    if (!phoneValue.startsWith('+27')) {
+      phone.setError(phoneValue);
       return;
     }
     if (isCompany) {
@@ -329,6 +357,7 @@ export default (ctx) => {
             providerType,
             firstName: firstNameValue,
             lastName: lastNameValue,
+            phone: phoneValue,
             vehicleDescription: vehicleValue,
             plate: plateValue,
             baseLat: parsedLat,
@@ -363,12 +392,16 @@ export default (ctx) => {
         await refreshMe();
       });
 
-      ctx.navigate(onboardingRoute(getSession()), { replace: true });
+      ctx.navigate(isEdit ? '/menu' : onboardingRoute(getSession()), { replace: true });
     } catch (err) {
-      showError(err);
+      if (err.code === 'ZD-VAL-001' && err.field === 'phone') {
+        phone.setError(err.message);
+      } else {
+        showError(err);
+      }
     }
   }
 
   saveButton.addEventListener('click', handleSubmit);
   return screen;
-};
+}

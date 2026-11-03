@@ -2,19 +2,29 @@
 import { getSession, getUser, refreshMe } from '../../shared/auth.js';
 import { apiFetch } from '../../shared/api.js';
 import { el, clear, toast, withSpinner, modal } from '../../shared/ui.js';
-import { clearFieldErrors, showError } from '../../shared/errors.js';
+import { clearFieldErrors, showError, renderPageError } from '../../shared/errors.js';
 import { createTopbar, createBrandBar } from '../../shared/components/topbar.js';
 import { createField } from '../../shared/components/field.js';
 import { createPhotoUpload } from '../../shared/components/photo-upload.js';
 import { consumeNext } from '../../shared/router.js';
+import { validatePhone } from '../../shared/authFlow.js';
 
-export default (ctx) => {
+export default function render(ctx) {
+  const screen = el('div', { class: 'screen' });
+  try {
+    return renderProfileSetup(ctx, screen);
+  } catch (err) {
+    renderPageError(screen, err, () => ctx.navigate(ctx.path));
+    return screen;
+  }
+}
+
+function renderProfileSetup(ctx, screen) {
   const session = getSession();
   const user = getUser();
   const profile = session && session.profile ? session.profile : {};
-  const isEdit = session && session.profileComplete;
+  const isEdit = !!((session && session.profileComplete) || ctx.query.edit === 'true');
 
-  const screen = el('div', { class: 'screen' });
   const title = isEdit ? 'Your profile' : 'Create your profile';
   if (isEdit) {
     screen.appendChild(createTopbar({
@@ -46,13 +56,19 @@ export default (ctx) => {
   });
   screen.appendChild(lastName.el);
 
-  const email = createField({
-    name: 'email',
-    label: 'Email (optional)',
-    type: 'email',
-    value: user && user.email ? user.email : '',
+  screen.appendChild(el('p', { class: 'mu' }, 'Signed in as ' + (user && user.email ? user.email : '')));
+
+  const phone = createField({
+    name: 'phone',
+    label: 'Mobile number',
+    type: 'tel',
+    inputmode: 'tel',
+    autocomplete: 'tel',
+    required: true,
+    value: user && user.phone ? user.phone : '',
   });
-  screen.appendChild(email.el);
+  screen.appendChild(phone.el);
+  screen.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
 
   screen.appendChild(el('h3', {}, 'Your vehicle (optional)'));
 
@@ -148,7 +164,7 @@ export default (ctx) => {
     clearFieldErrors();
     const fn = firstName.getValue();
     const ln = lastName.getValue();
-    const em = email.getValue();
+    const rawPhone = phone.getValue();
     const vm = vehicleMake.getValue();
     const vmd = vehicleModel.getValue();
     const vc = vehicleColour.getValue();
@@ -160,6 +176,11 @@ export default (ctx) => {
     }
     if (!ln) {
       lastName.setError('Surname is required');
+      return;
+    }
+    const phoneValue = validatePhone(rawPhone);
+    if (!phoneValue.startsWith('+27')) {
+      phone.setError(phoneValue);
       return;
     }
     if (!consentChecked) {
@@ -174,7 +195,7 @@ export default (ctx) => {
         const body = {
           firstName: fn,
           lastName: ln,
-          email: em || null,
+          phone: phoneValue,
           vehicleMake: vm || null,
           vehicleModel: vmd || null,
           vehicleColour: vc || null,
@@ -202,11 +223,15 @@ export default (ctx) => {
       const target = isEdit ? '/account' : consumeNext('/home');
       ctx.navigate(target, { replace: true });
     } catch (err) {
-      showError(err);
+      if (err.code === 'ZD-VAL-001' && err.field === 'phone') {
+        phone.setError(err.message);
+      } else {
+        showError(err);
+      }
     }
   }
 
   btn.addEventListener('click', handleSubmit);
 
   return screen;
-};
+}

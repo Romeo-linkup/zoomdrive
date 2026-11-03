@@ -88,7 +88,7 @@ function renderActivity(ctx) {
   screen.appendChild(el('h1', {}, 'Activity'));
   const inProgressSection = el('section', { class: 'activity-section hidden' });
   inProgressSection.appendChild(el('h2', {}, 'In progress'));
-  const inProgressList = el('div');
+  const inProgressList = el('div', { class: 'card-list' });
   inProgressSection.appendChild(inProgressList);
   screen.appendChild(inProgressSection);
 
@@ -102,7 +102,7 @@ function renderActivity(ctx) {
 
   const pastSection = el('section', { class: 'activity-section' });
   pastSection.appendChild(el('h2', {}, 'Past'));
-  const pastList = el('div');
+  const pastList = el('div', { class: 'card-list' });
   pastSection.appendChild(pastList);
   const emptyPast = el('div', { class: 'empty hidden' }, 'No requests yet');
   pastSection.appendChild(emptyPast);

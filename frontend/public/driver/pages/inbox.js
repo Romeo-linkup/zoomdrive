@@ -27,7 +27,7 @@ async function renderInbox(ctx, screen) {
   let rowListeners = new AbortController();
   screen.appendChild(createTopbar({ title: 'Notifications' }));
   const markAll = el('button', { class: 'btn soft', type: 'button' }, 'Mark all read');
-  const list = el('div');
+  const list = el('div', { class: 'card-list' });
   const empty = el('div', { class: 'empty hidden' }, 'No notifications yet');
   const loadMore = el('button', { class: 'btn soft hidden', type: 'button' }, 'Load more');
   const retry = el('button', { class: 'btn soft hidden', type: 'button' }, 'Retry');

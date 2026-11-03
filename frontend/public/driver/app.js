@@ -52,21 +52,23 @@ const router = createRouter({
       path: '/welcome',
       load: () => import('./pages/welcome.js'),
       title: 'ZoomDrive',
+      narrow: true,
     },
-    '/phone': {
-      path: '/phone',
-      load: () => import('./pages/phone.js'),
+    '/email': {
+      path: '/email',
+      load: () => import('./pages/email.js'),
+      narrow: true,
     },
     '/otp': {
       path: '/otp',
       load: () => import('./pages/otp.js'),
+      narrow: true,
     },
     '/profile-setup': {
       path: '/profile-setup',
       load: () => import('./pages/profileSetup.js'),
       auth: true,
-      nav: true,
-      navPath: '/account',
+      narrow: true,
     },
     '/home': {
       path: '/home',
@@ -88,6 +90,8 @@ const router = createRouter({
       load: () => import('./pages/inbox.js'),
       auth: true,
       nav: false,
+      desktopNav: true,
+      navPath: '/account',
     },
     '/plus': {
       path: '/plus',
@@ -95,6 +99,7 @@ const router = createRouter({
       auth: true,
       nav: true,
       navPath: '/account',
+      narrow: true,
     },
     '/saved-places': {
       path: '/saved-places',
@@ -133,6 +138,8 @@ const router = createRouter({
       path: '/request',
       needsProfile: true,
       nav: false,
+      desktopNav: true,
+      navPath: '/home',
       load: () => import('./pages/request.js'),
     },
     '/searching/:id': {
@@ -140,24 +147,34 @@ const router = createRouter({
       load: () => import('./pages/searching.js'),
       auth: true,
       nav: false,
+      desktopNav: true,
+      navPath: '/home',
     },
     '/track/:id': {
       path: '/track/:id',
       load: () => import('./pages/track.js'),
       auth: true,
       nav: false,
+      desktopNav: true,
+      navPath: '/home',
     },
     '/rate/:id': {
       path: '/rate/:id',
       load: () => import('./pages/rate.js'),
       auth: true,
       nav: false,
+      desktopNav: true,
+      navPath: '/activity',
+      narrow: true,
     },
     '/pay/:id': {
       path: '/pay/:id',
       load: () => import('./pages/pay.js'),
       auth: true,
       nav: false,
+      desktopNav: true,
+      navPath: '/activity',
+      narrow: true,
     },
   },
   defaultRoute: '/welcome',
@@ -165,7 +182,7 @@ const router = createRouter({
   navRoot: document.getElementById('nav-root'),
   guard(route, ctx) {
     if (isAuthed()) {
-      if (route.path === '/welcome' || (route.path === '/phone' && ctx.query.mode !== 'login')) {
+      if (route.path === '/welcome' || (route.path === '/email' && ctx.query.mode !== 'login')) {
         return '/home';
       }
       if (route.path === '/otp') {
@@ -180,7 +197,7 @@ const router = createRouter({
     }
   },
   renderNav(route, ctx) {
-    if (route.nav) {
+    if (route.nav || route.desktopNav) {
       clear(navRoot);
       navRoot.appendChild(createBottomNav({ items: navItems, current: route.navPath || ctx.path }));
     }

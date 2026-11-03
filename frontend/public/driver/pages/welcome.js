@@ -15,11 +15,11 @@ export default (ctx) => {
   screen.appendChild(el('p', { class: 'mu' }, 'Verified providers, fixed prices and live tracking.'));
 
   const signupBtn = el('button', { class: 'btn', type: 'button' }, 'Sign up');
-  signupBtn.addEventListener('click', () => ctx.navigate('/phone?mode=signup'));
+  signupBtn.addEventListener('click', () => ctx.navigate('/email?mode=signup'));
   screen.appendChild(signupBtn);
 
   const loginBtn = el('button', { class: 'btn soft', type: 'button' }, 'Log in');
-  loginBtn.addEventListener('click', () => ctx.navigate('/phone?mode=login'));
+  loginBtn.addEventListener('click', () => ctx.navigate('/email?mode=login'));
   screen.appendChild(loginBtn);
 
   const install = createInstallControl(ctx);

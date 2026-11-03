@@ -140,3 +140,23 @@ export async function createMap(element, {
     },
   };
 }
+
+export function watchMapResize(controller, ctx) {
+  let resizeTimer = null;
+  const invalidate = () => {
+    if (resizeTimer !== null) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      resizeTimer = null;
+      controller.invalidate();
+    }, 150);
+  };
+  window.addEventListener('resize', invalidate);
+  window.addEventListener('orientationchange', invalidate);
+  invalidate();
+  ctx.onLeave(() => {
+    window.removeEventListener('resize', invalidate);
+    window.removeEventListener('orientationchange', invalidate);
+    if (resizeTimer !== null) clearTimeout(resizeTimer);
+    resizeTimer = null;
+  });
+}

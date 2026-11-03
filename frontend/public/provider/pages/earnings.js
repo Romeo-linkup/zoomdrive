@@ -74,8 +74,9 @@ async function renderEarnings(ctx, screen) {
   const activityCard = el('div', { class: 'card' });
   activityCard.appendChild(el('h2', {}, 'Activity'));
   const entries = Array.isArray(data.entries) ? data.entries : [];
+  const activityList = el('div', { class: 'card-list' });
   if (entries.length === 0) {
-    activityCard.appendChild(el('div', { class: 'empty' }, 'No ledger activity yet.'));
+    activityList.appendChild(el('div', { class: 'empty' }, 'No ledger activity yet.'));
   } else {
     entries.forEach((entry) => {
       const row = el('div', { class: 'item provider-job-row' });
@@ -89,16 +90,18 @@ async function renderEarnings(ctx, screen) {
       const amount = Number(entry.amountCents) || 0;
       const amountClass = amount > 0 ? 'provider-earning' : amount < 0 ? 'provider-balance-negative' : '';
       row.appendChild(el('b', { class: amountClass }, (amount > 0 ? '+' : '') + formatZAR(amount)));
-      activityCard.appendChild(row);
+      activityList.appendChild(row);
     });
   }
+  activityCard.appendChild(activityList);
   screen.appendChild(activityCard);
 
   const payoutsCard = el('div', { class: 'card' });
   payoutsCard.appendChild(el('h2', {}, 'Payouts'));
   const payouts = Array.isArray(data.payouts) ? data.payouts : [];
+  const payoutsList = el('div', { class: 'card-list' });
   if (payouts.length === 0) {
-    payoutsCard.appendChild(el('div', { class: 'empty' }, 'No payouts yet.'));
+    payoutsList.appendChild(el('div', { class: 'empty' }, 'No payouts yet.'));
   } else {
     payouts.forEach((payout) => {
       const row = el('div', { class: 'item provider-job-row' });
@@ -110,8 +113,9 @@ async function renderEarnings(ctx, screen) {
         .join(' · ');
       info.appendChild(el('small', {}, description));
       row.appendChild(info);
-      payoutsCard.appendChild(row);
+      payoutsList.appendChild(row);
     });
   }
+  payoutsCard.appendChild(payoutsList);
   screen.appendChild(payoutsCard);
 }

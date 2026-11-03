@@ -1,5 +1,5 @@
 import { apiFetch } from '../../shared/api.js';
-import { clear, el, formatDate } from '../../shared/ui.js';
+import { clear, el, formatDate, toast, withSpinner } from '../../shared/ui.js';
 import { renderPageError, showError } from '../../shared/errors.js';
 
 const PAGE_SIZE = 50;
@@ -7,6 +7,7 @@ const FILTERS = [
   ['actorType', 'Actor type'],
   ['actorId', 'Actor ID'],
   ['action', 'Action prefix'],
+  ['kind', 'Type'],
   ['entity', 'Entity'],
   ['entityId', 'Entity ID'],
   ['ref', 'Error ref'],
@@ -30,13 +31,19 @@ async function renderAudit(ctx, screen) {
 
   const form = el('form', { class: 'filters admin-audit-filters' });
   const fields = {};
+  const exportRevokeTimers = new Set();
+  const exportObjectUrls = new Set();
   FILTERS.forEach(([key, label]) => {
     const field = el('label', { class: 'field admin-audit-filter' });
     field.appendChild(el('span', {}, label));
     let input;
     if (key === 'actorType') {
       input = el('select', { attrs: { 'aria-label': label } });
-      [['', 'All actors'], ['user', 'User'], ['admin', 'Admin'], ['system', 'System']]
+      [['', 'All actors'], ['user', 'User'], ['admin', 'Admin'], ['system', 'System'], ['anonymous', 'Anonymous']]
+        .forEach(([value, text]) => input.appendChild(el('option', { value }, text)));
+    } else if (key === 'kind') {
+      input = el('select', { attrs: { 'aria-label': label } });
+      [['all', 'All'], ['events', 'Changes'], ['api', 'API calls'], ['denied', 'Denied or failed']]
         .forEach(([value, text]) => input.appendChild(el('option', { value }, text)));
     } else {
       input = el('input', {
@@ -59,7 +66,9 @@ async function renderAudit(ctx, screen) {
   const actions = el('div', { class: 'admin-audit-actions' });
   actions.appendChild(el('button', { class: 'btn', type: 'submit' }, 'Apply'));
   const reset = el('button', { class: 'btn soft', type: 'button' }, 'Reset');
+  const exportButton = el('button', { class: 'btn soft', type: 'button' }, 'Export CSV');
   actions.appendChild(reset);
+  actions.appendChild(exportButton);
   form.appendChild(actions);
   screen.appendChild(form);
 
@@ -67,7 +76,7 @@ async function renderAudit(ctx, screen) {
   const table = el('table', { class: 'tbl' });
   const head = el('thead');
   const header = el('tr');
-  ['Time', 'Actor', 'Action', 'Entity and ID', 'Ref', 'Details'].forEach((label) => {
+  ['Time', 'Actor', 'Action', 'Result', 'Entity and ID', 'Ref', 'Details'].forEach((label) => {
     header.appendChild(el('th', {}, label));
   });
   head.appendChild(header);
@@ -86,6 +95,11 @@ async function renderAudit(ctx, screen) {
     ctx.navigate('/audit' + (query ? '?' + query : ''));
   });
   reset.addEventListener('click', () => ctx.navigate('/audit'));
+  exportButton.addEventListener('click', exportCsv);
+  ctx.onLeave(() => {
+    exportRevokeTimers.forEach((timer) => clearTimeout(timer));
+    exportObjectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+  });
 
   try {
     const filters = buildApiFilters(fields);
@@ -130,6 +144,21 @@ async function renderAudit(ctx, screen) {
       row.appendChild(el('td', {}, [entry.actorType, entry.actorId]
         .filter((value) => value !== null && value !== undefined).join(' ') || '—'));
       row.appendChild(el('td', {}, entry.action || '—'));
+      const resultCell = el('td');
+      if (String(entry.action || '').startsWith('api.')) {
+        const result = entry.meta && ['ok', 'denied', 'rejected', 'error'].includes(entry.meta.result)
+          ? entry.meta.result
+          : '';
+        if (result) {
+          const resultClass = result === 'ok' ? '' : result === 'error' ? ' pending' : ' rejected';
+          resultCell.appendChild(el('span', { class: 'badge admin-audit-result' + resultClass }, result));
+        } else {
+          resultCell.textContent = '—';
+        }
+      } else {
+        resultCell.textContent = '—';
+      }
+      row.appendChild(resultCell);
       row.appendChild(el('td', {}, [entry.entity, entry.entityId]
         .filter((value) => value !== null && value !== undefined).join(' #') || '—'));
       row.appendChild(el('td', {}, entry.requestId || '—'));
@@ -157,6 +186,45 @@ async function renderAudit(ctx, screen) {
     pager.appendChild(previous);
     pager.appendChild(el('span', {}, 'Page ' + page + ' of ' + pageCount + ' (' + total + ' total)'));
     pager.appendChild(next);
+  }
+
+  async function exportCsv() {
+    const from = fields.from.value;
+    const to = fields.to.value;
+    if (from && to && from > to) {
+      showError({ code: 'ZD-VAL-001', message: 'Choose a valid date range.' });
+      return;
+    }
+    const params = new URLSearchParams();
+    ['from', 'to', 'actorType', 'actorId', 'action', 'entity', 'kind'].forEach((key) => {
+      const value = fields[key].value.trim();
+      if (value) params.set(key, value);
+    });
+    exportButton.disabled = true;
+    try {
+      const data = await withSpinner(apiFetch('/admin/audit/export?' + params.toString(), {
+        signal: ctx.signal,
+      }));
+      if (ctx.signal.aborted) return;
+      const blob = new Blob(['\uFEFF', data.csv], { type: 'text/csv;charset=utf-8' });
+      const objectUrl = URL.createObjectURL(blob);
+      exportObjectUrls.add(objectUrl);
+      const link = el('a', { href: objectUrl, download: data.filename });
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      const timer = window.setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+        exportObjectUrls.delete(objectUrl);
+        exportRevokeTimers.delete(timer);
+      }, 1000);
+      exportRevokeTimers.add(timer);
+      toast('CSV export downloaded', 'ok');
+    } catch (err) {
+      if (!ctx.signal.aborted) showError(err);
+    } finally {
+      exportButton.disabled = false;
+    }
   }
 }
 
@@ -206,7 +274,7 @@ function positivePage(value) {
 
 function emptyRow(message) {
   const row = el('tr');
-  row.appendChild(el('td', { attrs: { colspan: 6 } }, message));
+  row.appendChild(el('td', { attrs: { colspan: 7 } }, message));
   return row;
 }
 
@@ -244,7 +312,7 @@ function showMeta(ctx, entry) {
 }
 
 function sanitizeMeta(value, key = '') {
-  if (/phone|comment|note|reason|body|message|description|bank|account|card|secret|token|password|credential/i.test(key)) {
+  if (/email|phone|comment|note|reason|body|message|description|bank|account|card|secret|token|password|credential/i.test(key)) {
     return '[redacted]';
   }
   if (Array.isArray(value)) return value.map((item) => sanitizeMeta(item));
@@ -256,7 +324,9 @@ function sanitizeMeta(value, key = '') {
     return safe;
   }
   if (typeof value === 'string') {
-    return value.replace(/(?:\+?27[\s().-]?\d{2}[\s().-]?\d{3}[\s().-]?\d{4}|0\d{9})/g, '[redacted]');
+    return value
+      .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted]')
+      .replace(/(?:\+?27[\s().-]?\d{2}[\s().-]?\d{3}[\s().-]?\d{4}|0\d{9})/g, '[redacted]');
   }
   return value;
 }

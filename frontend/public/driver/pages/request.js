@@ -1,7 +1,7 @@
 import { apiFetch } from '../../shared/api.js';
 import { renderPageError, showError } from '../../shared/errors.js';
 import { DURBAN, getPosition } from '../../shared/geo.js';
-import { createMap } from '../../shared/map.js';
+import { createMap, watchMapResize } from '../../shared/map.js';
 import { clear, el, formatZAR, modal, spinner, toast } from '../../shared/ui.js';
 import { isAuthed } from '../../shared/auth.js';
 import { goToLogin } from '../../shared/router.js';
@@ -95,7 +95,12 @@ function renderRequest(ctx) {
   mapCard.appendChild(locationHint);
   const quoteError = el('div', { class: 'err hidden', role: 'alert' });
   mapCard.appendChild(quoteError);
-  screen.appendChild(mapCard);
+  mapCard.classList.add('layout-map-column');
+  const requestLayout = el('div', { class: 'layout-split request-layout' });
+  const detailsPanel = el('div', { class: 'layout-panel' });
+  requestLayout.appendChild(mapCard);
+  requestLayout.appendChild(detailsPanel);
+  screen.appendChild(requestLayout);
 
   const addressField = createField({
     name: 'addressText',
@@ -103,31 +108,31 @@ function renderRequest(ctx) {
     placeholder: 'Street, landmark or extra directions',
     maxlength: 200,
   });
-  screen.appendChild(addressField.el);
+  detailsPanel.appendChild(addressField.el);
 
-  screen.appendChild(el('h3', {}, 'Choose a service'));
+  detailsPanel.appendChild(el('h3', {}, 'Choose a service'));
   const serviceTiles = el('div', { class: 'tiles' });
-  screen.appendChild(serviceTiles);
+  detailsPanel.appendChild(serviceTiles);
   const serviceRetry = el('button', { class: 'btn soft hidden', type: 'button' }, 'Retry services');
-  screen.appendChild(serviceRetry);
+  detailsPanel.appendChild(serviceRetry);
 
   const priceCard = el('div', { class: 'card' });
   priceCard.appendChild(el('h3', {}, 'Your estimate'));
   const priceContent = el('div', {}, 'Choose a service to see the fixed total.');
   priceCard.appendChild(priceContent);
-  screen.appendChild(priceCard);
+  detailsPanel.appendChild(priceCard);
 
   const changedBanner = el('div', { class: 'banner warn hidden' });
-  screen.appendChild(changedBanner);
+  detailsPanel.appendChild(changedBanner);
 
   const paymentRow = el('div', { class: 'item' });
   paymentRow.appendChild(el('div', { class: 'ic' }, '💳'));
   paymentRow.appendChild(el('div', { class: 't' }, 'Pay after the job'));
-  screen.appendChild(paymentRow);
+  detailsPanel.appendChild(paymentRow);
   const promoRow = el('div', { class: 'item' });
   promoRow.appendChild(el('div', { class: 'ic' }, '🎟️'));
   promoRow.appendChild(el('div', { class: 't' }, 'Add promo code'));
-  screen.appendChild(promoRow);
+  detailsPanel.appendChild(promoRow);
 
   const notesField = el('div', { class: 'field', dataset: { field: 'notes' } });
   notesField.appendChild(el('label', {}, 'Notes (optional)'));
@@ -137,11 +142,11 @@ function renderRequest(ctx) {
     attrs: { maxlength: '200', placeholder: 'Anything else the provider should know?' },
   });
   notesField.appendChild(notesInput);
-  screen.appendChild(notesField);
+  detailsPanel.appendChild(notesField);
 
   const requestButton = el('button', { class: 'btn', type: 'button' }, 'Request help');
   requestButton.disabled = true;
-  screen.appendChild(requestButton);
+  detailsPanel.appendChild(requestButton);
 
   let services = [];
   let selectedService = null;
@@ -338,6 +343,7 @@ function renderRequest(ctx) {
         return;
       }
       mapController = controller;
+      watchMapResize(mapController, ctx);
       mapElement.textContent = '';
       mapController.invalidate();
     } catch (err) {

@@ -1,12 +1,12 @@
 /* Admin panel: wider desktop layout on top of the shared styles. Loaded only by /admin/index.html. */
-.app{max-width:1100px;padding-bottom:40px}
-.app.no-nav{padding-bottom:40px}
-#view{padding:0 20px 20px}
+.app{max-width:none;padding:0}
+.app.no-nav{padding:0}
+#view{max-width:none;padding:var(--pad)}
 
 .admin-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line)}
 .admin-top .brand{font-weight:900;font-size:18px;letter-spacing:-.4px}
 .admin-top .brand b{background:var(--am);padding:0 6px;border-radius:7px;margin-left:4px}
-.admin-tabs{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.admin-tabs{display:flex;gap:4px;flex-wrap:nowrap;flex:1;min-width:0;overflow-x:auto;overscroll-behavior-x:contain}
 .admin-tabs a{display:inline-flex;align-items:center;min-height:var(--tap);min-width:var(--tap);padding:0 14px;border-radius:12px;color:var(--mu);font-weight:700;font-size:14px;text-decoration:none}
 .admin-tabs a.on{background:#111;color:#fff}
 .admin-who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mu)}
@@ -37,12 +37,10 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
 
 .detail-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:16px 0}
 .detail-head .av{width:84px;height:84px;font-size:26px}
-.kv{display:grid;grid-template-columns:170px 1fr;gap:8px 14px;font-size:14px}
+.kv{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 14px;font-size:14px}
 .kv dt{color:var(--mu);font-weight:600}
 .kv dd{margin:0;font-weight:600;word-break:break-word}
 .cols{display:grid;grid-template-columns:1fr;gap:12px}
-@media (min-width:860px){.cols{grid-template-columns:1fr 1fr}}
-@media (max-width:480px){.kv{grid-template-columns:minmax(0,1fr);gap:4px}}
 
 .docs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 .doc-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff}
@@ -88,3 +86,22 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
 .admin-request-summary h1{font-size:22px}
 .admin-request-summary>p{overflow-wrap:anywhere}
 .admin-request-summary .kv,.admin-request-summary+.card .kv{margin-top:12px}
+
+@media (min-width:600px){
+  .kv{grid-template-columns:170px minmax(0,1fr);gap:8px 14px}
+}
+
+@media (min-width:900px){
+  .app{padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px)
+    env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+  #nav-root{position:sticky;top:0;height:100vh;height:100dvh;overflow-y:auto;background:var(--rail-bg);border-right:1px solid var(--line)}
+  .admin-top{min-height:100vh;min-height:100dvh;align-items:stretch;flex-direction:column;flex-wrap:nowrap;padding:24px 14px}
+  .admin-top .brand{padding:6px 10px 22px;border-bottom:1px solid var(--line)}
+  .admin-tabs{flex-direction:column;flex:1;overflow:visible}
+  .admin-tabs a{flex:0 0 auto}
+  .admin-tabs a.on{background:#fff4d6;color:var(--tx);box-shadow:inset 3px 0 0 var(--am)}
+  .admin-who{margin-top:auto;align-items:stretch;flex-direction:column;padding:12px 10px 0;border-top:1px solid var(--line)}
+  .admin-who .btn{width:100%}
+  .cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .table-wrap{width:100%;max-width:none;overflow-x:auto}
+}

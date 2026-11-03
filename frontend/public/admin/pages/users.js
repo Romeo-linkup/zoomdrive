@@ -40,7 +40,7 @@ async function renderUsers(ctx, screen) {
 
   const searchInput = el('input', {
     type: 'text',
-    placeholder: 'Search name or phone',
+    placeholder: 'Name, email or phone',
     attrs: { 'aria-label': 'Search' },
   });
   filters.appendChild(searchInput);
@@ -50,7 +50,7 @@ async function renderUsers(ctx, screen) {
   const table = el('table', { class: 'tbl' });
   const thead = el('thead');
   const headerRow = el('tr');
-  ['User', 'Role', 'Status', 'Provider status', 'Joined', 'Last login', 'Actions']
+  ['User', 'Email', 'Role', 'Status', 'Provider status', 'Joined', 'Last login', 'Actions']
     .forEach((label) => headerRow.appendChild(el('th', {}, label)));
   thead.appendChild(headerRow);
   const tbody = el('tbody');
@@ -92,7 +92,7 @@ async function renderUsers(ctx, screen) {
     total = Number(count) || 0;
 
     if (!users.length) {
-      tbody.appendChild(emptyRow(7, 'No users found'));
+      tbody.appendChild(emptyRow(8, 'No users found'));
     } else {
       users.forEach((user) => {
         const row = el('tr');
@@ -115,6 +115,7 @@ async function renderUsers(ctx, screen) {
         whoCell.appendChild(who);
         row.appendChild(whoCell);
 
+        row.appendChild(el('td', {}, maskEmail(user.email)));
         row.appendChild(el('td', {}, user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—'));
         const statusCell = el('td');
         const statusClass = user.status === 'suspended' ? 'badge rejected'
@@ -139,6 +140,12 @@ async function renderUsers(ctx, screen) {
         row.appendChild(el('td', {}, user.lastLoginAt ? formatDate(user.lastLoginAt, 'datetime') : 'Never'));
 
         const actions = el('td', { class: 'admin-user-actions' });
+        const activity = el('button', { class: 'btn soft', type: 'button' }, 'Activity');
+        activity.addEventListener('click', (event) => {
+          event.stopPropagation();
+          ctx.navigate('/audit?actorType=user&actorId=' + encodeURIComponent(user.id));
+        });
+        actions.appendChild(activity);
         if (user.status === 'active') {
           const suspend = el('button', { class: 'btn soft', type: 'button' }, 'Suspend');
           suspend.addEventListener('click', async (event) => {
@@ -400,4 +407,11 @@ function emptyRow(columns, message) {
 
 function redactPhoneNumbers(value) {
   return String(value).replace(/(?:\+?27[\s().-]?\d{2}[\s().-]?\d{3}[\s().-]?\d{4}|0\d{9})/g, '[redacted]');
+}
+
+function maskEmail(value) {
+  if (typeof value !== 'string') return '—';
+  const atIndex = value.lastIndexOf('@');
+  if (atIndex < 1 || atIndex === value.length - 1) return '—';
+  return value[0] + '***@' + value.slice(atIndex + 1);
 }

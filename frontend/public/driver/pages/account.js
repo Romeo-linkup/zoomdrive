@@ -28,10 +28,10 @@ async function renderAccount(ctx, screen) {
     const card = el('div', { class: 'card' });
     card.appendChild(el('p', {}, 'Create a profile to request help'));
     const signupBtn = el('button', { class: 'btn', type: 'button' }, 'Sign up');
-    signupBtn.addEventListener('click', () => ctx.navigate('/phone?mode=signup'));
+    signupBtn.addEventListener('click', () => ctx.navigate('/email?mode=signup'));
     card.appendChild(signupBtn);
     const loginBtn = el('button', { class: 'btn soft', type: 'button' }, 'Log in');
-    loginBtn.addEventListener('click', () => ctx.navigate('/phone?mode=login'));
+    loginBtn.addEventListener('click', () => ctx.navigate('/email?mode=login'));
     card.appendChild(loginBtn);
     screen.appendChild(card);
   } else {
@@ -52,6 +52,9 @@ async function renderAccount(ctx, screen) {
       ? user.firstName + ' ' + user.lastName
       : 'Driver';
     info.appendChild(el('div', {}, name));
+    if (user && user.email) {
+      info.appendChild(el('small', {}, user.email));
+    }
     if (user && user.phone) {
       info.appendChild(el('small', {}, formatPhone(user.phone)));
     }
@@ -64,7 +67,7 @@ async function renderAccount(ctx, screen) {
 
     const actions = [
       { label: 'Notifications', path: '/inbox' },
-      { label: 'Profile', path: '/profile-setup' },
+      { label: 'Edit profile', path: '/profile-setup?edit=true' },
       { label: 'Payment', path: '/payment' },
       { label: 'Saved places', path: '/saved-places' },
       { label: 'Support', path: '/support' },
@@ -119,7 +122,7 @@ async function renderAccount(ctx, screen) {
     logoutBtn.addEventListener('click', async () => {
       const confirmed = await modal({
         title: 'Log out?',
-        body: 'You will need your phone number and a new code to sign back in.',
+        body: 'You will need your email and a new code to sign back in.',
         actions: [
           { label: 'Cancel', kind: 'soft', value: false },
           { label: 'Log out', kind: 'red', value: true },

@@ -3,6 +3,15 @@ import { el, clear } from '../ui.js';
 
 export function createBottomNav({ items, current }) {
   const nav = el('nav', { class: 'nav', attrs: { 'aria-label': 'Main' } });
+  const brand = el('div', { class: 'nav-brand' });
+  brand.appendChild(el('img', {
+    class: 'brand-img',
+    attrs: { src: '/brand/logo.svg', alt: 'ZoomDrive' },
+  }));
+  if (document.body.dataset.app === 'provider') {
+    brand.appendChild(el('span', { class: 'badge dark' }, 'PARTNER'));
+  }
+  nav.appendChild(brand);
   items.forEach((item) => {
     const btn = el('button', { class: 'nav-item', attrs: { 'aria-label': item.label, 'data-path': item.path } });
     if (item.path === current) {

@@ -172,8 +172,8 @@ function rule10TapTarget() {
   }
 }
 
-// Rule 14: PWA - manifests, icons, service workers
-function rule14Pwa() {
+// Rule 17: PWA - manifests, icons, service workers
+function rule17Pwa() {
   const driverManifest = path.join(publicDir, 'driver/manifest.webmanifest');
   const providerManifest = path.join(publicDir, 'provider/manifest.webmanifest');
   const driverSw = path.join(publicDir, 'driver/sw.js');
@@ -249,8 +249,59 @@ function rule14Pwa() {
   }
 }
 
-// Rule 15: NOFETCH - flag any use of fetch( except in api.js and sw.js
-function rule15NoFetch() {
+// Rule 14: responsive layout breakpoints and no fixed app-column cap.
+function rule14ResponsiveLayout() {
+  const componentsFile = path.join(publicDir, 'shared', 'styles', 'components.css');
+  const components = fs.readFileSync(componentsFile, 'utf8');
+  [
+    { width: 600, pattern: /@media\s*\(\s*min-width\s*:\s*600px\s*\)/ },
+    { width: 900, pattern: /@media\s*\(\s*min-width\s*:\s*900px\s*\)/ },
+  ].forEach(({ width, pattern }) => {
+    if (!pattern.test(components)) {
+      addProblem(componentsFile, 1, 'LAYOUT', `missing min-width ${width}px media query`);
+    }
+  });
+
+  walkDir(publicDir, (cssFile) => {
+    if (!cssFile.endsWith('.css')) return;
+    const css = fs.readFileSync(cssFile, 'utf8');
+    const rules = /([^{}]+)\{([^{}]*)\}/g;
+    let match;
+    while ((match = rules.exec(css)) !== null) {
+      const targetsApp = match[1].split(',')
+        .some((selector) => /^\s*\.app(?:$|[.#:\s>+~])/.test(selector));
+      if (targetsApp && /max-width\s*:\s*480px\b/i.test(match[2])) {
+        const line = css.slice(0, match.index).split('\n').length;
+        addProblem(cssFile, line, 'LAYOUT', '.app must not have max-width: 480px');
+      }
+    }
+  });
+}
+
+// Rule 15: no legacy phone hash beyond the router alias.
+function rule15NoPhoneRoute() {
+  const aliasFile = path.join(publicDir, 'shared', 'router.js');
+  const aliasLine = "const LEGACY_PHONE_HASH = '#/phone'; // Legacy deep links are replaced with the email route.";
+  let allowedCount = 0;
+  walkDir(publicDir, (file) => {
+    if (!['.js', '.html', '.css', '.json', '.webmanifest'].some((ext) => file.endsWith(ext))) return;
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, index) => {
+      if (!line.includes('#/phone')) return;
+      if (file === aliasFile && line.trim() === aliasLine) {
+        allowedCount++;
+      } else {
+        addProblem(file, index + 1, 'PHONE_ROUTE', 'legacy #/phone reference outside router alias');
+      }
+    });
+  });
+  if (allowedCount !== 1) {
+    addProblem(aliasFile, 1, 'PHONE_ROUTE', 'expected exactly one documented legacy route alias');
+  }
+}
+
+// Rule 16: NOFETCH - flag any use of fetch( except in api.js and sw.js
+function rule16NoFetch() {
   walkDir(publicDir, (file) => {
     if (file.endsWith('.js') && !file.endsWith('api.js') && !file.endsWith('sw.js')) {
       const content = fs.readFileSync(file, 'utf8');
@@ -330,8 +381,10 @@ rule10TapTarget();
 rule11NoEmptyCatch();
 rule12NoInlineHandlers();
 rule13CspHeaders();
-rule14Pwa();
-rule15NoFetch();
+rule14ResponsiveLayout();
+rule15NoPhoneRoute();
+rule16NoFetch();
+rule17Pwa();
 
 if (problems.length > 0) {
   problems.forEach(p => console.log(p));
