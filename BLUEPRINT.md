@@ -1082,4 +1082,4 @@ node_modules/
 .env.*
 !.env.example
 *.log
-.DS_Store
+.DS_Store| 3 Nov 2026 | 13B | Landing layout fix | npm run check | Centred landing wrapper; buttons side-by-side at 600px; logo scales; audited driver/provider/admin shells | Romeo manual tests |
