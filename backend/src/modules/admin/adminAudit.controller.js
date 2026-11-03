@@ -41,14 +41,15 @@ async function list(req, res) {
   const filters = req.validated;
   const { sql, params } = addFilters(filters);
   const page = filters.page;
-  const offset = (page - 1) * PAGE_SIZE;
+  const pageSize = filters.pageSize || PAGE_SIZE;
+  const offset = (page - 1) * pageSize;
   const [result, countResult] = await Promise.all([
     query(
       `SELECT id, actor_type, actor_id, action, entity, entity_id, meta, request_id, created_at
        FROM audit_log ${sql}
        ORDER BY created_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-      [...params, PAGE_SIZE, offset]
+      [...params, pageSize, offset]
     ),
     query(`SELECT COUNT(*) FROM audit_log ${sql}`, params),
   ]);

@@ -5,7 +5,7 @@ const { notifyBestEffort } = require('../notifications/notifications.service');
 
 async function listUsers(req, res) {
   const { role, status, q, page } = req.validated;
-  const pageSize = 25;
+  const pageSize = req.validated.pageSize || 25;
   const offset = (page - 1) * pageSize;
 
   let whereClauses = [];

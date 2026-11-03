@@ -8,7 +8,7 @@ const { notifyBestEffort } = require('../notifications/notifications.service');
 
 async function listRequests(req, res) {
   const { status, q, page } = req.validated;
-  const pageSize = 25;
+  const pageSize = req.validated.pageSize || 25;
   const offset = (page - 1) * pageSize;
   const clauses = [];
   const params = [];

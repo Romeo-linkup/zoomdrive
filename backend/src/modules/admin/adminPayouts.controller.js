@@ -61,7 +61,7 @@ function providerListWhere({ filter, q: search }) {
 
 async function list(req, res) {
   const { filter, q, page } = req.validated;
-  const pageSize = 25;
+  const pageSize = req.validated.pageSize || 25;
   const offset = (page - 1) * pageSize;
   const where = providerListWhere({ filter, q });
   const countResult = await query(

@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 13  (Hardening)
-LAST COMPLETED PHASE . 12
-LAST TASK DONE ....... P13.6
-NEXT ACTION .......... Romeo manual tests for Phases 12 and 13, then Phase 14 task P14.1
+CURRENT PHASE ........ 13B (Email login, responsive layout, full audit and revenue)
+LAST COMPLETED PHASE . 13B
+LAST TASK DONE ....... P13B.7
+NEXT ACTION .......... Romeo manual tests for Phases 12, 13 and 13B, then Phase 14 task P14.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 3 Nov 2026
@@ -64,7 +64,8 @@ LAST UPDATED ......... 3 Nov 2026
 - Drivers are regular individuals. Profile photo optional.
 - Providers register as an **individual** or under a **company/organisation**. Profile photo is **compulsory** for providers. Documents are compulsory. Providers are `pending` until an admin approves them. Only `approved` providers can go online and receive jobs.
 - To make a request, a driver must have signed up and have a profile. A driver can browse the whole driver app as a guest first; any request action sends them to sign-up.
-- Signup and profile creation flow like Uber/Bolt: phone number, 4-digit code (OTP), then profile details.
+- Signup and login use email and a 6-digit code emailed through Brevo, then profile details including phone.
+- Phone is a required contact detail and is not verified.
 - Fair price for both sides: admin-controlled price bands, fixed price shown before confirming, never changes afterwards. Platform commission default 15% taken from the provider side; sensitive pricing changes require an emailed admin challenge.
 - Theme: white, modern, amber accent (`#FFB400`), black buttons. Mobile-first PWA that also works on desktop.
 - The marketplace starts narrow: one pilot city, vetted providers, manual dispatch fallback. Later: partners/corporate/fleet, wider accessories, WhatsApp requests, staff accounts under companies.
@@ -134,9 +135,10 @@ Save as `frontend/public/brand/logo.svg`. Verified to render correctly: open jaw
   --r-sm:12px; --r-md:16px; --r-lg:22px; --shadow:0 6px 20px rgba(0,0,0,.05);
   --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --tap:44px; /* minimum tap target */
+  --pad:16px; --nav-w:232px; --content-max:1200px; --form-max:560px; --rail-bg:#ffffff;
 }
 ```
-Rules: white background, black primary buttons, amber for highlights and brand, blue only for "Go Online" and links, green for success/verified, red for destructive. Cards: 1px `--line` border, soft shadow, radius 16 to 22. Bottom navigation with minimum 44px tap targets. Respect safe areas (`env(safe-area-inset-*)`). Layout is mobile-first (works at 360px wide); on desktop the app column is centred (max-width 480px) with no device frame. Use `textContent` for user-supplied text, never `innerHTML`.
+Rules: white background, black primary buttons, amber for highlights and brand, blue only for "Go Online" and links, green for success/verified, red for destructive. Cards: 1px `--line` border, soft shadow, radius 16 to 22. Navigation has minimum 44px tap targets. Respect safe areas (`env(safe-area-inset-*)`). Layout is mobile-first and fills the screen on every device; bottom navigation below 900px and a left side rail from 900px; content max width 1200px, forms 560px. Use `textContent` for user-supplied text, never `innerHTML`.
 
 ### 3.4 Visual reference
 A clickable mockup (white theme, Uber/Bolt-style driver and provider screens) exists as a separate HTML file made earlier under the working name RoadAid. This blueprint is the spec; the mockup is only a visual aid. Screen contents are fully described in section 11, so no upload is needed.
@@ -151,7 +153,8 @@ A clickable mockup (white theme, Uber/Bolt-style driver and provider screens) ex
 - **PWAs:** each app has its own `manifest.webmanifest` (own `id`, `scope`, `start_url`, icons, name) and its own service worker located inside its folder so its scope is `/driver/` or `/provider/`. Both install separately from the same domain and show as two icons.
 - **Maps:** Leaflet + OpenStreetMap tiles (free, no key). Geocoding: browser geolocation first, Nominatim search as optional (respect its usage policy, debounce, cache). Distance: Haversine formula times a road factor (default 1.3). Routing/ETA: estimate from distance and average speed (setting). Upgrade path to Google/Mapbox later.
 - **Live updates:** polling, not WebSockets (Render free tier sleeps; simpler). Driver tracking screen polls every 5s. Provider offers poll every 5s while online. Provider location heartbeat every 15s while online.
-- **Auth:** phone number + 4-digit OTP, then a JWT (30 days). OTP delivery goes through an adapter: `console` (dev, logs the code) and `bulksms` (production, added in Phase 13/14).
+- **Auth:** email + 6-digit code emailed through Brevo, then a JWT (30 days); phone is a required, unverified profile contact detail.
+- **OTP adapter:** `console` (development only, logs the code outside production), `email` (default via Brevo), and `bulksms` (dormant).
 - **Dispatch:** automatic nearest-provider offers with a manual admin-assign fallback.
 - **Payments:** Phase 11. Ledger-first design (platform records what each provider earned and is owed; admin pays out), then Paystack card payments.
 - **Admin:** separate operator panel at `/admin/` with its own `admin_users` table, email + password login, no public signup.
@@ -160,7 +163,7 @@ A clickable mockup (white theme, Uber/Bolt-style driver and provider screens) ex
 Driver PWA (/driver/) ─┐
 Provider PWA (/provider/) ─┼─► Express API (Render) ─► Neon Postgres
 Admin panel (/admin/) ─┘          └─► Cloudinary (photos/docs)
-                                   └─► SMS provider (OTP, later)
+                                   └─► Email provider (OTP via Brevo)
 ```
 
 ---
@@ -198,7 +201,9 @@ zoomdrive/
 │  │  │  ├─ 009_provider_active_job.sql       (phase 8)
 │  │  │  ├─ 010_pricing_governance_charges.sql (phase 10; read-only once present)
 │  │  │  ├─ 011_ledger_payouts_bank.sql        (phase 11; applied)
-│  │  │  └─ 012_ratings_moderation.sql         (phase 12; applied)
+│  │  │  ├─ 012_ratings_moderation.sql     (phase 12; applied)
+│  │  │  └─ 013_email_login.sql             (phase 13B; applied)
+│  │  │  └─ 014_audit_revenue_immutability.sql (phase 13B; applied)
 │  │  └─ seed/
 │  │     ├─ services.sql                      (phase 1)
 │  │     └─ settings.sql                      (phase 1)
@@ -211,7 +216,7 @@ zoomdrive/
 │     │  ├─ ApiError.js                 (phase 0)
 │     │  ├─ errors.js                   (phase 0)  error code registry
 │     │  ├─ logger.js                   (phase 0)
-│     │  ├─ mailer.js                   (phase 10) development console / SMTP email
+│     │  ├─ mailer.js                   (phase 10/13B) console / SMTP / Brevo email
 │     │  ├─ crypto.js                   (phase 11) AES-256-GCM bank detail encryption
 │     │  ├─ money.js                    (phase 8)
 │     │  ├─ geo.js                      (phase 8)  haversine, bounding box
@@ -231,7 +236,7 @@ zoomdrive/
 │     │  └─ upload.js                   (phase 3)  multer, type + size limits
 │     └─ modules/
 │        ├─ health/        health.routes.js                               (phase 0)
-│        ├─ auth/          auth.routes.js, auth.controller.js, auth.service.js, otp.service.js, otp.drivers/console.js, otp.drivers/bulksms.js   (phase 2)
+│        ├─ auth/          auth.routes.js, auth.controller.js, auth.service.js, otp.service.js, otp.drivers/console.js, otp.drivers/email.js, otp.drivers/bulksms.js   (phase 2/13B)
 │        ├─ users/         users.routes.js, users.controller.js           (phase 3)
 │        ├─ drivers/       drivers.routes.js, drivers.controller.js, savedPlaces.controller.js   (phase 3)
 │        ├─ providers/     providers.routes.js, providers.controller.js, documents.controller.js, organisations.controller.js, registrationFee.controller.js, earnings.controller.js, bankDetails.controller.js   (phase 3, extended 10-11)
@@ -300,7 +305,8 @@ Real values only in Render's dashboard and a local git-ignored `backend/.env`. `
 | `JWT_EXPIRES_IN` | no | default `30d` |
 | `FRONTEND_ORIGINS` | yes | comma-separated allowed origins for CORS |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | from phase 3 | uploads |
-| `OTP_DRIVER` | yes | `console` (dev) or `bulksms` (prod) |
+| `OTP_DRIVER` | yes | `console`, `email`, or dormant `bulksms` |
+| `OTP_DAILY_EMAIL_CAP` | no | integer 10–100000; global daily email OTP cap, default 250 |
 | `OTP_DEV_ECHO` | no | `true` returns the code in the API response (development only; boot refuses `true` in production) |
 | `OTP_ALLOW_CONSOLE_IN_PRODUCTION` | no | default `false`; explicitly permits console OTP only for private production testing, with a loud boot warning |
 | `SMS_API_KEY`, `SMS_API_SECRET` | when `OTP_DRIVER=bulksms` | BulkSMS credentials |
@@ -309,12 +315,15 @@ Real values only in Render's dashboard and a local git-ignored `backend/.env`. `
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` | from phase 10 | platform charges and card payments |
 | `PAYSTACK_FALLBACK_EMAIL_DOMAIN` | when Paystack is configured | valid domain used for accounts without an email |
 | `DATA_ENCRYPTION_KEY` | required from phase 11 | base64 encoding of exactly 32 random bytes; boot fails if missing or wrong length |
-| `EMAIL_DRIVER` | yes | `console` in development only or `smtp` for email delivery |
-| `EMAIL_FROM` | when `EMAIL_DRIVER=smtp` | verified sender address |
+| `EMAIL_DRIVER` | yes | `console` in development only, `smtp`, or `brevo` |
+| `EMAIL_FROM` | when `EMAIL_DRIVER=smtp` or `brevo` | verified sender address |
+| `EMAIL_FROM_NAME` | no | sender display name, default `ZoomDrive` |
+| `BREVO_API_KEY` | when `EMAIL_DRIVER=brevo` | Brevo API key |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | when `EMAIL_DRIVER=smtp` | SMTP connection |
 | `EMAIL_FALLBACK_DOMAIN` | no | domain used only when an admin email has no domain |
 | `PRICING_CHANGE_COOLDOWN_HOURS` | no | default 720 (30 days); integer 1–720 hours between applied pricing changes |
 | `APP_VERSION` | no | shown in `/health` and error details |
+| `TRUST_PROXY_HOPS` | no | integer, default 1; trusted proxy hops for rate limiting and client IP |
 
 Frontend has no secrets. `shared/config.js` holds `API_BASE` (production URL, with a development branch for localhost).
 
@@ -324,15 +333,15 @@ Frontend has no secrets. `shared/config.js` holds `API_BASE` (production URL, wi
 
 Conventions: `bigint generated always as identity` primary keys; `timestamptz` for all times (stored UTC, displayed in SAST); money as integer cents; `text` plus `CHECK` constraints for enums; indexes on every foreign key and every column used in a `WHERE`. Each migration is idempotent-safe, non-empty, and recorded in `schema_migrations` only after it succeeds.
 
-**users** `id, role CHECK(driver|provider), phone UNIQUE NOT NULL (E.164), email, first_name, last_name, photo_url, status CHECK(active|suspended|deleted) default active, suspended_reason, suspended_at, deleted_at, created_at, updated_at, last_login_at`
+**users** `id, role CHECK(driver|provider), phone nullable and not unique (E.164 when present), email nullable with a unique partial index on lower(email), email_verified_at, first_name, last_name, photo_url, status CHECK(active|suspended|deleted) default active, suspended_reason, suspended_at, deleted_at, created_at, updated_at, last_login_at`
 
-**otp_codes** `id, phone, code_hash, purpose CHECK(login|signup), expires_at, attempts int default 0, consumed_at, created_at`
+**otp_codes** `id, email, phone nullable, code_hash, purpose CHECK(login|signup), expires_at, attempts int default 0, consumed_at, created_at`; index `idx_otp_email`
 
-**driver_profiles** `user_id PK→users, vehicle_make, vehicle_model, vehicle_colour, plate, hail_platform (uber|bolt|indrive|other|null), consent_at, created_at`
+**driver_profiles** `user_id PK→users, vehicle_make, vehicle_model, vehicle_colour, plate, hail_platform (uber|bolt|indrive|other|null), consent_at, consent_version, created_at`
 
 **organisations** `id, name, reg_number, status CHECK(pending|approved|rejected|suspended), owner_user_id→users, created_at`
 
-**provider_profiles** `user_id PK→users, provider_type CHECK(individual|company), organisation_id→organisations null, vehicle_description, plate, base_lat, base_lng, service_radius_km default 25, verification_status CHECK(pending|approved|rejected) default pending, rejection_reason, is_online bool default false, last_lat, last_lng, last_seen_at, rating_avg numeric(3,2) default 0, rating_count int default 0, jobs_completed int default 0, submitted_at, approved_at, approved_by→admin_users, consent_at, registration_paid_at, registration_waived bool default false, registration_charge_id→platform_charges null, created_at`
+**provider_profiles** `user_id PK→users, provider_type CHECK(individual|company), organisation_id→organisations null, vehicle_description, plate, base_lat, base_lng, service_radius_km default 25, verification_status CHECK(pending|approved|rejected) default pending, rejection_reason, is_online bool default false, last_lat, last_lng, last_seen_at, rating_avg numeric(3,2) default 0, rating_count int default 0, jobs_completed int default 0, submitted_at, approved_at, approved_by→admin_users, consent_at, consent_version, registration_paid_at, registration_waived bool default false, registration_charge_id→platform_charges null, created_at`
 
 **provider_documents** `id, provider_user_id→users, doc_type CHECK(id_document|drivers_licence|vehicle_insurance|company_registration), file_url, cloudinary_public_id, status CHECK(pending|approved|rejected) default pending, note, uploaded_at, reviewed_at, reviewed_by`
 
@@ -346,7 +355,7 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **request_offers** `id, request_id→requests, provider_id→users, status CHECK(offered|accepted|declined|expired) default offered, offered_at, responded_at, UNIQUE(request_id, provider_id)`
 
-**payments** `id, request_id→requests UNIQUE, method CHECK(card|cash|eft|unpaid) default unpaid, status CHECK(pending|paid|failed|refunded) default pending, amount_cents, paystack_ref, paid_at, created_at`
+**payments** `id, request_id→requests UNIQUE, method CHECK(card|cash|eft|unpaid) default unpaid, status CHECK(pending|paid|failed|refunded) default pending, amount_cents, gateway_fee_cents nullable, paystack_ref, paid_at, created_at`
 
 **provider_ledger** `id, provider_user_id→users, request_id→requests null, payout_id→payouts null, entry_type CHECK(earning|commission|payout|adjustment), amount_cents (signed), note, created_at`; unique partial index `uq_provider_ledger_request_entry` allows one earning or commission row per request; provider/created index `idx_provider_ledger_provider`
 
@@ -368,11 +377,13 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **pricing_change_log** `id, admin_id→admin_users, challenge_id→admin_change_challenges, changes jsonb, created_at`; append-only record of each applied change and its before/after values.
 
-**platform_charges** `id, user_id→users, purpose CHECK(provider_registration|driver_plus), amount_cents, status CHECK(pending|paid|failed|abandoned), paystack_ref UNIQUE, paid_at, meta jsonb, created_at`.
+**platform_charges** `id, user_id→users, purpose CHECK(provider_registration|driver_plus), amount_cents, gateway_fee_cents nullable, status CHECK(pending|paid|failed|abandoned), paystack_ref UNIQUE, paid_at, meta jsonb, created_at`.
 
 **driver_memberships** `user_id PK→users, plan CHECK(plus), started_at, trial_ends_at, paid_until, created_at`. Provider registration payment/waiver timestamps and charge link are stored on `provider_profiles`.
 
-**audit_log** `id, actor_type CHECK(user|admin|system), actor_id, action, entity, entity_id, meta jsonb, request_id, ip, created_at`
+**audit_log** `id, actor_type CHECK(user|admin|system|anonymous), actor_id, action, entity, entity_id, meta jsonb, request_id, ip, created_at`
+
+Migration 014 makes `audit_log`, `pricing_change_log`, `provider_ledger` and `payouts` append-only, blocks deletes on `payments`, `platform_charges` and `requests`, and freezes a paid payment except paid to refunded.
 
 **schema_migrations** `filename PK, checksum, applied_at`
 
@@ -386,7 +397,7 @@ Base URL: `${API_BASE}/api/v1`. JSON in/out. JWT in `Authorization: Bearer <toke
 
 ### 8.1 Response contract (fixed, never change without a blueprint update)
 Success: `{ "ok": true, "data": { ... }, "requestId": "<id>" }`
-Failure: `{ "ok": false, "error": { "code": "ZD-AUTH-001", "message": "Human readable message", "field": "phone" | null, "details": null }, "requestId": "<id>" }`
+Failure: `{ "ok": false, "error": { "code": "ZD-AUTH-001", "message": "Human readable message", "field": "email" | "phone" | null, "details": null }, "requestId": "<id>" }`
 HTTP status codes: 200/201 success, 400 validation, 401 unauthenticated, 403 forbidden, 404 not found, 409 conflict, 429 rate limit, 500 unexpected.
 Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiError {code, message, field, status, requestId}`.
 
@@ -395,17 +406,17 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/health` | none | status, version, db up/down, missing env names |
-| POST | `/auth/otp/request` | none | `{phone, app}` sends code (rate limited) |
-| POST | `/auth/otp/verify` | none | `{phone, code, app}` returns `{token, user, isNewUser, profileComplete}` |
+| POST | `/auth/otp/request` | none | `{email, app}` sends code (rate limited) |
+| POST | `/auth/otp/verify` | none | `{email, code, app}` returns `{token, user, isNewUser, profileComplete}` |
 | GET | `/auth/me` | any | current user + profile + completeness flags |
 | POST | `/auth/logout` | any | audit only (JWT is stateless) |
-| PUT | `/drivers/me` | driver | create/update driver profile (name, vehicle, consent) |
+| PUT | `/drivers/me` | driver | create/update driver profile (name, phone, vehicle, consent) |
 | POST | `/users/me/photo` | any | upload profile photo (multipart, field `photo`) |
 | GET/POST/DELETE | `/drivers/me/saved-places` | driver | saved places |
 | GET | `/drivers/me/plus` | driver | Driver Plus status |
 | POST | `/drivers/me/plus/join` | driver | join Plus and start any configured trial |
 | POST | `/drivers/me/plus/pay` | driver | initialize a Plus membership payment |
-| PUT | `/providers/me` | provider | profile (name, type, vehicle, base location, radius) |
+| PUT | `/providers/me` | provider | profile (name, phone, type, vehicle, base location, radius) |
 | PUT | `/providers/me/organisation` | provider | company name + reg number (company type only) |
 | PUT | `/providers/me/services` | provider | `{serviceIds:[]}` |
 | POST | `/providers/me/documents` | provider | upload one document (`doc_type`, file) |
@@ -461,6 +472,12 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | POST | `/admin/payouts/:providerId` | admin | record provider payout |
 | POST | `/admin/payouts/:providerId/adjustment` | admin | record signed ledger adjustment |
 | GET | `/admin/audit` | admin | audit log with filters |
+| GET | `/admin/audit/export` | admin | filtered audit log CSV |
+| GET | `/admin/revenue/summary` | admin | revenue, volume, gateway fees, and provider balance snapshot |
+| GET | `/admin/revenue/daily` | admin | daily financial totals including zero-activity days |
+| GET | `/admin/revenue/transactions` | admin | paginated ride, charge, payout and adjustment rows |
+| GET | `/admin/revenue/export` | admin | export revenue transactions as CSV |
+| GET | `/admin/revenue/reconcile` | admin | check payment, ledger and payout consistency |
 | GET | `/admin/requests/:id/timeline` | admin | request timeline |
 | POST | `/admin/users/:id/suspend` | admin | suspend user account |
 | POST | `/admin/users/:id/unsuspend` | admin | unsuspend user account |
@@ -471,15 +488,13 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 ## 9. BUSINESS RULES
 
 ### 9.1 Auth and roles
-- `app` (`driver`|`provider`) is sent with every OTP request and verify. The backend creates a new user with that role on first verify. If the phone belongs to the other role, return `ZD-AUTH-004 ROLE_MISMATCH` (403) with message "This number is registered as a <role>. Open the ZoomDrive<' Partner'> app instead."
-- OTP: 4 digits, hashed, expires in 5 minutes, 5 attempts max, rate limit 3 requests per phone per 10 minutes and 10 per IP per hour.
-- `profileComplete`: driver = first and last name set and consent recorded; provider = status `submitted` only after photo + documents + services + consent.
+- `app` (`driver`|`provider`) is sent with every OTP request and verify. The backend creates a new user with that role on first verify. If the email belongs to the other role, return `ZD-AUTH-004` (403) with message "This email is registered as a <role>. Open the ZoomDrive<' Partner'> app instead."
+- OTP: 6 digits, emailed, hashed, expires in 5 minutes, 5 attempts. Limits per email: 3 per 10 minutes, 10 per day, 30 seconds between codes; per IP 10 per hour; global daily cap `OTP_DAILY_EMAIL_CAP`. Delivery failure returns `ZD-EML-001` and invalidates the code. Phone is a required contact detail normalised to E.164 (082 123 4567, 0821234567 and +27 82 123 4567 all become +27821234567) and is NOT verified.
+- `profileComplete`: driver = first and last name, phone and consent recorded; provider = status `submitted` only after photo + documents + services + consent.
 - `SIGNUP_ENABLED=false` blocks new accounts with `ZD-AUTH-009`.
-- OTP delivery failure returns ZD-SMS-001 and invalidates the code.
-- Phone normalisation: `082 123 4567`, `0821234567`, `+27 82 123 4567` all become `+27821234567`.
 
 ### 9.2 Provider verification
-- Compulsory before submit: profile photo, first/last name, at least one service, documents `id_document`, `drivers_licence`, `vehicle_insurance`, plus `company_registration` and company name/registration number for `company` type, consent.
+- Compulsory before submit: profile photo, first/last name, phone, at least one service, documents `id_document`, `drivers_licence`, `vehicle_insurance`, plus `company_registration` and company name/registration number for `company` type, consent.
 - Server enforces the photo requirement (`ZD-PROV-001 PHOTO_REQUIRED`), not just the UI. Submit returns `ZD-PROV-002 DOCUMENTS_MISSING` with `details.missing`.
 - Status flow: `pending` (after submit) → `approved` | `rejected` (with reason; provider can fix and resubmit). Only `approved` can go online (`ZD-PROV-005 NOT_APPROVED`).
 - Documents are stored as private/authenticated Cloudinary assets; admin views via signed, expiring URLs. Profile photos are public.
@@ -514,10 +529,10 @@ All three are stored on the request at creation. Later admin changes never alter
 - A provider's rating_avg and rating_count (provider_profiles) are recalculated in the same transaction from ratings where ratee_id is the provider and rater_role is 'driver'. A driver's average is calculated on demand from ratings where ratee_id is the driver and rater_role is 'provider'; there is no stored driver average.
 
 ### 9.7 Guest browsing (driver app)
-Guests can open Home, service tiles, prices, Activity (empty), Account (sign-in prompt) and Safety/Support pages. Any action that creates data (request, saved place, payment method) redirects to `#/phone?next=<route>` with a banner "Create a profile to request help". After signup the user returns to `next`.
+Guests can open Home, service tiles, prices, Activity (empty), Account (sign-in prompt) and Safety/Support pages. Any action that creates data (request, saved place, payment method) redirects to `#/email?next=<route>` with a banner "Create a profile to request help". After signup the user returns to `next`.
 
 ### 9.8 Privacy (POPIA)
-Consent checkbox at profile creation (privacy policy + terms, timestamped). Collect only what is needed. Provide account deletion on request (admin tool in phase 12). Store ID documents privately. This is not legal advice; get the policy reviewed before launch.
+Consent checkbox at profile creation (privacy policy + terms, timestamped). Collect only what is needed. Provide account deletion on request (admin tool in phase 12). Store ID documents privately. Disclose audit logging, IP addresses and email in the privacy policy. This is not legal advice; get the policy reviewed before launch.
 
 ### 9.9 Pricing governance
 - The commission default is 15%; migration 010 changes a still-default value of 12 to 15 without overwriting an admin-edited value.
@@ -529,6 +544,17 @@ Consent checkbox at profile creation (privacy policy + terms, timestamped). Coll
 ### 9.10 Platform charges and memberships
 - Provider registration charges and optional Driver Plus memberships use the `platform_charges` table; paid membership state is held in `driver_memberships`. Migration 010 provides the schema and registration-fee fields.
 - Paystack credentials are optional; platform-charge endpoints are implemented in Phase 10. Never enable a payment flow without the required keys and verified webhook handling.
+
+### 9.11 Audit policy
+- Every data-changing API call is recorded by the API audit trail (who, route, result, IP and time; no request bodies) plus semantic audit rows describing what changed.
+- Failed and denied write attempts and admin login failures are recorded. Page views and provider heartbeats are not recorded by the API audit trail.
+- Audit rows are append-only. Personal data is never stored in audit metadata; emails appear only as keyed hashes.
+
+### 9.12 Revenue and financial records
+- Revenue summary ranges use inclusive Africa/Johannesburg calendar dates. Gross bookings, card/offline volume, commission and provider share are based on paid ride payments; commission is recognised when a payment settles. Registration fees and Driver Plus revenue are recognised when paid. Net revenue is commission + registration fees + Plus revenue - gateway fees.
+- Daily rows include zero-activity dates. Transactions include paid rides and platform charges, payouts, and ledger adjustments. Owed-to/owed-by values are current provider ledger balance snapshots.
+- Reconciliation checks paid-payment ledger entries, earning and commission amounts, payment versus request totals, paid requests that are not completed, payout totals against payout ledger lines, and completed requests unpaid for over seven days (informational).
+- Financial rows are never deleted or edited; corrections are made with ledger adjustments. Retention period to be confirmed with an accountant.
 
 ---
 
@@ -542,12 +568,13 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-SYS-001 | 500 | Unexpected server error |
 | ZD-SYS-002 | 503 | Database unavailable |
 | ZD-SYS-003 | 404 | Route not found |
+| ZD-SYS-004 | 429 | Too many requests. Please slow down. |
 | ZD-SMS-001 | 502 | SMS delivery failed |
 | ZD-VAL-001 | 400 | Validation failed (field named in `error.field`) |
 | ZD-AUTH-001 | 401 | Missing or invalid token |
 | ZD-AUTH-002 | 400 | OTP invalid or expired |
 | ZD-AUTH-003 | 429 | Too many OTP attempts/requests |
-| ZD-AUTH-004 | 403 | Role mismatch (wrong app for this account) |
+| ZD-AUTH-004 | 403 | Email belongs to the other app (wrong app for this account) |
 | ZD-AUTH-005 | 403 | Account suspended |
 | ZD-AUTH-009 | 403 | Signups disabled |
 | ZD-USR-001 | 400 | Profile incomplete |
@@ -596,7 +623,7 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 Add new codes to this table in the same commit that uses them.
 
 ### 10.2 Backend logging
-One line per event: `[2026-10-25T10:15:00.123Z] [LEVEL] [reqId] [module] CODE message {json meta}`. Levels: `INFO`, `WARN`, `ERROR`. Every request logs method, path, status, ms. Errors log the code and stack (stack only in development responses; production responses never include stacks). Secrets, tokens, OTP codes (except `OTP_DRIVER=console`), email challenge codes (only through the development console mailer), phone numbers beyond the last 4 digits and document URLs are never logged.
+One line per event: `[2026-10-25T10:15:00.123Z] [LEVEL] [reqId] [module] CODE message {json meta}`. Levels: `INFO`, `WARN`, `ERROR`. Every request logs method, path, status, ms. Errors log the code and stack (stack only in development responses; production responses never include stacks). Secrets, tokens, OTP codes (except through a development-only console driver), message bodies, full email addresses (mask as `j***@domain.com`), phone numbers beyond the last 4 digits and document URLs are never logged.
 
 ### 10.3 Boot self-check
 `server.js` prints a table before listening, for example:
@@ -631,21 +658,25 @@ Fails the phase if any rule trips, printing `file:line rule`:
 11. Frontend: no empty catch blocks; comment-only bodies are allowed.
 12. Frontend: no inline `onclick`, `onchange` or `onsubmit` handler attributes in HTML or `innerHTML` templates.
 13. Frontend: `vercel.json` contains a Content-Security-Policy with `frame-ancestors 'none'`.
+14. Frontend: no `#/phone` references except the documented legacy alias in `shared/router.js`.
+15. Backend: every `z.string()` must have `.max()`, `.length()`, `.regex()`, `.email()` or `.uuid()` on the same or next 2 lines.
+16. Backend: no `origin: true`, no `origin: '*'`, no argument-less `cors()` in `src/`.
+17. Backend: no empty catch blocks in `src/` or `scripts/` (comment-only bodies allowed).
 
 ---
 
 ## 11. FRONTEND SPECIFICATION (screens)
 
-All routes are hash routes inside each app. Layout: top bar (logo or title), scroll area, bottom nav (where listed), safe-area aware.
+All routes are hash routes inside each app. Layout is mobile-first and fills the screen on every device; bottom navigation below 900px and a left side rail from 900px; content max width 1200px, forms 560px. Keep the top bar and scroll area safe-area aware.
 
 ### 11.1 Landing `/` (`index.html`)
 Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I provide help" (opens `/provider/`), plus install tips for each app and a note about adding to Home Screen.
 
 ### 11.2 Driver app (`/driver/`) bottom nav: Home, Activity, Account
 - `#/welcome` (shown when no token): logo, headline, **Sign up**, **Log in**, **Just looking?** (guest browse).
-- `#/phone`: mobile number field (+27 prefix), Continue, terms line. Shows the "Create a profile to request help" banner when `next` is present.
-- `#/otp`: 4 boxes, auto-advance, resend after 30s. In dev, shows the echoed code.
-- `#/profile-setup`: optional profile photo, first name, surname, optional email, optional vehicle (make, model, colour, plate, e-hailing platform), consent checkbox, Create profile.
+- `#/email`: email field, Continue, terms line. Shows the "Create a profile to request help" banner when `next` is present.
+- `#/otp`: 6 boxes, auto-advance, resend after 30s. In dev, shows the echoed code.
+- `#/profile-setup`: optional profile photo, first name, surname, required phone, signed-in email, optional vehicle (make, model, colour, plate, e-hailing platform), consent checkbox, Create profile.
 - `#/home`: headline "Stuck? We'll come to you.", service tiles (from `/services`), "Where are you?" bar with Use GPS, current/saved/recent places list, Fleet-profile teaser (static, non-functional placeholder).
 - `#/request`: step bar, map with pin (drag to adjust), service picker, price card (service + distance fee + fixed total), payment method row, promo row (placeholder), **Request help**.
 - `#/searching/:id`: animated "Finding help nearby", countdown to expiry, Cancel.
@@ -655,12 +686,12 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/plus` (sign-in required, Account tab): Plus benefits, trial/active/lapsed membership state, trial join or Paystack pass purchase, and payment-return status refresh without a client verify endpoint. Show this Account row only while Plus is enabled.
 - `#/activity`: upcoming (empty state), past requests with status and total; tap for detail.
 - `#/inbox` (sign-in required): paginated notifications, read actions and request navigation.
-- `#/account`: name + photo, Notifications with unread count, optional "Verify identity" banner (placeholder), Profile, Payment, Support, Safety, Saved places, Settings, Promotions (placeholder), Log out. No role-switch item.
+- `#/account`: name + photo, email and phone, Notifications with unread count, optional "Verify identity" banner (placeholder), Edit profile, Payment, Support, Safety, Saved places, Settings, Promotions (placeholder), Log out. No role-switch item.
 
 ### 11.3 Provider app (`/provider/`) bottom nav: Home, Earnings, Inbox, Menu
-- `#/welcome`, `#/phone`, `#/otp`: as driver, provider branding.
+- `#/welcome`, `#/email`, `#/otp`: as driver, provider branding.
 - `#/type`: **Individual** or **Company or organisation**.
-- `#/profile-setup`: **profile photo (required, red error if missing)**, first name, surname, company name and registration number (company only), vehicle description and plate, base location (map pick or GPS), service radius, services chips, consent.
+- `#/profile-setup`: **profile photo (required, red error if missing)**, first name, surname, required phone, signed-in email, company name and registration number (company only), vehicle description and plate, base location (map pick or GPS), service radius, services chips, consent.
 - `#/documents`: upload rows: ID document, driver's licence, vehicle and insurance, company registration certificate (company only). Each shows Upload, Uploaded ✓ or Rejected with the admin's note. **Submit for review** is disabled until everything required is present.
 - `#/pending`: "Profile under review" (shows rejected state with reason and a fix button).
 - `#/home`: status ("You're offline/online"), map card, Opportunities card (static for now), big **Go Online** button (requests location permission, starts heartbeat). While online, a job offer card appears: service, distance, driver rating, "You earn R…", Accept/Decline.
@@ -671,7 +702,7 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/registration-fee`: one-time fee state and Paystack checkout/return.
 
 ### 11.4 Admin panel (`/admin/`)
-Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users (status filter, suspend/unsuspend, account deletion); Requests (filters, detail with offers/candidates, manual assign, cancel, mark paid and dispute timeline); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts (provider balances, audited bank reveal, payouts, adjustments, CSV export); Audit log (filters, metadata details and pagination).
+Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users (status filter, email column, search by name/email/phone, suspend/unsuspend, account deletion, Activity shortcut to audit log); Requests (filters, detail with offers/candidates, manual assign, cancel, mark paid and dispute timeline); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts (provider balances, audited bank reveal, payouts, adjustments, CSV export); Audit log (actor, entity, date, type and request-id filters; API result badge; export CSV); Revenue (Summary: KPI cards and daily table; Transactions: type filter, search, table, export CSV; Reconcile: consistency check with issue list).
 
 ### 11.5 PWA requirements
 - Each app: manifest with `id`, `name`, `short_name`, `start_url` (`/driver/` or `/provider/`), `scope`, `display: standalone`, `theme_color #FFB400`, `background_color #FFFFFF`, 192/512/maskable icons.
@@ -821,8 +852,8 @@ Note: confirm with Paystack whether split payments/subaccounts suit this marketp
 ### PHASE 12: Ratings, notifications, audit and disputes
 - [x] P12.1 Ratings endpoints and rating average updates.
 - [x] P12.2 Notifications service (events: offer received, request accepted, provider arrived, job completed, provider approved/rejected) and inbox endpoints.
-- [ ] P12.3 Admin audit log page with filters (actor, entity, date, request id) and a request timeline view for disputes.
-- [ ] P12.4 Admin tools: suspend/unsuspend user, delete account on request (anonymise, keep ledger).
+- [x] P12.3 Admin audit log page with filters (actor, entity, date, request id) and a request timeline view for disputes.
+- [x] P12.4 Admin tools: suspend/unsuspend user, delete account on request (anonymise, keep ledger).
 - [x] P12.5 Driver and provider frontend ratings, notifications inboxes and unread indicators.
 - [x] P12.6 Admin audit log, request timeline and user moderation frontend.
 - [x] P12.7 Phase 12 manual tests and Blueprint wrap-up.
@@ -830,14 +861,25 @@ Verification: `npm run check`; every status transition has an audit row (scripte
 Manual test: complete a job, rate it, check inbox on both apps, open the request timeline in admin.
 
 ### PHASE 13: Hardening
-- [ ] P13.1 Security pass: `.env` never in git history (`git log --all -- backend/.env`), `JWT_SECRET` real in Render, CORS exact origins, helmet CSP for frontend, no secrets in repo (run check rule 5 across history).
-- [ ] P13.2 Rate limits on all write endpoints, upload limits, input length limits.
+- [x] P13.1 Security pass: `.env` never in git history (`git log --all -- backend/.env`), `JWT_SECRET` real in Render, CORS exact origins, helmet CSP for frontend, no secrets in repo (run check rule 5 across history).
+- [x] P13.2 Rate limits on all write endpoints, upload limits, input length limits.
 - [x] P13.3 SMS OTP via `bulksms` driver (or chosen provider), `OTP_DEV_ECHO=false` in production.
-- [x] P13.4 360px width review of every screen, tap targets 44px, safe areas, desktop centred column.
+- [x] P13.4 360px width review of every screen, tap targets 44px, safe areas, desktop side rail.
 - [x] P13.5 PWA polish: install button works on mobile, offline notice, icon audit, update-available toast.
 - [x] P13.6 Error review: every API failure path shows a coded banner; remove any silent catch blocks (`catch(e){}`).
 Verification: `npm run check` both sides; grep for empty catch blocks returns none.
 Manual test: full regression using `docs/manual-tests.md`.
+
+### PHASE 13B: Email login, responsive layout, full audit and revenue
+- [x] P13B.1 Brevo mailer and email OTP backend.
+- [x] P13B.2 Email login and phone-in-profile screens (driver and provider).
+- [x] P13B.3 Responsive full-screen layout for phone, tablet and desktop.
+- [x] P13B.4 Audit coverage, API audit trail and immutability.
+- [x] P13B.5 Revenue backend: summary, daily, transactions, export, reconcile.
+- [x] P13B.6 Admin Audit upgrades and Revenue page.
+- [x] P13B.7 Manual tests and blueprint wrap-up.
+Verification: `npm run check` both sides.
+Manual test: see `docs/manual-tests.md` Phase 13B.
 
 ### PHASE 14: Deployment and pilot launch
 - [ ] P14.1 Render service (root `backend`, env vars set in dashboard), Neon production database, run migrations and seed.
@@ -892,9 +934,15 @@ Manual test: one real driver and one real provider complete a live job.
 | 3 Nov 2026 | 13 | W1 (P13.1-P13.2 security and limits) | Git history check (blocked) | Matching secret-pattern commits were found; no code changes made. Romeo must rotate potentially exposed secrets and consult Claude about history cleanup. | W2 |
 | 3 Nov 2026 | 13 | W2 (P13.3 BulkSMS OTP driver) | `npm run check` (backend) | Added timed BulkSMS delivery, consumed OTPs on delivery failure, production console-OTP guard, and ZD-SMS-001. | W3 |
 | 3 Nov 2026 | 13 | W3 (P13.4-P13.5 responsive and PWA polish) | `npm run check` (frontend) | Added mobile input/tap sizing, safe-area and dynamic viewport handling, install/offline/update UI, and hardened deployment headers. Driver/provider icons are all present; HTML has no inline scripts or event handlers. Admin remains intentionally non-installable. | W4 |
+| 3 Nov 2026 | 13B | P13B.1 Brevo mailer and email OTP backend | `npm run check` (backend; expected empty later-phase files only) | Added Brevo delivery, database-backed email OTP limits and audits, email login, normalized profile phone capture, and admin user email search; updated the Blueprint. | Prompt W2 (P13B.2) |
+| 3 Nov 2026 | 13B | P13B.2 Email login and phone-in-profile screens | `npm run check` (frontend; expected empty admin revenue page only) | Replaced phone sign-in with email OTP screens, added phone profile fields and contact details, maintained the legacy route alias, and added a static route check. | Prompt W3 (P13B.3) |
+| 3 Nov 2026 | 13B | P13B.3 Responsive full-screen layout | `npm run check` (frontend; expected empty admin revenue page only) | Replaced the narrow desktop column with responsive full-screen layouts, a desktop side rail, narrow form widths, responsive tables and map sizing; updated layout checks and manual-test guidance. | Prompt W4 (P13B.4, P13B.5) |
+| 3 Nov 2026 | 13B | P13B.4-P13B.5 Audit trail and revenue backend | `npm run check` (backend) | Added non-blocking API audit events, semantic audit coverage, filtered audit CSV export, shared CSV escaping, gateway fee persistence, revenue summaries/transactions/export and reconciliation checks; updated the privacy and financial-record policy. | Romeo applies migration 014, then Prompt W5 (P13B.6, P13B.7) |
+| 3 Nov 2026 | 13B | P13B.6-P13B.7 Admin audit upgrades, revenue page, manual tests and blueprint wrap-up (W5) | `npm run check` (frontend and backend) | audit.js: Type filter, API result badge, Export CSV; users.js: Email column, search by name/email/phone, Activity shortcut; revenue.js: Summary KPIs/daily, Transactions with search/export, Reconcile; Phase 13B manual checklist in docs/manual-tests.md; Blueprint section 0/11.4/13B/14/decisions/open questions updated. | Romeo manual tests for Phases 12, 13 and 13B, then Phase 14 task P14.1 |
 | 3 Nov 2026 | 13 | W4 (P13.6 error review, manual tests and Blueprint) | `npm run check` (backend and frontend) | Appended the Phase 13 manual checklist, documented hardening decisions and the P14.3 CSP follow-up, and completed the frontend static error-review rules. | Romeo manual tests for Phases 12 and 13, then Phase 14 task P14.1 |
-| 3 Nov 2026 | 13 | P13.3 BulkSMS OTP driver | `npm run check` (backend) | Added timed BulkSMS delivery, consumed OTPs on delivery failure, production console-OTP guard, and ZD-SMS-001. | Prompt W3 (P13.4, P13.5, frontend P13.6) |
-
+| 3 Nov 2026 | 13 | Phase 13 H1 | `npm run check` (backend) | Production env validation (FRONTEND_ORIGINS, JWT_SECRET placeholders), TRUST_PROXY_HOPS, exact CORS, health response trimmed in prod, audit 0 vulnerabilities. | Phase 13 continued |
+| 3 Nov 2026 | 13 | Phase 13 H2 | `npm run check` (backend) | Added ZD-SYS-004 and global/per-user/upload/create-request/admin write limiters; mount order updated. | Phase 13 continued |
+| 3 Nov 2026 | 13 | Phase 13 H3 | `npm run check` (backend) | Zod bounds, CORS/static checks, empty-catch review. | Phase 13 continued |
 ### Decision log
 | Date | Decision | Reason |
 |---|---|---|
@@ -998,15 +1046,25 @@ Manual test: one real driver and one real provider complete a live job.
 | 3 Nov 2026 | The frontend CSP is set in vercel.json and the custom API domain is added in P14.3 | Restricts browser resource origins while preserving the planned API domain change |
 | 3 Nov 2026 | The service worker only skips waiting when the user taps Reload on the update toast | Gives users control over applying an app update |
 | 3 Nov 2026 | Empty catch blocks are banned by static checks; intentional ignores need a comment | Makes swallowed failures explicit during review |
+| 3 Nov 2026 | The admin audit log Kind filter maps 'events' to change events, 'api' to API request traces and 'denied' to denied or failed requests; 'all' returns everything | Lets operators scan by audit purpose without knowing internal action names |
+| 3 Nov 2026 | API audit rows include a coloured result badge (ok green, denied/rejected amber, error red) so operators quickly spot failures without opening the detail panel | Reduces time-to-diagnose for security or reliability incidents |
+| 3 Nov 2026 | Audit CSV export accepts the same filters as the list endpoint; the BOM (\uFEFF) prefix makes Excel open the file correctly without an import wizard | Consistent export pattern across all admin CSV downloads |
+| 3 Nov 2026 | The admin Users page masks displayed email to first-char + *** + @domain and searches by full email server-side; raw email is never rendered in the DOM | Balances findability with PII minimisation in the operator view |
+| 3 Nov 2026 | The Revenue page keeps date-range and tab state in the URL hash query so the operator can bookmark or share a specific view | Consistent with the Audit and Payouts pages; no server session needed |
+| 3 Nov 2026 | Revenue KPI cards show integer cents formatted via formatZAR; daily bars scale to the maximum absolute net for the period; zero-activity days appear as a flat 2 px bar | Avoids division-by-zero and gives visual context for quiet days |
+| 3 Nov 2026 | The Reconcile endpoint is on-demand (no scheduled run); UNPAID_OLD issues are amber informational, other codes are red blocking; checkedAt is always shown | Lets operators decide when to run and clearly separates expected aging from real inconsistencies |
+| 3 Nov 2026 | Revenue transactions redact emails and phone numbers via safeText (same pattern as audit sanitizeMeta) to avoid exposing PII in the operator table | Consistent PII handling across all admin data tables |
+| 3 Nov 2026 | Money in admin pages is always integer cents; formatZAR formats for display; no floating-point arithmetic in the frontend | Matches the backend money rule and prevents rounding drift |
 
 ### Known issues
 P14.3 adds the custom API domain to connect-src.
+Rate limit counters are in memory (reset on restart; single instance only). Move to a shared store before running more than one backend instance.
 
 ---
 
 ## 15. OPEN QUESTIONS (resolve and move to the decision log)
 
-1. **SMS/OTP provider** for production (BulkSMS, Clickatell, other) and per-message budget. Code supports BulkSMS; provider decision deferred until after Phase 14.
+1. RESOLVED: login codes are emailed through Brevo; phone verification (SMS or WhatsApp) is deferred until there is budget.
 2. **Fuel top-up**: legal and insurance position before activating the service.
 3. **Pilot city** and radius defaults.
 4. **Payments**: confirm Paystack split-payment support and whether the pilot starts with cash/EFT plus ledger.
@@ -1015,8 +1073,10 @@ P14.3 adds the custom API domain to connect-src.
 7. **Partnership agreement** (equity, roles, vesting) reviewed by a lawyer.
 8. **Company staff accounts** and fleet profiles (planned after the pilot, not in this build).
 9. **WhatsApp request channel** for the pilot (optional addition after Phase 10).
-10. **Privacy policy and terms** text (POPIA) before public launch.
-11. **Provider terms and a dispute policy** (needed before the pilot).
+10. **Privacy policy and terms** text (POPIA) before public launch; must mention the collection and use of email addresses, IP addresses (stored in audit_log), audit logging and retention periods.
+11. Sender domain and email authentication (SPF, DKIM, DMARC) before the pilot so codes do not land in spam.
+12. Retention period for financial and audit records (confirm with an accountant; commonly five years or more).
+13. **Provider terms and a dispute policy** (needed before the pilot).
 node_modules/
 .env
 .env.*

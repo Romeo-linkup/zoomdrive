@@ -300,10 +300,11 @@ async function renderRevenue(ctx, screen) {
         if (ctx.signal.aborted) return;
         clear(output);
         const issues = Array.isArray(data.issues) ? data.issues : [];
+        const allAgree = issues.every((issue) => issue.code === 'UNPAID_OLD');
         output.appendChild(el('p', {
-          class: data['ok'] ? 'admin-reconcile-ok' : 'admin-reconcile-failed',
+          class: allAgree ? 'admin-reconcile-ok' : 'admin-reconcile-failed',
           attrs: { role: 'status' },
-        }, data['ok'] ? 'All records agree' : 'Reconciliation issues found'));
+        }, allAgree ? 'All records agree' : 'Reconciliation issues found'));
         if (data.checkedAt) {
           output.appendChild(el('p', { class: 'mu' }, 'Checked ' + (formatDate(data.checkedAt, 'datetime') || data.checkedAt)));
         }

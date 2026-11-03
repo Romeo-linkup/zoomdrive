@@ -3,7 +3,7 @@ const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const adminAuth = require('../../middleware/adminAuth');
 const validate = require('../../middleware/validate');
-const { adminLoginLimiter } = require('../../middleware/rateLimit');
+const { adminLoginLimiter, adminWriteLimiter } = require('../../middleware/rateLimit');
 const wrap = require('../../lib/asyncHandler');
 const ApiError = require('../../lib/ApiError');
 const authCtl = require('./adminAuth.controller');
@@ -23,10 +23,11 @@ const accountDeletion = require('./accountDeletion.service');
 const router = express.Router();
 
 const page = z.coerce.number().int().min(1).default(1);
-const search = z.string().trim().max(60).optional();
+const pageSize = z.coerce.number().int().min(1).max(100).default(25);
+const search = z.string().trim().max(80).optional();
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(120),
+  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(254),
   password: z.string().min(1, 'Enter your password').max(200),
 });
 
@@ -36,12 +37,14 @@ const providerIdParams = z.object({ providerId: z.coerce.number().int().positive
 
 const providerListQuery = z.object({
   status: z.enum(['all', 'incomplete', 'pending', 'approved', 'rejected']).default('pending'),
+  pageSize,
   q: search,
   page,
 });
 
 const userListQuery = z.object({
   role: z.enum(['all', 'driver', 'provider']).default('all'),
+  pageSize,
   status: z.enum(['all', 'active', 'suspended', 'deleted']).default('all'),
   q: search,
   page,
@@ -49,11 +52,13 @@ const userListQuery = z.object({
 
 const requestListQuery = z.object({
   status: z.enum(['all', 'searching', 'accepted', 'arrived', 'completed', 'cancelled', 'expired']).default('all'),
+  pageSize,
   q: search,
   page,
 });
 const payoutListQuery = z.object({
   filter: z.enum(['all', 'owed', 'owing']).default('all'),
+  pageSize,
   q: search,
   page,
 });
@@ -102,6 +107,7 @@ const auditQuery = z.object({
   entity: z.string().max(40).optional(),
   entityId: z.string().max(40).optional(),
   requestId: z.string().max(64).optional(),
+  pageSize,
   from: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
   to: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
   kind: z.enum(['all', 'events', 'api', 'denied']).default('all'),
@@ -123,11 +129,12 @@ const revenueRangeQuery = z.object({
 const revenueTransactionsQuery = revenueRangeQuery.extend({
   type: z.enum(['all', 'ride_payment', 'registration_fee', 'driver_plus', 'payout', 'adjustment']).default('all'),
   q: z.string().trim().max(80).optional(),
+  pageSize,
   page,
 });
 
 const rejectSchema = z.object({
-  reason: z.string().trim().min(3, 'Give a short reason').max(300),
+  reason: z.string().trim().min(3, 'Give a short reason').max(200),
 });
 
 const docReviewSchema = z
@@ -152,7 +159,7 @@ const serviceSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 
 const settingsSchema = z.object({
-  values: z.record(z.string().max(80), z.union([z.string(), z.number(), z.boolean()])),
+  values: z.record(z.string().max(80), z.union([z.string().max(500), z.number(), z.boolean()])),
 });
 const pricingChallengeSchema = z.object({
   password: z.string().min(1).max(200),
@@ -191,7 +198,7 @@ const pricingVerifyLimiter = pricingLimiter(
 // Public: admin login (rate limited). Everything below requires a valid admin token.
 router.post('/auth/login', adminLoginLimiter, validate(loginSchema), wrap(authCtl.login));
 
-router.use(adminAuth);
+router.use(adminAuth, adminWriteLimiter);
 
 // Note: when a route uses two validate() calls, read ids from req.params and the body from req.body;
 // req.validated only holds the result of the LAST validate() call (used for query strings).

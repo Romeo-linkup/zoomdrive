@@ -44,7 +44,7 @@ const globalWriteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
-    || /\/payments\/paystack\/webhook\/?$/.test(req.path || ''),
+    || /\/payments\/paystack\/webhook\/?$/.test((req.originalUrl || req.path || '').split('?')[0]),
   handler: tooManyWrite,
 });
 
@@ -54,7 +54,7 @@ const perUserWriteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
-  skip: (req) => req.method === 'GET' || /\/heartbeat\/?$/.test(req.path || '') || !req.user,
+  skip: (req) => req.method === 'GET' || /\/heartbeat\/?$/.test((req.originalUrl || req.path || '').split('?')[0]) || !req.user,
   handler: tooManyWrite,
 });
 

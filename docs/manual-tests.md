@@ -444,8 +444,8 @@ SMS (skip until a provider is chosen):
 12. With OTP_DRIVER=bulksms and valid credentials, a real number receives the code; a deliberately wrong secret returns ZD-SMS-001 and no code is shown anywhere, even with OTP_DEV_ECHO=true; that OTP cannot be verified.
 
 Responsive and PWA (browser devtools, device toolbar at 360x640 and 390x844):
-13. For each driver and provider screen (welcome, phone, otp, profile setup, home, request, searching, track, pay, rate, activity, account, inbox; provider: type, documents, pending, home, job, earnings, inbox, menu, payout methods, registration fee) and each admin page: no horizontal scroll, nothing hidden behind the bottom nav or the notch area, all buttons at least 44px tall, typing in an input does not zoom the page.
-14. On a desktop window the driver and provider apps are a centred 480px column.
+13. On phone widths, for each driver and provider screen (welcome, email, otp, profile setup, home, request, searching, track, pay, rate, activity, account, inbox; provider: type, documents, pending, home, job, earnings, inbox, menu, payout methods, registration fee) and each admin page: no horizontal scroll, nothing hidden behind the bottom nav or the notch area, all buttons at least 44px tall, typing in an input does not zoom the page.
+14. On tablet and desktop widths the apps fill the screen with a side rail, never a narrow column.
 15. Install: on Android Chrome (after deployment over HTTPS) the Install app button appears and installs; on iPhone Safari the Add to Home Screen card appears once; neither shows inside the installed app.
 16. Offline: switch devtools to Offline: the offline banner appears; reload shows the offline message, not a blank page; back online the banner disappears.
 17. Update toast: change the cache version string in driver/sw.js, reload twice: the 'Update available' toast appears; Reload applies it once.
@@ -460,3 +460,66 @@ Full regression (run in this order, record failures with the ZD- code and ref):
 24. Phase 12: rate, inbox on both apps, audit page, request timeline, suspend and unsuspend a throwaway user.
 
 select action, count(*) from audit_log where created_at > now() - interval '1 day' group by action order by 2 desc;
+
+## Phase 13B
+
+Email login:
+1. Sign up as a driver with a new email: the code arrives (check spam), the screen shows 6 boxes and 'Code sent to <masked email>'. After verifying, profile setup asks for a mobile phone number; saving without a phone shows a field error.
+2. Log out and log in again with the same email and code; confirm /auth/me shows the same user id.
+3. Use the wrong 6-digit code: the box shakes or an error appears, the code is not consumed (a correct code still works).
+4. Wait for the code to expire (5 minutes): verify returns an error, resend sends a fresh code.
+5. Use the same email in the provider app: ZD-AUTH-004 with the role shown; the driver app shows the mismatch screen with a link to the provider app.
+6. OTP rate limit: request 4 codes for one email in 10 minutes; the 4th returns ZD-AUTH-003. Request 11 codes for different emails from one IP in one hour: the 11th returns ZD-SYS-004.
+7. Profile setup: phone field accepts 082 123 4567, 0821234567, +27821234567 (all saved as +27821234567); a 5-digit number is rejected with ZD-VAL-001 field phone.
+8. Account page shows the signed-in email (read-only) and the phone number (editable via profile edit).
+9. Provider app: repeat steps 1–4 with a new email; after verifying, profile setup includes a required phone and all the provider-specific fields.
+
+Layout:
+10. Open the driver and provider apps at 360×640 (Chrome devtools device toolbar): no horizontal scroll, all tap targets at least 44 px tall, no content hidden behind the bottom nav or notch.
+11. Open at 900 px or wider: the side rail appears on the left, the bottom nav is gone, content fills the screen.
+12. Open the admin panel at 360 px: no horizontal scroll; tables scroll horizontally within their container; all buttons are reachable.
+13. Open each admin page at 1200 px: content fills available width up to the max content width; filters wrap naturally.
+
+Audit trail:
+14. In admin, open Audit log. Filter by Type = 'API calls': only rows with an action starting 'api.' appear. Filter by Type = 'Changes': only event rows appear. Filter by Type = 'Denied or failed': only denied/error rows appear. Reset returns all.
+15. For an api. row, the Result column shows a coloured badge: green for ok, amber for denied or rejected, red for error.
+16. Export CSV with a date range: a .csv file downloads containing only rows in that range; opening in a spreadsheet shows no formula injection (cells starting with = are quoted).
+17. In the Users page, search by email address: the matching user appears. Click Activity for a user row: the Audit log page opens filtered to that user's events.
+18. Email column appears in the Users table; partial emails are masked (first character + *** + @domain).
+
+Revenue:
+19. Open the Revenue page, Summary tab, This month preset: KPI cards show Net revenue, Gross bookings, Commission earned, Registration and Plus fees, Gateway fees, Payouts made, Owed to providers, Owed by providers; all values are formatted as ZAR (R 0.00 for zero). The daily table shows one row per day including zero-activity days; the Trend column shows CSS bars proportional to net revenue.
+20. Switch to Last month and Last 7 days presets: dates update and data reloads; selecting Custom and entering a from/to date then clicking Apply range reloads with those dates.
+21. Transactions tab: filter by type 'Ride payment': only ride_payment rows show. Search 'test': rows with matching reference, request id or name appear. The amount column is green for positive, red for negative. A request link navigates to the Requests page for that request. Export CSV downloads a CSV for the current date range.
+22. Reconcile tab: click 'Run check'; if all records agree a green 'All records agree' message appears with the checked timestamp. If issues exist they are listed with their code, a request link and the detail; UNPAID_OLD issues appear in amber as informational, other issues in red.
+23. Revenue backend SQL checks:
+
+```sql
+-- Net revenue = sum of commissions + reg fees + plus fees - gateway fees + adjustments
+SELECT
+  SUM(CASE WHEN p.settled_at IS NOT NULL THEN p.commission_cents ELSE 0 END) AS commission,
+  SUM(CASE WHEN pc.purpose = 'provider_registration' AND pc.status = 'paid' THEN pc.amount_cents - COALESCE(pc.gateway_fee_cents, 0) ELSE 0 END) AS reg_fees_net,
+  SUM(CASE WHEN pc.purpose = 'driver_plus' AND pc.status = 'paid' THEN pc.amount_cents - COALESCE(pc.gateway_fee_cents, 0) ELSE 0 END) AS plus_fees_net
+FROM payments p
+LEFT JOIN platform_charges pc ON true
+WHERE p.settled_at > now() - interval '30 days'
+   OR pc.paid_at > now() - interval '30 days';
+
+-- Reconcile: every settled payment should have a provider ledger earning entry
+SELECT p.id, p.status, p.settled_at
+FROM payments p
+WHERE p.settled_at IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM provider_ledger pl
+    WHERE pl.request_id = p.request_id AND pl.entry_type = 'earning'
+  );
+
+-- Audit log: every settlement should have an audit row
+SELECT p.id, p.request_id
+FROM payments p
+WHERE p.settled_at IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM audit_log a
+    WHERE a.entity = 'payments' AND a.entity_id::text = p.id::text
+  );
+```

@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 const backendDir = path.join(__dirname, '..');
 const srcDir = path.join(backendDir, 'src');
 const migrationsDir = path.join(backendDir, 'db', 'migrations');
-const blueprintPath = path.join(__dirname, '..', '..', 'BLUEPRINT .md');
+const blueprintPath = path.join(__dirname, '..', '..', 'BLUEPRINT.md');
 
 const problems = [];
 

@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const auth = require('../../middleware/auth');
 const requireRole = require('../../middleware/requireRole');
+const { perUserWriteLimiter } = require('../../middleware/rateLimit');
 const validate = require('../../middleware/validate');
 const wrap = require('../../lib/asyncHandler');
 const driver = require('./drivers.controller');
@@ -32,7 +33,7 @@ const placeSchema = z.object({
 
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 
-router.use(auth, requireRole('driver'));
+router.use(auth, requireRole('driver'), perUserWriteLimiter);
 
 router.put('/me', validate(profileSchema), wrap(driver.upsertMe));
 router.get('/me/saved-places', wrap(places.list));

@@ -4,13 +4,14 @@ const auth = require('../../middleware/auth');
 const requireRole = require('../../middleware/requireRole');
 const validate = require('../../middleware/validate');
 const wrap = require('../../lib/asyncHandler');
+const { perUserWriteLimiter } = require('../../middleware/rateLimit');
 const payments = require('./payments.controller');
 
 const router = express.Router();
 
 router.post('/paystack/webhook', wrap(payments.paystackWebhook));
 
-router.use(auth);
+router.use(auth, perUserWriteLimiter);
 
 const requestParams = z.object({ requestId: z.coerce.number().int().positive() });
 

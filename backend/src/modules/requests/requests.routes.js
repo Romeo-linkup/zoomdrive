@@ -5,6 +5,7 @@ const requireRole = require('../../middleware/requireRole');
 const requireApproved = require('../../middleware/requireApproved');
 const validate = require('../../middleware/validate');
 const wrap = require('../../lib/asyncHandler');
+const { perUserWriteLimiter, createRequestLimiter } = require('../../middleware/rateLimit');
 const ctl = require('./requests.controller');
 
 const router = express.Router();
@@ -34,11 +35,11 @@ const offlinePaymentSchema = z.object({
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1) });
 
-router.use(auth);
+router.use(auth, perUserWriteLimiter);
 
 // Note: with two validate() calls, read the id from Number(req.params.id) and the body from req.body.
 router.post('/quote', requireRole('driver'), validate(quoteSchema), wrap(ctl.quote));
-router.post('/', requireRole('driver'), validate(createSchema), wrap(ctl.create));
+router.post('/', requireRole('driver'), createRequestLimiter, validate(createSchema), wrap(ctl.create));
 router.get('/', requireRole('driver'), validate(listQuery, 'query'), wrap(ctl.listMine));
 
 router.get('/:id', validate(idParams, 'params'), wrap(ctl.getOne));

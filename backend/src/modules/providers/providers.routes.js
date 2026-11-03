@@ -4,6 +4,7 @@ const { z } = require('zod');
 const auth = require('../../middleware/auth');
 const requireRole = require('../../middleware/requireRole');
 const requireApproved = require('../../middleware/requireApproved');
+const { perUserWriteLimiter, uploadLimiter } = require('../../middleware/rateLimit');
 const validate = require('../../middleware/validate');
 const ApiError = require('../../lib/ApiError');
 const { documentUpload } = require('../../middleware/upload');
@@ -85,13 +86,13 @@ const bankDetailsWriteLimiter = rateLimit({
   })),
 });
 
-router.use(auth, requireRole('provider'));
+router.use(auth, requireRole('provider'), perUserWriteLimiter);
 
 router.put('/me', validate(profileSchema), wrap(providers.upsertMe));
 router.put('/me/organisation', validate(orgSchema), wrap(orgs.upsertOrganisation));
 router.put('/me/services', validate(servicesSchema), wrap(providers.setServices));
 router.get('/me/documents', wrap(docs.listDocuments));
-router.post('/me/documents', documentUpload, validate(docSchema), wrap(docs.uploadDocument));
+router.post('/me/documents', uploadLimiter, documentUpload, validate(docSchema), wrap(docs.uploadDocument));
 router.post('/me/submit', wrap(providers.submit));
 
 router.get('/me/registration-fee', wrap(registrationFee.status));

@@ -4,6 +4,7 @@ const auth = require('../../middleware/auth');
 const requireRole = require('../../middleware/requireRole');
 const validate = require('../../middleware/validate');
 const wrap = require('../../lib/asyncHandler');
+const { perUserWriteLimiter } = require('../../middleware/rateLimit');
 const controller = require('./ratings.controller');
 
 const router = express.Router();
@@ -13,7 +14,7 @@ const rateSchema = z.object({
   comment: z.string().trim().max(300).optional(),
 });
 
-router.use(auth);
+router.use(auth, perUserWriteLimiter);
 router.post('/:id/rate', requireRole('driver', 'provider'), validate(idParams, 'params'),
   validate(rateSchema), wrap(controller.rate));
 

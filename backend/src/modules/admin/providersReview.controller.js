@@ -141,7 +141,7 @@ async function buildProviderDetail(userId, client = null) {
 
 async function listProviders(req, res) {
   const { status, q, page } = req.validated;
-  const pageSize = 25;
+  const pageSize = req.validated.pageSize || 25;
   const offset = (page - 1) * pageSize;
 
   let whereClauses = ["u.role = 'provider'"];
