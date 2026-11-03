@@ -332,3 +332,44 @@ select purpose, status, amount_cents, paystack_ref from platform_charges order b
 select user_id, trial_ends_at, paid_until from driver_memberships;
 select indexname from pg_indexes where indexname = 'uq_requests_one_active_job_per_provider';
 ```
+
+## Phase 11
+
+### Cash path (works with no Paystack keys)
+
+1. Complete a job end to end. Neon: `select request_id, method, status, amount_cents from payments order by id desc limit 3;` shows pending/unpaid. `select * from provider_ledger order by id desc limit 3;` shows no row for that job.
+2. Driver lands on the Pay screen. With no keys: 'Card payments are not switched on yet' and Continue goes to Rate.
+3. Provider Job-complete card: 'Waiting for payment' and 'Cash or EFT received'. Record Cash: payments is paid/cash; ledger has ONE commission row of minus commission_cents; Earnings shows 'You owe ZoomDrive R...'.
+4. Record again: ZD-PAY-008. In Neon set cash_payments_enabled to false (same value style as the seed) and a new job's record attempt gives ZD-PAY-009 and a friendly message; set it back to true.
+5. Admin > Requests: open another completed unpaid job > Mark as paid (Driver paid ZoomDrive, EFT): payments paid/eft and a ledger 'earning' row of +provider_earning_cents.
+
+### Card path (Paystack test keys in backend/.env)
+
+6. Complete a job; Driver > Pay with card, use a Paystack test card from their documentation; after returning to /driver/ the app verifies and shows 'Payment received'. Neon: payments paid/card; one ledger earning row equal to provider_earning_cents.
+7. Reload the return URL: still one ledger row (`select count(*) from provider_ledger where request_id = <id>`) = 1.
+8. Complete another job and do NOT pay. Request again: ZD-PAY-006 modal; Home shows 'Payment due'; pay it; requesting works again. (With the keys removed, the block does not apply.)
+9. Try to record cash on a card-paid job: ZD-PAY-008.
+10. Webhook: only testable with a public backend URL (deployment or a tunnel). Set the Paystack dashboard webhook to `<API>/api/v1/payments/paystack/webhook` and replay charge.success: still one paid row, one ledger row.
+
+### Provider money screens and payouts
+
+11. Provider Earnings: balance equals `select provider_user_id, sum(amount_cents) from provider_ledger group by provider_user_id;` today and week bars match the completed jobs.
+12. Payout methods: save bank details; the page shows 'Account ending ####'. Neon: `select account_last4, left(account_number_enc, 3) from provider_bank_details;` the encrypted column starts with v1: and never holds the digits. Editing creates a notification row for the provider.
+13. Admin > Payouts: balances list, filters and search work. Open the provider: bank card is masked; 'Show account number' reveals it for 30 s; Neon: `select action, meta from audit_log where action = 'admin.view_bank_details';` meta has no number.
+14. Just after changing bank details, the amber 'recently changed' banner is shown.
+15. Record a payout larger than the balance: ZD-PAY-007. Record a valid payout: balance drops, ledger shows a negative 'payout' row, the provider's Earnings shows it under Payouts. Reusing the reference is rejected on the reference field.
+16. Adjustment without a note is rejected; with a note it appears in the ledger.
+17. Export CSV opens in Excel; add an adjustment note beginning with = and confirm it is exported as text (leading quote), not a formula.
+
+### Admin request dispatch
+
+18. Admin > Requests: filters, detail with candidates, Assign on a no-provider request, Cancel with a reason.
+19. Remove DATA_ENCRYPTION_KEY from backend/.env: the backend refuses to boot and names the variable. Restore it.
+
+Reconciliation queries:
+
+```sql
+select p.method, count(*), sum(r.provider_earning_cents) as owed_to_providers, sum(r.commission_cents) as platform_commission from payments p join requests r on r.id = p.request_id where p.status = 'paid' group by p.method;
+select entry_type, count(*), sum(amount_cents) from provider_ledger group by entry_type;
+select indexname from pg_indexes where indexname in ('uq_provider_ledger_request_entry','uq_payments_paystack_ref','uq_payouts_reference');
+```

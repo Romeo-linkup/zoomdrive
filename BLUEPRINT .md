@@ -8,10 +8,10 @@
 ## 0. RESUME HERE (update this block at the end of every session)
 
 ```
-CURRENT PHASE ........ 10  (Pricing governance and provider charges)
-LAST COMPLETED PHASE . 9
-LAST TASK DONE ....... P10.12
-NEXT ACTION .......... Romeo manual tests for Phase 9 and Phase 10, then Phase 11 task P11.1
+CURRENT PHASE ........ 11  (Payments, ledger, payouts)
+LAST COMPLETED PHASE . 10
+LAST TASK DONE ....... P11.8
+NEXT ACTION .......... Romeo manual tests for Phases 9 to 11, then Phase 12 task P12.1
 BLOCKERS ............. none
 OPEN QUESTIONS ....... see section 15
 LAST UPDATED ......... 2 Nov 2026
@@ -196,7 +196,8 @@ zoomdrive/
 │  │  │  ├─ 007_ratings_notifications.sql     (phase 1)
 │  │  │  ├─ 008_admin_audit.sql               (phase 1)
 │  │  │  ├─ 009_provider_active_job.sql       (phase 8)
-│  │  │  └─ 010_pricing_governance_charges.sql (phase 10; read-only once present)
+│  │  │  ├─ 010_pricing_governance_charges.sql (phase 10; read-only once present)
+│  │  │  └─ 011_ledger_payouts_bank.sql        (phase 11; applied)
 │  │  └─ seed/
 │  │     ├─ services.sql                      (phase 1)
 │  │     └─ settings.sql                      (phase 1)
@@ -210,6 +211,7 @@ zoomdrive/
 │     │  ├─ errors.js                   (phase 0)  error code registry
 │     │  ├─ logger.js                   (phase 0)
 │     │  ├─ mailer.js                   (phase 10) development console / SMTP email
+│     │  ├─ crypto.js                   (phase 11) AES-256-GCM bank detail encryption
 │     │  ├─ money.js                    (phase 8)
 │     │  ├─ geo.js                      (phase 8)  haversine, bounding box
 │     │  ├─ pricing.js                  (phase 8)
@@ -231,12 +233,12 @@ zoomdrive/
 │        ├─ auth/          auth.routes.js, auth.controller.js, auth.service.js, otp.service.js, otp.drivers/console.js, otp.drivers/bulksms.js   (phase 2)
 │        ├─ users/         users.routes.js, users.controller.js           (phase 3)
 │        ├─ drivers/       drivers.routes.js, drivers.controller.js, savedPlaces.controller.js   (phase 3)
-│        ├─ providers/     providers.routes.js, providers.controller.js, documents.controller.js, organisations.controller.js, registrationFee.controller.js   (phase 3, extended 10)
+│        ├─ providers/     providers.routes.js, providers.controller.js, documents.controller.js, organisations.controller.js, registrationFee.controller.js, earnings.controller.js, bankDetails.controller.js   (phase 3, extended 10-11)
 │        ├─ uploads/       cloudinary.service.js                          (phase 3)
 │        ├─ services/      services.routes.js, services.controller.js     (phase 7)
 │        ├─ requests/      requests.routes.js, requests.controller.js, requests.service.js, stateMachine.js   (phase 8)
 │        ├─ dispatch/      dispatch.service.js, expiry.job.js             (phase 8)
-│        ├─ payments/      payments.routes.js, payments.controller.js, charges.service.js, ledger.service.js, paystack.service.js   (phase 10, extended 11)
+│        ├─ payments/      payments.routes.js, payments.controller.js, charges.service.js, ridePayments.service.js, ledger.service.js, paystack.service.js   (phase 10-11)
 │        ├─ plus/          plus.service.js, plus.controller.js                            (phase 10)
 │        ├─ ratings/       ratings.routes.js, ratings.controller.js       (phase 12)
 │        ├─ notifications/ notifications.routes.js, notifications.service.js   (phase 12)
@@ -267,7 +269,7 @@ zoomdrive/
 │     │  ├─ index.html, app.js, manifest.webmanifest, sw.js                  (phase 4)
 │     │  ├─ icons/ icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon-180.png   (phase 4)
 │     │  └─ pages/ welcome.js, phone.js, otp.js, profileSetup.js            (phase 5)
-│     │          home.js, request.js, searching.js, track.js, rate.js, activity.js, account.js, savedPlaces.js, paymentMethods.js, safety.js, support.js, settings.js   (phase 9)
+│     │          home.js, request.js, searching.js, track.js, pay.js, rate.js, activity.js, account.js, savedPlaces.js, paymentMethods.js, safety.js, support.js, settings.js   (phase 9-11)
 │     │          plus.js   (phase 10)
 │     ├─ provider/
 │     │  ├─ index.html, app.js, heartbeat.js, manifest.webmanifest, sw.js    (phase 4, extended 10)
@@ -276,8 +278,8 @@ zoomdrive/
 │     │          home.js, job.js, earnings.js, inbox.js, menu.js, services.js, vehicle.js, payouts.js, registrationFee.js   (phase 10)
 │     └─ admin/
 │        ├─ index.html, app.js, login.js                                      (phase 7)
-│        └─ pages/ overview.js, providers.js, providerDetail.js, users.js, requests.js, services.js, settings.js, pricing.js   (phase 7, extended 10)
-│                  payouts.js, audit.js                                       (phase 11-12)
+│        └─ pages/ overview.js, providers.js, providerDetail.js, users.js, services.js, settings.js, pricing.js   (phase 7, extended 10)
+│                  requests.js, payouts.js, audit.js                           (phase 11-12)
 └─ docs/
    └─ manual-tests.md                   (phase 0)  Romeo's checklists, appended each phase
 ```
@@ -303,6 +305,7 @@ Real values only in Render's dashboard and a local git-ignored `backend/.env`. `
 | `SIGNUP_ENABLED` | no | `true`/`false` kill-switch for new signups |
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` | from phase 10 | platform charges and card payments |
 | `PAYSTACK_FALLBACK_EMAIL_DOMAIN` | when Paystack is configured | valid domain used for accounts without an email |
+| `DATA_ENCRYPTION_KEY` | required from phase 11 | base64 encoding of exactly 32 random bytes; boot fails if missing or wrong length |
 | `EMAIL_DRIVER` | yes | `console` in development only or `smtp` for email delivery |
 | `EMAIL_FROM` | when `EMAIL_DRIVER=smtp` | verified sender address |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | when `EMAIL_DRIVER=smtp` | SMTP connection |
@@ -342,9 +345,13 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **payments** `id, request_id→requests UNIQUE, method CHECK(card|cash|eft|unpaid) default unpaid, status CHECK(pending|paid|failed|refunded) default pending, amount_cents, paystack_ref, paid_at, created_at`
 
-**provider_ledger** `id, provider_user_id→users, request_id→requests null, entry_type CHECK(earning|commission|payout|adjustment), amount_cents (signed), note, created_at`
+**provider_ledger** `id, provider_user_id→users, request_id→requests null, payout_id→payouts null, entry_type CHECK(earning|commission|payout|adjustment), amount_cents (signed), note, created_at`; unique partial index `uq_provider_ledger_request_entry` allows one earning or commission row per request; provider/created index `idx_provider_ledger_provider`
 
-**payouts** `id, provider_user_id→users, amount_cents, reference, method, paid_at, paid_by→admin_users, note`
+**payouts** `id, provider_user_id→users, amount_cents, reference UNIQUE when present, method, paid_at, paid_by→admin_users, note`; provider/paid index `idx_payouts_provider`
+
+**provider_bank_details** `provider_user_id PK→users, account_holder, bank_name, account_type CHECK(cheque|savings|transmission), branch_code, account_number_enc, account_last4, updated_at`; account numbers use AES-256-GCM encryption and are masked to providers.
+
+**payments** additionally has a unique partial index on non-null `paystack_ref` (`uq_payments_paystack_ref`).
 
 **ratings** `id, request_id→requests, rater_id→users, ratee_id→users, rater_role CHECK(driver|provider), stars int CHECK 1..5, comment, created_at, UNIQUE(request_id, rater_id)`
 
@@ -352,7 +359,7 @@ Conventions: `bigint generated always as identity` primary keys; `timestamptz` f
 
 **admin_users** `id, email UNIQUE, password_hash, name, created_at, last_login_at`
 
-**app_settings** `key PK, value, updated_at, updated_by` seeded with: `commission_pct=15`, `road_factor=1.3`, `avg_speed_kmh=40`, `offer_radius_km=25`, `max_offers_per_request=5`, `request_expiry_seconds=180`, `provider_stale_seconds=120`, `cancel_fee_cents=0`, `provider_registration_fee_cents=15000`, `provider_registration_fee_enabled=false`, `provider_registration_waiver_enabled=true`, `driver_plus_monthly_cents=2900`, `driver_plus_trial_days=90`, `driver_plus_enabled=false`, `driver_plus_extra_offers=0`. Pricing settings are changed only through the verified pricing workflow, not generic settings writes.
+**app_settings** `key PK, value, updated_at, updated_by` seeded with: `commission_pct=15`, `road_factor=1.3`, `avg_speed_kmh=40`, `offer_radius_km=25`, `max_offers_per_request=5`, `request_expiry_seconds=180`, `provider_stale_seconds=120`, `cancel_fee_cents=0`, `provider_registration_fee_cents=15000`, `provider_registration_fee_enabled=false`, `provider_registration_waiver_enabled=true`, `driver_plus_monthly_cents=2900`, `driver_plus_trial_days=90`, `driver_plus_enabled=false`, `driver_plus_extra_offers=0`, `cash_payments_enabled=true`, `block_new_requests_when_unpaid=true`. Pricing settings are changed only through the verified pricing workflow, not generic settings writes.
 
 **admin_change_challenges** `id uuid, admin_id→admin_users, code_hash, expires_at, attempts, verified_at, consumed_at, created_at`; codes are stored only as keyed hashes and can be verified/applied once.
 
@@ -418,10 +425,13 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | POST | `/requests/:id/decline` | provider | decline an offer |
 | POST | `/requests/:id/arrived` | provider | mark arrived |
 | POST | `/requests/:id/complete` | provider | mark completed |
+| POST | `/requests/:id/record-payment` | provider | `{method: cash|eft, note?}` record offline payment |
 | GET | `/requests` | driver | own history |
 | POST | `/requests/:id/rate` | driver/provider | `{stars, comment}` |
-| POST | `/payments/:requestId/pay` | driver | start card payment (phase 11) |
+| POST | `/payments/:requestId/pay` | driver | start card payment |
+| POST | `/payments/:requestId/verify` | driver | verify and settle own ride payment |
 | POST | `/payments/paystack/webhook` | Paystack signature | confirm payment |
+| GET/PUT | `/providers/me/bank-details` | provider | read masked details or securely save bank details |
 | GET | `/notifications` | any | inbox |
 | POST | `/notifications/:id/read` | any | mark read |
 | POST | `/admin/auth/login` | none | `{email, password}` |
@@ -439,7 +449,13 @@ Frontend `apiFetch(path, {method, body, auth})` returns `data` or throws `ApiErr
 | POST | `/admin/pricing/challenge` | admin | `{password}`; emails a one-time verification code |
 | POST | `/admin/pricing/verify` | admin | `{challengeId, code}`; verifies the email challenge |
 | POST | `/admin/pricing/apply` | admin | `{challengeId, changes}`; atomically applies allowed changes |
-| GET/POST | `/admin/payouts` | admin | provider balances, record payout |
+| POST | `/admin/requests/:id/mark-paid` | admin | `{method, receivedBy, note}` record payment |
+| GET | `/admin/payouts?filter&q&page` | admin | provider balances and payout list |
+| GET | `/admin/payouts/export?from&to` | admin | export payout CSV |
+| GET | `/admin/payouts/:providerId` | admin | provider ledger and payout detail |
+| GET | `/admin/payouts/:providerId/bank-details` | admin | reveal bank details (audited) |
+| POST | `/admin/payouts/:providerId` | admin | record provider payout |
+| POST | `/admin/payouts/:providerId/adjustment` | admin | record signed ledger adjustment |
 | GET | `/admin/audit` | admin | audit log with filters |
 
 ---
@@ -476,10 +492,12 @@ All three are stored on the request at creation. Later admin changes never alter
 6. If nobody is online, the driver sees "No providers nearby right now" and admin sees it in the requests list so it can be dispatched manually (pilot mode).
 7. Every transition writes an audit row.
 
-### 9.5 Completion, payment, ledger
-- On `completed`: create `payments` row (`unpaid` or `paid` depending on method), write ledger `earning` (+provider_earning) and `commission` (informational, 0 net) entries, increment `jobs_completed`.
-- Phase 11 modes: (a) **ledger-manual** (default): driver pays by card via Paystack to the platform, provider balance accrues, admin records payouts; (b) **cash/eft** recorded by provider with commission owed back (shows as negative adjustment). Keep the choice behind a setting so the pilot can start before card payments are live.
-- Provider balance = sum of ledger amounts minus payouts.
+### 9.5 Completion, payment, ledger (rewritten in phase 11)
+- On completed, a payments row exists (method unpaid, status pending, amount = total_cents). Provider earnings are NOT credited at completion.
+- A payment is settled in exactly one of three ways, each idempotent: (a) card: the driver pays through Paystack (POST /payments/:requestId/pay, confirmed by verify or the signed webhook); (b) cash or EFT recorded by the assigned provider (only when cash_payments_enabled is true); (c) recorded by an admin (support or dispute case, with receivedBy provider or platform). A settled payment can never be settled a second way (ZD-PAY-008).
+- Ledger (provider_ledger, signed cents; a provider's balance is the SUM of their ledger amounts; positive means the platform owes the provider, negative means the provider owes the platform): card or platform-received payment -> one 'earning' entry of +provider_earning_cents; cash or EFT received by the provider -> one 'commission' entry of -commission_cents (the provider already holds the money); payout recorded by an admin -> one 'payout' entry of -amount (linked by payout_id); admin correction -> 'adjustment' (signed, note required). A unique index allows one earning or commission entry per request. There is no separate informational commission entry.
+- New requests are blocked for a driver who has a completed, unpaid job (ZD-PAY-006) when setting block_new_requests_when_unpaid is true AND Paystack is configured.
+- Pilot payouts are manual EFT recorded by an admin (weekly batches recommended). Paystack transfers cost R3 each, so automatic payouts wait. Refunds are manual (Paystack dashboard plus an admin adjustment). Bank details are stored AES-256-GCM encrypted (DATA_ENCRYPTION_KEY), shown masked to the provider, and revealed to an admin only through the reveal endpoint, which writes an audit row.
 
 ### 9.6 Ratings
 Driver rates provider after completion (1 to 5 + comment). Provider rates driver optionally. Provider `rating_avg` updates transactionally. Ratings cannot be edited after 24 hours.
@@ -544,6 +562,10 @@ Format `ZD-<AREA>-<NNN>`. Registry in `backend/src/lib/errors.js` (code, httpSta
 | ZD-PAY-003 | 503 | Paystack is not configured |
 | ZD-PAY-004 | 404 | Payment charge not found or does not belong to user |
 | ZD-PAY-005 | 400 | Payment amount must be greater than zero |
+| ZD-PAY-006 | 409 | Previous job unpaid (details.requestId, details.totalCents) |
+| ZD-PAY-007 | 409 | Payout exceeds the provider balance |
+| ZD-PAY-008 | 409 | Payment is not payable now or is already settled |
+| ZD-PAY-009 | 403 | Cash and EFT recording is switched off |
 | ZD-PLUS-001 | 403 | ZoomDrive Plus is not enabled |
 | ZD-ADM-001 | 401 | Admin login failed |
 | ZD-ADM-002 | 409 | Provider is not waiting for review |
@@ -608,8 +630,9 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/home`: headline "Stuck? We'll come to you.", service tiles (from `/services`), "Where are you?" bar with Use GPS, current/saved/recent places list, Fleet-profile teaser (static, non-functional placeholder).
 - `#/request`: step bar, map with pin (drag to adjust), service picker, price card (service + distance fee + fixed total), payment method row, promo row (placeholder), **Request help**.
 - `#/searching/:id`: animated "Finding help nearby", countdown to expiry, Cancel.
-- `#/track/:id`: map with driver pin and provider pin, ETA, provider card (photo, name, rating, jobs, verified badge, company name if any, vehicle and plate), Call (`tel:` link), Share trip (Web Share API), Safety, Cancel.
-- `#/rate/:id`: stars + comment after completion.
+- `#/track/:id`: map with driver pin and provider pin, ETA, provider card (photo, name, rating, jobs, verified badge, company name if any, vehicle and plate), Call (`tel:` link), Share trip (Web Share API), Safety, Cancel; completed jobs continue to payment.
+- `#/pay/:id`: fixed-total card payment after completion, Paystack return verification, and Pay later to rating; payment must be settled before a new request when configured.
+- `#/rate/:id`: stars + comment after payment.
 - `#/plus` (sign-in required, Account tab): Plus benefits, trial/active/lapsed membership state, trial join or Paystack pass purchase, and payment-return status refresh without a client verify endpoint. Show this Account row only while Plus is enabled.
 - `#/activity`: upcoming (empty state), past requests with status and total; tap for detail.
 - `#/account`: name + photo, optional "Verify identity" banner (placeholder), Profile, Payment, Support, Safety, Saved places, Settings, Promotions (placeholder), Log out. No role-switch item.
@@ -621,14 +644,14 @@ Logo, one line pitch, two large buttons: "I need help" (opens `/driver/`) and "I
 - `#/documents`: upload rows: ID document, driver's licence, vehicle and insurance, company registration certificate (company only). Each shows Upload, Uploaded ✓ or Rejected with the admin's note. **Submit for review** is disabled until everything required is present.
 - `#/pending`: "Profile under review" (shows rejected state with reason and a fix button).
 - `#/home`: status ("You're offline/online"), map card, Opportunities card (static for now), big **Go Online** button (requests location permission, starts heartbeat). While online, a job offer card appears: service, distance, driver rating, "You earn R…", Accept/Decline.
-- `#/job/:id`: driver details, **Navigate** (opens Google Maps/Waze link with coordinates), Call, Arrived, Complete, Cancel.
-- `#/earnings`: today total, week chart (simple CSS bars), job list, balance owed by platform.
+- `#/job/:id`: driver details, **Navigate** (opens Google Maps/Waze link with coordinates), Call, Arrived, Complete, Cancel; wait for payment or record received cash/EFT.
+- `#/earnings`: ledger-backed balance, today's and seven-day earnings, ledger activity and payout history; cash/EFT commission is shown as an amount owed to ZoomDrive.
 - `#/inbox`: notifications.
 - `#/menu`: profile card (photo, name, rating, acceptance), Help, Safety, Settings, More ways to earn (Opportunities, Referrals placeholders), Manage (Vehicle, Services offered, Documents), Registration fee, Money (Tax info placeholder, Payout methods), Log out.
 - `#/registration-fee`: one-time fee state and Paystack checkout/return.
 
 ### 11.4 Admin panel (`/admin/`)
-Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users; Requests (filters, manual assign, cancel); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts; Audit log.
+Login; Overview (counts: pending providers, active requests, today's jobs, revenue); Providers (queue with filters, detail with photo, documents viewer, approve/reject with reason, waive registration fee); Users; Requests (filters, detail with offers/candidates, manual assign, cancel, mark paid); Services and prices; Settings; Pricing (three-step password/code/change flow); Payouts (provider balances, audited bank reveal, payouts, adjustments, CSV export); Audit log.
 
 ### 11.5 PWA requirements
 - Each app: manifest with `id`, `name`, `short_name`, `start_url` (`/driver/` or `/provider/`), `scope`, `display: standalone`, `theme_color #FFB400`, `background_color #FFFFFF`, 192/512/maskable icons.
@@ -763,15 +786,17 @@ Verification: `npm run check`; timers cleaned up on logout.
 Manual test: go online, receive and accept a driver's request, complete the job, check earnings.
 
 ### PHASE 11: Payments, ledger, payouts
-- [ ] P11.1 `ledger.service.js`, completion writes ledger entries (9.5).
-- [ ] P11.2 Request-specific `POST /payments/:requestId/pay`; payment webhook signing and platform-charge settlement are implemented in Phase 10. Idempotent on `paystack_ref`.
-- [ ] P11.3 Driver pay screen (card via Paystack inline), payment status on job and activity detail.
-- [ ] P11.4 Admin Payouts: provider balances, record payout, export CSV.
-- [ ] P11.5 Provider Earnings shows balance and payout history.
-- [ ] P11.6 Cash/EFT recording option behind a setting.
-Verification: `npm run check`; duplicate webhook does not double-credit; amounts reconcile (sum of ledger equals sum of payments minus commission).
+- [x] P11.1 Migration 011 and idempotent ledger service.
+- [x] P11.2 Ride payments (card pay/verify/webhook, cash/EFT recording, admin mark-paid, unpaid block).
+- [x] P11.3 Provider earnings API and encrypted bank details.
+- [x] P11.4 Admin payouts backend (balances, payout, adjustment, CSV).
+- [x] P11.5 Driver pay screen and payment status in Home/Activity.
+- [x] P11.6 Provider app earnings, payout methods, cash/EFT recording.
+- [x] P11.7 Admin Payouts and Requests pages.
+- [x] P11.8 Manual tests and blueprint wrap-up.
+Verification: `npm run check`; duplicate webhook or verify never double-credits; sum of earning entries equals the provider_earning_cents of card-paid jobs; a request can never be settled twice.
 Manual test: pay a test request with Paystack test keys; record a payout in admin; confirm provider balance drops.
-Note: confirm with Paystack whether split payments/subaccounts suit this marketplace before automating provider payouts.
+Note: confirm with Paystack whether split payments/subaccounts suit this marketplace before automating provider payouts. Decided: ledger-manual with manual EFT payouts for the pilot.
 
 ### PHASE 12: Ratings, notifications, audit and disputes
 - [ ] P12.1 Ratings endpoints and rating average updates.
@@ -832,6 +857,10 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | 10 | P10.5 Admin pricing frontend (V3) | `npm run check` | Added Pricing navigation and challenge/review/apply UI, provider registration-fee display/waiver, and read-only pricing fields in Settings. Frontend maps the pricing controls to the current backend's pricing API field names and derives the challenge countdown from its expiry response. | P10.6-P10.10 (V4) |
 | 2 Nov 2026 | 10 | P10.6-P10.10 Provider frontend (V4) | `npm run check` (blocked only by then-empty `driver/pages/plus.js`) | Added app-wide provider heartbeat with logout/background-offline handling; provider Home offers and active-job resume; job lifecycle, earnings, inbox/menu, service and vehicle editing, payout placeholder, registration-fee payment return/verification, route guards and fee-required global redirect. | P10.11-P10.12 (V5) |
 | 2 Nov 2026 | 10 | P10.11-P10.12 Driver Plus, Phase 10 manual tests and Blueprint (V5) | `npm run check` (frontend and backend) | Added Plus route/page, conditional Account entry, Paystack-return status refresh without a verify API; appended governance, registration-fee, provider and Plus manual tests and Neon queries. | Romeo manual tests for Phase 9 and Phase 10, then P11.1 |
+| 2 Nov 2026 | 11 | P11.1-P11.2 (ledger and ride payments) | `npm run check` (backend) | Added idempotent ledger postings and card, cash/EFT, admin-recorded payment settlement; surfaced payment status and blocked new requests when configured. Migration 011 was already applied and left unchanged. | P11.3-P11.4 |
+| 2 Nov 2026 | 11 | P11.3-P11.4 (provider earnings/bank details, admin payouts) | `npm run check` (backend) | Added AES-256-GCM bank-detail storage and masked provider/admin views, provider earnings summaries, payout/adjustment workflows, bank-detail reveal auditing, and formula-safe ledger CSV export. | P11.5-P11.6 |
+| 2 Nov 2026 | 11 | P11.5-P11.6 (driver payments and provider earnings frontend) | `npm run check` (frontend; only the then-empty P11.7 pages failed) | Added driver card-payment return/verification, unpaid-payment entry points, provider payment polling and cash/EFT recording, ledger-backed earnings, and masked bank-detail editing. | P11.7-P11.8 |
+| 2 Nov 2026 | 11 | P11.7-P11.8 (admin Payouts and Requests, manual tests, Blueprint) | `npm run check` (frontend and backend) | Added searchable/paginated payout and request admin workflows, audited temporary bank-number reveal, payout/adjustment/export controls, request assignment/cancellation/payment actions and active-request refresh; appended Phase 11 manual tests and reconciliation queries. | Romeo manual tests for Phases 9 to 11, then P12.1 |
 
 ### Decision log
 | Date | Decision | Reason |
@@ -891,11 +920,20 @@ Manual test: one real driver and one real provider complete a live job.
 | 2 Nov 2026 | Hard limits on protected pricing values live in code (`pricingPolicy.js`) | A compromised admin account cannot set extreme values |
 | 2 Nov 2026 | Providers pay a one-time registration fee (default R150, OFF in the pilot) after approval; there is no provider subscription; providers approved before enablement are founding providers and never pay | Keeps provider costs limited to a one-time onboarding charge |
 | 2 Nov 2026 | Drivers pay no platform fee; the Paystack gateway fee is carried by the platform | Keeps driver request prices separate from payment processing fees |
-| 2 Nov 2026 | ZoomDrive Plus is optional and OFF by default: 90-day free trial, then a 30-day pass at R29 bought with Paystack (no auto-renew); its only built benefit is priority dispatch; a price discount is deferred to Phase 11 | Validates priority dispatch before adding other benefits |
+| 2 Nov 2026 | ZoomDrive Plus is optional and OFF by default: 90-day free trial, then a 30-day pass at R29 bought with Paystack (no auto-renew); its only built benefit is priority dispatch; a price discount remains deferred until pilot data exists | Validates priority dispatch before adding other benefits |
 | 2 Nov 2026 | Paystack is initialized server-side and users are redirected to Paystack and back; provider verification and the signed webhook settle charges idempotently through `settleByReference` | Prevents client-side payment claims and duplicate settlement |
 | 2 Nov 2026 | Pricing confirmation codes are HMAC-hashed, expire in 10 minutes, allow 5 attempts, and are emailed to the acting admin; `EMAIL_DRIVER=console` is refused in production | Limits replay and brute-force risk while keeping development convenient |
 | 2 Nov 2026 | Provider heartbeat is a module-level singleton in `provider/heartbeat.js`; it survives navigation and stops after 5 minutes hidden, when offline, and on logout | Keeps availability state independent from page lifetime |
 | 2 Nov 2026 | Provider earnings are computed client-side from the last 50 jobs until the ledger exists in Phase 11; Inbox stays empty until Phase 12 | Clearly labels interim screens without implying unavailable accounting or messaging |
+| 2 Nov 2026 | Provider earnings are credited to the ledger only when payment is confirmed (card paid, provider-recorded or admin-recorded), never at completion | Prevents unpaid jobs from appearing as earned balance |
+| 2 Nov 2026 | A provider's balance is the sum of their ledger; a payout writes a negative ledger line (supersedes 'ledger minus payouts') | Keeps all balance changes in one auditable source |
+| 2 Nov 2026 | Cash or EFT recorded by the provider writes a negative commission line; it nets against card earnings automatically | The provider already holds offline payment and owes only the platform commission |
+| 2 Nov 2026 | A request settles exactly once through unique ledger/payment references, payment-row locks and ZD-PAY-008 on repeats | Prevents webhook, verify and offline paths from double-settling a request |
+| 2 Nov 2026 | Drivers pay after the job; when Paystack is configured, an unpaid completed job blocks another request with ZD-PAY-006 | Ensures unpaid card balances are settled before another request |
+| 2 Nov 2026 | Pilot payouts are manual EFT recorded by an admin; Paystack transfers and automatic payouts are deferred, and refunds are manual | Avoids transfer fees and automating unresolved pilot operations |
+| 2 Nov 2026 | Provider bank details use AES-256-GCM and remain masked except for audited admin reveal; a seven-day recent-change warning appears at payout time | Protects payout data and supports phone confirmation before payment |
+| 2 Nov 2026 | The ledger CSV is returned in the JSON contract and downloaded client-side with formula-injection escaping | Preserves the existing API contract while preventing spreadsheet formulas |
+| 2 Nov 2026 | The admin Requests page (list, detail, candidates, assign, cancel, mark paid) is the manual-dispatch tool for the pilot | Supports dispatch and payment support without automation |
 | 2 Nov 2026 | Document previews use 5-minute signed Cloudinary download URLs; file URLs and public ids are never returned or logged | Limits access to private provider documents |
 | 2 Nov 2026 | notifications.service.js created in Phase 7 (createNotification); Phase 12 extends it with the inbox endpoints | Reuses the notification foundation for the future inbox |
 | 2 Nov 2026 | Admin accounts are created only with scripts/create-admin.js (interactive, hidden password, --reset to change a password); there is no public admin signup | Prevents public registration of privileged accounts |
