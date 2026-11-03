@@ -3,6 +3,7 @@ const z = require('zod');
 const { otpRequestIpLimiter, otpVerifyIpLimiter } = require('../../middleware/rateLimit');
 const validate = require('../../middleware/validate');
 const auth = require('../../middleware/auth');
+const { env } = require('../../config/env');
 const {
   requestOtpHandler,
   verifyOtpHandler,
@@ -12,8 +13,18 @@ const {
 
 const router = express.Router();
 
-router.post('/otp/request', otpRequestIpLimiter, validate(z.object({ phone: z.string().max(20), app: z.enum(['driver','provider']) })), requestOtpHandler);
-router.post('/otp/verify', otpVerifyIpLimiter, validate(z.object({ phone: z.string().max(20), code: z.string().regex(/^\d{4}$/, 'Enter the 4-digit code'), app: z.enum(['driver','provider']) })), verifyOtpHandler);
+const emailSchema = z.string().trim().max(254).email('Enter a valid email address').transform((value) => value.toLowerCase());
+const appSchema = z.enum(['driver', 'provider']);
+
+router.post('/otp/request', otpRequestIpLimiter, validate(z.object({
+  email: emailSchema,
+  app: appSchema,
+})), requestOtpHandler);
+router.post('/otp/verify', otpVerifyIpLimiter, validate(z.object({
+  email: emailSchema,
+  code: z.string().regex(new RegExp(`^\\d{${env.OTP_LENGTH}}$`), `Enter the ${env.OTP_LENGTH}-digit code`),
+  app: appSchema,
+})), verifyOtpHandler);
 router.get('/me', auth, getMeHandler);
 router.post('/logout', auth, logoutHandler);
 

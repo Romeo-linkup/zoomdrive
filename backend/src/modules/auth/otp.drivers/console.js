@@ -1,8 +1,6 @@
-const { logger, maskPhone } = require('../../../lib/logger');
-
-// Development driver: prints the code to the server log instead of sending an SMS.
-async function send({ phone, code }) {
-  logger.info({ module: 'otp', message: `OTP for ${maskPhone(phone)}: ${code}` });
+async function send({ email, code }) {
+  void email;
+  void code;
   return { delivered: true };
 }
 

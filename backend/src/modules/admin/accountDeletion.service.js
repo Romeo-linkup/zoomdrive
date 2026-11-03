@@ -129,7 +129,7 @@ async function deleteAccount({ adminId, userId, reason }) {
       action: 'admin.account_delete',
       entity: 'users',
       entityId: userId,
-      meta: { userId, reason },
+      meta: { userId },
     }, client);
 
     return { publicIds };

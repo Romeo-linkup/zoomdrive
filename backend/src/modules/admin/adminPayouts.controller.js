@@ -4,6 +4,7 @@ const { writeAudit } = require('../../lib/audit');
 const { notifyBestEffort } = require('../notifications/notifications.service');
 const ledger = require('../payments/ledger.service');
 const { decrypt } = require('../../lib/crypto');
+const { toCsv } = require('../../lib/csv');
 
 const PROVIDER_ROWS = `
   WITH ledger_balances AS (
@@ -264,7 +265,7 @@ async function createPayout(req, res) {
       action: 'admin.payout_record',
       entity: 'payouts',
       entityId: payout.rows[0].id,
-      meta: { amountCents, method, reference },
+      meta: { amountCents, method },
       requestId: req.id,
       ip: req.ip,
     }, client);
@@ -293,7 +294,7 @@ async function createAdjustment(req, res) {
       action: 'admin.ledger_adjustment',
       entity: 'provider_ledger',
       entityId: providerId,
-      meta: { amountCents, note },
+      meta: { amountCents },
       requestId: req.id,
       ip: req.ip,
     }, client);
@@ -305,12 +306,6 @@ function shiftDate(date, offset) {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + offset);
   return value.toISOString().slice(0, 10);
-}
-
-function csvCell(value) {
-  let text = value === null || value === undefined ? '' : String(value);
-  if (/^[=+\-@]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
 }
 
 async function exportCsv(req, res) {
@@ -348,11 +343,9 @@ async function exportCsv(req, res) {
     });
   }
 
-  const lines = [
-    ['date', 'provider', 'type', 'amount_rands', 'request_id', 'reference', 'note']
-      .map(csvCell)
-      .join(','),
-    ...result.rows.map((row) => [
+  const csv = toCsv(
+    ['date', 'provider', 'type', 'amount_rands', 'request_id', 'reference', 'note'],
+    result.rows.map((row) => [
       row.date,
       row.provider,
       row.type,
@@ -360,8 +353,8 @@ async function exportCsv(req, res) {
       row.request_id,
       row.reference,
       row.note,
-    ].map(csvCell).join(',')),
-  ];
+    ])
+  );
   await writeAudit({
     actorType: 'admin',
     actorId: req.admin.id,
@@ -373,7 +366,7 @@ async function exportCsv(req, res) {
   });
   res.ok({
     filename: `zoomdrive-ledger-${from}-${to}.csv`,
-    csv: lines.join('\r\n'),
+    csv,
   });
 }
 

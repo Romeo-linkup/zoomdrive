@@ -87,7 +87,7 @@ async function update(req, res) {
       action: 'admin.service_update',
       entity: 'services',
       entityId: id,
-      meta: { serviceId: id, code: service.code, before: changedFields, after: changedFields },
+      meta: { serviceId: id, fields: Object.keys(changedFields) },
       requestId: req.id,
       ip: req.ip,
     }, client);

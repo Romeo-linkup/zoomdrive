@@ -110,6 +110,7 @@ async function verifyTransaction(reference) {
   return {
     status: data.status,
     amountCents: Number(data.amount),
+    feesCents: Number.isInteger(data.fees) ? data.fees : null,
     currency: data.currency,
     reference: data.reference,
     paidAt: data.paid_at || null,

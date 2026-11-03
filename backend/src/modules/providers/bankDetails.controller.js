@@ -55,7 +55,7 @@ async function put(req, res) {
       action: 'provider.bank_details_update',
       entity: 'provider_bank_details',
       entityId: req.user.id,
-      meta: { last4: accountLast4 },
+      meta: { fields: ['accountHolder', 'bankName', 'accountType', 'branchCode', 'accountNumber'] },
       requestId: req.id,
       ip: req.ip,
     }, client);

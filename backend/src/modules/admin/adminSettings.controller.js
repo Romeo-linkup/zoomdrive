@@ -51,7 +51,7 @@ async function updateSettings(req, res) {
   }
 
   await withTransaction(async (client) => {
-    const changes = {};
+    const changedFields = [];
 
     for (const [key, value] of Object.entries(values)) {
       const rule = SETTING_RULES[key];
@@ -85,16 +85,16 @@ async function updateSettings(req, res) {
       `, [key, String(value), req.admin.id]);
 
       if (oldValue !== String(value)) {
-        changes[key] = { from: oldValue, to: String(value) };
+        changedFields.push(key);
       }
     }
 
-    if (Object.keys(changes).length > 0) {
+    if (changedFields.length > 0) {
       await writeAudit({
         actorType: 'admin',
         actorId: req.admin.id,
         action: 'admin.settings_update',
-        meta: { changes },
+        meta: { fields: changedFields },
         requestId: req.id,
         ip: req.ip,
       }, client);

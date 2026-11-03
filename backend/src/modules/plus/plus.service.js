@@ -1,5 +1,6 @@
 const { pool, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
+const { writeAudit } = require('../../lib/audit');
 const pricing = require('../admin/pricingPolicy');
 const charges = require('../payments/charges.service');
 
@@ -33,7 +34,7 @@ async function getPlusState(userId, client = pool) {
   };
 }
 
-async function join(userId) {
+async function join(userId, { requestId = null, ip = null } = {}) {
   const values = await pricing.readValues();
   if (!values.driverPlusEnabled) throw new ApiError('ZD-PLUS-001');
 
@@ -43,17 +44,29 @@ async function join(userId) {
       [userId]
     );
     if (existing.rows.length > 0) return;
-    await client.query(
+    const inserted = await client.query(
       `INSERT INTO driver_memberships (user_id, trial_ends_at)
        VALUES ($1, now() + ($2 * interval '1 day'))
        ON CONFLICT (user_id) DO NOTHING`,
       [userId, values.driverPlusTrialDays]
     );
+    if (inserted.rowCount > 0) {
+      await writeAudit({
+        actorType: 'user',
+        actorId: userId,
+        action: 'plus.join',
+        entity: 'driver_memberships',
+        entityId: userId,
+        meta: { trialDays: values.driverPlusTrialDays },
+        requestId,
+        ip,
+      }, client);
+    }
   });
   return getPlusState(userId);
 }
 
-async function startPay(user) {
+async function startPay(user, { requestId = null, ip = null } = {}) {
   const values = await pricing.readValues();
   if (!values.driverPlusEnabled) throw new ApiError('ZD-PLUS-001');
   if (values.driverPlusMonthlyCents <= 0) throw new ApiError('ZD-PAY-005');
@@ -68,6 +81,8 @@ async function startPay(user) {
     user,
     purpose: 'driver_plus',
     amountCents: values.driverPlusMonthlyCents,
+    requestId,
+    ip,
   });
 }
 

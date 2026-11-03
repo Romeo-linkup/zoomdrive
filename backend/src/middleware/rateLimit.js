@@ -36,4 +36,63 @@ const adminLoginLimiter = rateLimit({
   handler: tooManyLogin,
 });
 
-module.exports = { otpRequestIpLimiter, otpVerifyIpLimiter, adminLoginLimiter };
+const tooManyWrite = (req, res, next) => next(new ApiError('ZD-SYS-004'));
+
+const globalWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
+    || /\/payments\/paystack\/webhook\/?$/.test(req.path || ''),
+  handler: tooManyWrite,
+});
+
+const perUserWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
+  skip: (req) => req.method === 'GET' || /\/heartbeat\/?$/.test(req.path || '') || !req.user,
+  handler: tooManyWrite,
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
+  handler: tooManyWrite,
+});
+
+const createRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user && req.user.id) ? String(req.user.id) : req.ip,
+  handler: tooManyWrite,
+});
+
+const adminWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.admin && req.admin.id) ? String(req.admin.id) : req.ip,
+  skip: (req) => !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method),
+  handler: tooManyWrite,
+});
+
+module.exports = {
+  otpRequestIpLimiter,
+  otpVerifyIpLimiter,
+  adminLoginLimiter,
+  globalWriteLimiter,
+  perUserWriteLimiter,
+  uploadLimiter,
+  createRequestLimiter,
+  adminWriteLimiter,
+};

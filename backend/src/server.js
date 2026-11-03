@@ -105,6 +105,6 @@ process.on('unhandledRejection', (reason) => {
     reqId: '-',
     module: 'server',
     message: 'Unhandled rejection',
-    meta: { reason: String(reason) },
+    meta: { reasonType: typeof reason },
   });
 });

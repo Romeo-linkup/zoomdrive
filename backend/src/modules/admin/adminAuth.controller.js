@@ -1,8 +1,10 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
 const adminAuth = require('../../middleware/adminAuth');
+const { env } = require('../../config/env');
 
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
 
@@ -15,10 +17,14 @@ async function login(req, res) {
 
   const match = await bcrypt.compare(password, hash);
   if (!match) {
+    const emailHash = crypto.createHmac('sha256', env.JWT_SECRET)
+      .update(email.trim().toLowerCase())
+      .digest('hex')
+      .slice(0, 16);
     await writeAudit({
-      actorType: 'system',
+      actorType: 'anonymous',
       action: 'admin.login_failed',
-      meta: { email },
+      meta: { emailHash },
       requestId: req.id,
       ip: req.ip,
     });

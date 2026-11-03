@@ -1,6 +1,7 @@
 const { pool } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { logger } = require('../../lib/logger');
+const { writeAudit } = require('../../lib/audit');
 
 async function createNotification({ userId, title, body = null, kind, data = null }, client = pool) {
   const dataJson = data && Object.keys(data).length > 0 ? JSON.stringify(data) : null;
@@ -72,7 +73,7 @@ async function listNotifications({ userId, page, pageSize = 20, unreadOnly = fal
   };
 }
 
-async function markRead(userId, id) {
+async function markRead(userId, id, { requestId = null, ip = null } = {}) {
   const result = await pool.query(
     `UPDATE notifications
      SET read_at = COALESCE(read_at, now())
@@ -83,6 +84,16 @@ async function markRead(userId, id) {
   if (!result.rows[0]) {
     throw new ApiError('ZD-VAL-001', { message: 'Notification not found' });
   }
+  await writeAudit({
+    actorType: 'user',
+    actorId: userId,
+    action: 'notification.read',
+    entity: 'notifications',
+    entityId: id,
+    meta: { status: 'read' },
+    requestId,
+    ip,
+  });
   return { id: result.rows[0].id, readAt: result.rows[0].read_at };
 }
 

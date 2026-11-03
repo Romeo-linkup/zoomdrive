@@ -25,8 +25,8 @@ async function listUsers(req, res) {
   }
 
   if (q) {
-    const escapedQ = q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    whereClauses.push(`(u.phone ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`);
+    const escapedQ = q.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    whereClauses.push(`(u.phone ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`);
     params.push(`%${escapedQ}%`);
     paramIndex++;
   }
@@ -38,6 +38,7 @@ async function listUsers(req, res) {
       u.id,
       u.role,
       u.phone,
+      u.email,
       u.first_name AS "firstName",
       u.last_name AS "lastName",
       u.photo_url AS "photoUrl",
@@ -134,7 +135,7 @@ async function suspendUser(req, res) {
       action: 'admin.user_suspend',
       entity: 'users',
       entityId: userId,
-      meta: { userId, reason },
+      meta: { userId, status: 'suspended' },
       requestId: req.id,
       ip: req.ip,
     }, client);

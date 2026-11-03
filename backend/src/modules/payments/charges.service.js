@@ -23,9 +23,9 @@ function mapCharge(row) {
 }
 
 async function getAccountEmail(user) {
-  if (user.email) return user.email;
+  if (user.email !== null && user.email !== undefined) return user.email;
   const { rows } = await query('SELECT email FROM users WHERE id = $1', [user.id]);
-  if (rows[0] && rows[0].email) return rows[0].email;
+  if (rows[0] && rows[0].email !== null && rows[0].email !== undefined) return rows[0].email;
   if (!env.PAYSTACK_FALLBACK_EMAIL_DOMAIN) throw new ApiError('ZD-PAY-003');
   return `u${user.id}@${env.PAYSTACK_FALLBACK_EMAIL_DOMAIN}`;
 }
@@ -37,7 +37,7 @@ function callbackUrlFor(purpose) {
   return `${base}/${purpose === 'provider_registration' ? 'provider' : 'driver'}/`;
 }
 
-async function startCharge({ user, purpose, amountCents, meta = {} }) {
+async function startCharge({ user, purpose, amountCents, meta = {}, requestId = null, ip = null }) {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     throw new ApiError('ZD-PAY-005');
   }
@@ -65,6 +65,18 @@ async function startCharge({ user, purpose, amountCents, meta = {} }) {
       entity: 'platform_charges',
       entityId: rows[0].id,
       meta: { purpose, amountCents },
+      requestId,
+      ip,
+    }, client);
+    await writeAudit({
+      actorType: 'user',
+      actorId: userId,
+      action: purpose === 'driver_plus' ? 'plus.payment_started' : 'provider.registration_fee_started',
+      entity: 'platform_charges',
+      entityId: rows[0].id,
+      meta: { purpose, amountCents },
+      requestId,
+      ip,
     }, client);
     return rows[0];
   });
@@ -141,10 +153,10 @@ async function settleByReference(reference, { expectUserId } = {}) {
 
       const updated = await client.query(
         `UPDATE platform_charges
-         SET status = 'paid', paid_at = now()
+         SET status = 'paid', paid_at = now(), gateway_fee_cents = $2
          WHERE id = $1 AND status <> 'paid'
          RETURNING *`,
-        [charge.id]
+        [charge.id, verified.feesCents]
       );
       if (!updated.rows[0]) {
         const current = await client.query('SELECT * FROM platform_charges WHERE id = $1', [charge.id]);
@@ -167,6 +179,13 @@ async function settleByReference(reference, { expectUserId } = {}) {
           body: 'Your provider registration fee has been received.',
           kind: 'payment',
         };
+        await writeAudit({
+          actorType: 'system',
+          action: 'provider.registration_fee_paid',
+          entity: 'platform_charges',
+          entityId: charge.id,
+          meta: { amountCents: charge.amount_cents },
+        }, client);
       } else if (charge.purpose === 'driver_plus') {
         await client.query(
           `INSERT INTO driver_memberships (user_id, paid_until)
@@ -176,6 +195,13 @@ async function settleByReference(reference, { expectUserId } = {}) {
                + interval '30 days'`,
           [charge.user_id]
         );
+        await writeAudit({
+          actorType: 'system',
+          action: 'plus.payment_paid',
+          entity: 'platform_charges',
+          entityId: charge.id,
+          meta: { amountCents: charge.amount_cents },
+        }, client);
       }
 
       await writeAudit({

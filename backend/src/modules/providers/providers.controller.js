@@ -3,12 +3,25 @@ const ApiError = require('../../lib/ApiError');
 const { getMe } = require('../auth/auth.service');
 const { writeAudit } = require('../../lib/audit');
 const { uploadDocument, deleteDocumentAsset } = require('../uploads/cloudinary.service');
+const { assertValidPhone } = require('../../lib/phone');
+const { env } = require('../../config/env');
 
 async function upsertMe(req, res) {
   const userId = req.user.id;
   const body = req.body;
 
   await withTransaction(async (client) => {
+    const userResult = await client.query('SELECT phone FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (!userResult.rows.length) throw new ApiError('ZD-AUTH-001');
+    const currentPhone = userResult.rows[0].phone;
+    const phone = body.phone === undefined ? currentPhone : assertValidPhone(body.phone);
+    if (!phone) {
+      throw new ApiError('ZD-VAL-001', {
+        message: 'Enter a valid South African mobile number',
+        field: 'phone',
+      });
+    }
+
     const existingProfile = await client.query(
       'SELECT consent_at FROM provider_profiles WHERE user_id = $1 FOR UPDATE',
       [userId]
@@ -19,13 +32,13 @@ async function upsertMe(req, res) {
     }
 
     await client.query(
-      'UPDATE users SET first_name = $1, last_name = $2, updated_at = now() WHERE id = $3',
-      [body.firstName, body.lastName, userId]
+      'UPDATE users SET first_name = $1, last_name = $2, phone = $3, updated_at = now() WHERE id = $4',
+      [body.firstName, body.lastName, phone, userId]
     );
 
     await client.query(
-      `INSERT INTO provider_profiles (user_id, provider_type, vehicle_description, plate, base_lat, base_lng, service_radius_km, consent_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::boolean THEN now() ELSE NULL END)
+      `INSERT INTO provider_profiles (user_id, provider_type, vehicle_description, plate, base_lat, base_lng, service_radius_km, consent_at, consent_version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::boolean THEN now() ELSE NULL END, CASE WHEN $8::boolean THEN $9::text ELSE NULL END)
        ON CONFLICT (user_id) DO UPDATE SET
          provider_type = EXCLUDED.provider_type,
          vehicle_description = EXCLUDED.vehicle_description,
@@ -33,7 +46,11 @@ async function upsertMe(req, res) {
          base_lat = EXCLUDED.base_lat,
          base_lng = EXCLUDED.base_lng,
          service_radius_km = EXCLUDED.service_radius_km,
-         consent_at = COALESCE(provider_profiles.consent_at, CASE WHEN $8::boolean THEN now() ELSE NULL END)`,
+         consent_at = COALESCE(provider_profiles.consent_at, CASE WHEN $8::boolean THEN now() ELSE NULL END),
+         consent_version = CASE
+           WHEN provider_profiles.consent_version IS NULL AND $8::boolean THEN $9::text
+           ELSE provider_profiles.consent_version
+         END`,
       [
         userId,
         body.providerType,
@@ -43,6 +60,7 @@ async function upsertMe(req, res) {
         body.baseLng,
         body.serviceRadiusKm === undefined ? 25 : body.serviceRadiusKm,
         body.consent === true,
+        env.TERMS_VERSION,
       ]
     );
 
@@ -128,7 +146,7 @@ async function submit(req, res) {
     }
     const profile = profileResult.rows[0];
 
-    const userResult = await client.query('SELECT photo_url, first_name, last_name FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    const userResult = await client.query('SELECT photo_url, first_name, last_name, phone FROM users WHERE id = $1 FOR UPDATE', [userId]);
     const user = userResult.rows[0] || {};
 
     // 1) users.photo_url is null -> ZD-PROV-001
@@ -136,7 +154,7 @@ async function submit(req, res) {
       throw new ApiError('ZD-PROV-001');
     }
     // 2) no provider_profiles row, or first_name/last_name empty, or consent_at null -> ZD-USR-001
-    if (!profile || !user.first_name || !String(user.first_name).trim() || !user.last_name || !String(user.last_name).trim() || !profile.consent_at) {
+    if (!profile || !user.first_name || !String(user.first_name).trim() || !user.last_name || !String(user.last_name).trim() || !user.phone || !profile.consent_at) {
       throw new ApiError('ZD-USR-001');
     }
     // 3) provider_type 'company' and (no organisation, or empty name or reg_number) -> ZD-PROV-004

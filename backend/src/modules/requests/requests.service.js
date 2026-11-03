@@ -577,7 +577,7 @@ async function cancelRequest({ requestId, actor, reason, requestIdHeader, ip }) 
       action: 'request.cancel',
       entity: 'requests',
       entityId: requestId,
-      meta: { by: actor.role, reason: reason || null },
+      meta: { by: actor.role, status: 'cancelled' },
       requestId: requestIdHeader,
       ip,
     }, client);

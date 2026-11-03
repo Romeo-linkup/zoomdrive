@@ -1,29 +1,21 @@
-const { assertValidPhone } = require('../../lib/phone');
 const { requestOtp } = require('./otp.service');
 const { verifyLogin, getMe } = require('./auth.service');
 const { writeAudit } = require('../../lib/audit');
 
 async function requestOtpHandler(req, res) {
-  const phone = assertValidPhone(req.body.phone);
   const result = await requestOtp({
-    phone,
+    email: req.body.email,
     app: req.body.app,
     ip: req.ip,
     requestId: req.id,
   });
 
-  const response = { expiresInSeconds: result.expiresInSeconds };
-  if (result.devCode !== undefined) {
-    response.devCode = result.devCode;
-  }
-
-  res.ok(response);
+  res.ok(result);
 }
 
 async function verifyOtpHandler(req, res) {
-  const phone = assertValidPhone(req.body.phone);
   const result = await verifyLogin({
-    phone,
+    email: req.body.email,
     code: req.body.code,
     app: req.body.app,
     ip: req.ip,
@@ -46,7 +38,7 @@ async function getMeHandler(req, res) {
 }
 
 async function logoutHandler(req, res) {
-  writeAudit({
+  await writeAudit({
     actorType: 'user',
     actorId: req.user.id,
     action: 'auth.logout',

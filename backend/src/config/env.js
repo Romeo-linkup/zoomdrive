@@ -2,6 +2,8 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const packageJson = require('../../package.json');
+const OTP_LENGTH = 6;
+const TERMS_VERSION = '2026-11-draft';
 
 const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -9,11 +11,17 @@ const env = Object.freeze({
   DATABASE_URL: process.env.DATABASE_URL || null,
   JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '30d',
+  TRUST_PROXY_HOPS: process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) : 1,
   FRONTEND_ORIGINS: (process.env.FRONTEND_ORIGINS || '')
     .split(',')
     .map(s => s.trim())
     .filter(s => s.length > 0),
   OTP_DRIVER: process.env.OTP_DRIVER,
+  OTP_LENGTH,
+  TERMS_VERSION,
+  OTP_DAILY_EMAIL_CAP: process.env.OTP_DAILY_EMAIL_CAP
+    ? Number(process.env.OTP_DAILY_EMAIL_CAP)
+    : 250,
   OTP_DEV_ECHO: process.env.OTP_DEV_ECHO === 'true',
   OTP_ALLOW_CONSOLE_IN_PRODUCTION: process.env.OTP_ALLOW_CONSOLE_IN_PRODUCTION === 'true',
   SIGNUP_ENABLED: process.env.SIGNUP_ENABLED !== 'false',
@@ -30,6 +38,8 @@ const env = Object.freeze({
   DATA_ENCRYPTION_KEY: process.env.DATA_ENCRYPTION_KEY || null,
   EMAIL_DRIVER: process.env.EMAIL_DRIVER || 'console',
   EMAIL_FROM: process.env.EMAIL_FROM || null,
+  EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME || 'ZoomDrive',
+  BREVO_API_KEY: process.env.BREVO_API_KEY || null,
   SMTP_HOST: process.env.SMTP_HOST || null,
   SMTP_PORT: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : null,
   SMTP_USER: process.env.SMTP_USER || null,
@@ -54,6 +64,12 @@ function validateEnv() {
   } else if (env.JWT_SECRET.length < 32) {
     problems.push({ name: 'JWT_SECRET', problem: 'too short (min 32)' });
   }
+  if (env.NODE_ENV === 'production' && env.JWT_SECRET) {
+    const lowered = env.JWT_SECRET.toLowerCase();
+    if (lowered === 'changeme' || lowered === 'secret' || lowered.startsWith('replace')) {
+      problems.push({ name: 'JWT_SECRET', problem: 'placeholder secret refused in production' });
+    }
+  }
 
   if (!env.DATA_ENCRYPTION_KEY) {
     problems.push({ name: 'DATA_ENCRYPTION_KEY', problem: 'missing' });
@@ -66,9 +82,29 @@ function validateEnv() {
   if (env.FRONTEND_ORIGINS.length === 0) {
     problems.push({ name: 'FRONTEND_ORIGINS', problem: 'empty' });
   }
+  if (env.NODE_ENV === 'production') {
+    for (const origin of env.FRONTEND_ORIGINS) {
+      if (!origin.startsWith('https://')) {
+        problems.push({ name: 'FRONTEND_ORIGINS', problem: 'every entry must start with https://' });
+        break;
+      }
+      if (origin.includes('*') || origin.includes('/') && origin.replace('https://','').includes('/') || origin.endsWith('/')) {
+        problems.push({ name: 'FRONTEND_ORIGINS', problem: 'no wildcard, path or trailing slash allowed' });
+        break;
+      }
+      const host = origin.replace('https://', '');
+      if (host === 'localhost' || host.startsWith('localhost:') || host === '127.0.0.1' || host.startsWith('127.0.0.1:')) {
+        problems.push({ name: 'FRONTEND_ORIGINS', problem: 'localhost and 127.0.0.1 are not allowed in production' });
+        break;
+      }
+    }
+  }
+  if (!Number.isInteger(env.TRUST_PROXY_HOPS) || env.TRUST_PROXY_HOPS < 0) {
+    problems.push({ name: 'TRUST_PROXY_HOPS', problem: 'must be a non-negative integer' });
+  }
 
-  if (!env.OTP_DRIVER || (env.OTP_DRIVER !== 'console' && env.OTP_DRIVER !== 'bulksms')) {
-    problems.push({ name: 'OTP_DRIVER', problem: 'missing or invalid (must be console or bulksms)' });
+  if (!['console', 'email', 'bulksms'].includes(env.OTP_DRIVER)) {
+    problems.push({ name: 'OTP_DRIVER', problem: 'missing or invalid (must be console, email or bulksms)' });
   }
 
   if (process.env.OTP_ALLOW_CONSOLE_IN_PRODUCTION !== undefined
@@ -86,6 +122,14 @@ function validateEnv() {
     if (!env.SMS_API_KEY) problems.push({ name: 'SMS_API_KEY', problem: 'missing for OTP_DRIVER=bulksms' });
     if (!env.SMS_API_SECRET) problems.push({ name: 'SMS_API_SECRET', problem: 'missing for OTP_DRIVER=bulksms' });
   }
+  if (env.OTP_DRIVER === 'email' && env.NODE_ENV === 'production' && env.EMAIL_DRIVER === 'console') {
+    problems.push({ name: 'EMAIL_DRIVER', problem: 'must not be console when OTP_DRIVER=email in production' });
+  }
+  if (!Number.isInteger(env.OTP_DAILY_EMAIL_CAP)
+      || env.OTP_DAILY_EMAIL_CAP < 10
+      || env.OTP_DAILY_EMAIL_CAP > 100000) {
+    problems.push({ name: 'OTP_DAILY_EMAIL_CAP', problem: 'must be an integer from 10 to 100000' });
+  }
   if (env.SMS_SENDER_ID && env.SMS_SENDER_ID.length > 11) {
     problems.push({ name: 'SMS_SENDER_ID', problem: 'must be at most 11 characters' });
   }
@@ -94,8 +138,8 @@ function validateEnv() {
     problems.push({ name: 'OTP_DEV_ECHO', problem: 'must be false in production' });
   }
 
-  if (!['console', 'smtp'].includes(env.EMAIL_DRIVER)) {
-    problems.push({ name: 'EMAIL_DRIVER', problem: 'must be console or smtp' });
+  if (!['console', 'smtp', 'brevo'].includes(env.EMAIL_DRIVER)) {
+    problems.push({ name: 'EMAIL_DRIVER', problem: 'must be console, smtp or brevo' });
   }
   if (env.EMAIL_DRIVER === 'console' && env.NODE_ENV !== 'development') {
     problems.push({ name: 'EMAIL_DRIVER', problem: 'console is allowed only in development' });
@@ -110,6 +154,12 @@ function validateEnv() {
     }
     if (!env.SMTP_USER) problems.push({ name: 'SMTP_USER', problem: 'missing for smtp' });
     if (!env.SMTP_PASS) problems.push({ name: 'SMTP_PASS', problem: 'missing for smtp' });
+  }
+  if (env.EMAIL_DRIVER === 'brevo') {
+    if (!env.BREVO_API_KEY) problems.push({ name: 'BREVO_API_KEY', problem: 'missing for EMAIL_DRIVER=brevo' });
+    if (!env.EMAIL_FROM || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.EMAIL_FROM)) {
+      problems.push({ name: 'EMAIL_FROM', problem: 'missing or invalid for EMAIL_DRIVER=brevo' });
+    }
   }
   if (env.EMAIL_FALLBACK_DOMAIN && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(env.EMAIL_FALLBACK_DOMAIN)) {
     problems.push({ name: 'EMAIL_FALLBACK_DOMAIN', problem: 'invalid domain' });
@@ -149,4 +199,4 @@ function validateEnv() {
   return problems;
 }
 
-module.exports = { env, validateEnv };
+module.exports = { env, validateEnv, OTP_LENGTH, TERMS_VERSION };

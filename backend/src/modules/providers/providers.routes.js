@@ -24,6 +24,7 @@ const profileSchema = z.object({
   providerType: z.enum(['individual', 'company'], { message: 'Choose individual or company' }),
   firstName: personName('Enter your first name'),
   lastName: personName('Enter your surname'),
+  phone: z.string().trim().max(30).optional(),
   vehicleDescription: z.string().trim().min(2, 'Describe your vehicle').max(120),
   plate: z.string().trim().min(2, 'Enter your number plate').max(15),
   baseLat: z.number().min(-90).max(90),

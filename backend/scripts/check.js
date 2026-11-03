@@ -161,6 +161,42 @@ function checkBlueprintCodes() {
   }
 }
 
+// Rule 15 ZODSTR: every z.string() must have .max/.length/.regex/.email/.uuid on same or next 2 lines
+function checkZodString(filePath, content) {
+  if (!filePath.includes(path.join('src'))) return;
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    if (/z\.string\(\)/.test(line)) {
+      const window = lines.slice(idx, idx + 3).join('\n');
+      if (!/\.max\(|\.length\(|\.regex\(|\.email\(|\.uuid\(/.test(window)) {
+        addProblem(filePath, idx + 1, 'ZODSTR', 'z.string() missing bound');
+      }
+    }
+  });
+}
+
+// Rule 16 CORS: no origin:true, no origin:'*', no argument-less cors()
+function checkCors(filePath, content) {
+  if (!filePath.includes(path.join('src'))) return;
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    if (/origin:\s*true/.test(line) || /origin:\s*['"]\*['"]/.test(line) || /\bcors\(\s*\)/.test(line)) {
+      addProblem(filePath, idx + 1, 'CORS', 'unsafe CORS configuration');
+    }
+  });
+}
+
+// Rule 17 EMPTYCATCH: no empty catch blocks in src/ or scripts/
+function checkEmptyCatch(filePath, content) {
+  if (!filePath.includes(path.join('src')) && !filePath.includes(path.join('scripts'))) return;
+  const lines = content.split('\n');
+  lines.forEach((line, idx) => {
+    if (/catch\s*\([^)]*\)\s*\{\s*\}/.test(line)) {
+      addProblem(filePath, idx + 1, 'EMPTYCATCH', 'empty catch block');
+    }
+  });
+}
+
 function walkDir(dir, callback) {
   if (!fs.existsSync(dir)) return;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -200,6 +236,9 @@ function main() {
     if (ext === '.js' && filePath !== __filename) {
       checkThrow(filePath, content);
       checkCodes(filePath, content);
+      checkZodString(filePath, content);
+      checkCors(filePath, content);
+      checkEmptyCatch(filePath, content);
     }
   });
 

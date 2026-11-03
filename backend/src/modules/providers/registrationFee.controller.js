@@ -21,6 +21,8 @@ async function pay(req, res) {
     user: req.user,
     purpose: 'provider_registration',
     amountCents: state.amountCents,
+    requestId: req.id,
+    ip: req.ip,
   });
   res.ok(result);
 }

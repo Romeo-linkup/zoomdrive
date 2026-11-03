@@ -9,7 +9,10 @@ async function list(req, res) {
 }
 
 async function markRead(req, res) {
-  res.ok(await notifications.markRead(req.user.id, Number(req.params.id)));
+  res.ok(await notifications.markRead(req.user.id, Number(req.params.id), {
+    requestId: req.id,
+    ip: req.ip,
+  }));
 }
 
 async function markAllRead(req, res) {

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { env } = require('../../config/env');
 const { query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
-const { logger, maskPhone } = require('../../lib/logger');
+const { logger } = require('../../lib/logger');
 const { writeAudit } = require('../../lib/audit');
 
 function publicUser(row) {
@@ -11,6 +11,7 @@ function publicUser(row) {
     role: row.role,
     phone: row.phone,
     email: row.email,
+    emailVerified: Boolean(row.email_verified_at),
     firstName: row.first_name,
     lastName: row.last_name,
     photoUrl: row.photo_url,
@@ -26,30 +27,6 @@ function mapOrganisationRow(row) {
     regNumber: row.reg_number,
     status: row.status,
   };
-}
-
-async function assertAppAccess({ phone, app }) {
-  const result = await query('SELECT id, role, status FROM users WHERE phone = $1', [phone]);
-
-  if (result.rows.length > 0) {
-    const user = result.rows[0];
-    if (user.role !== app) {
-      const otherApp = user.role === 'driver' ? 'ZoomDrive' : 'ZoomDrive Partner';
-      throw new ApiError('ZD-AUTH-004', {
-        message: `This number is registered as a ${user.role}. Open the ${otherApp} app instead.`,
-      });
-    }
-    if (user.status === 'suspended' || user.status === 'deleted') {
-      throw new ApiError('ZD-AUTH-005');
-    }
-    return user;
-  }
-
-  if (env.SIGNUP_ENABLED === false) {
-    throw new ApiError('ZD-AUTH-009');
-  }
-
-  return null;
 }
 
 function signToken(user) {
@@ -97,7 +74,7 @@ async function getMe(userId, client = null) {
         consentAt: p.consent_at,
         createdAt: p.created_at,
       };
-      profileComplete = !!(user.first_name && user.last_name && p.consent_at);
+      profileComplete = !!(user.first_name && user.last_name && user.phone && p.consent_at);
     }
   } else   if (role === 'provider') {
     const profileResult = await q('SELECT * FROM provider_profiles WHERE user_id = $1', [userId]);
@@ -157,32 +134,29 @@ async function getMe(userId, client = null) {
   };
 }
 
-async function verifyLogin({ phone, code, app, ip, requestId }) {
+async function verifyLogin({ email, code, app, ip, requestId }) {
+  const normalizedEmail = String(email).trim().toLowerCase();
   const otpService = require('./otp.service');
-  await otpService.verifyOtp({ phone, code, app, ip, requestId });
+  await otpService.verifyOtp({ email: normalizedEmail, code, app, ip, requestId });
 
   return await withTransaction(async (client) => {
-    let userResult = await client.query('SELECT * FROM users WHERE phone = $1 FOR UPDATE', [phone]);
+    let userResult = await client.query(
+      'SELECT * FROM users WHERE lower(email) = $1 FOR UPDATE',
+      [normalizedEmail]
+    );
     let isNewUser = false;
 
     if (userResult.rows.length === 0) {
-      try {
-        const insertResult = await client.query(
-          `INSERT INTO users (role, phone)
-           VALUES ($1, $2)
-           RETURNING *`,
-          [app, phone]
-        );
-        userResult = insertResult;
-        isNewUser = true;
-      } catch (err) {
-        if (err.code === '23505') {
-          userResult = await client.query('SELECT * FROM users WHERE phone = $1 FOR UPDATE', [phone]);
-          isNewUser = false;
-        } else {
-          throw err;
-        }
+      if (!env.SIGNUP_ENABLED) {
+        throw new ApiError('ZD-AUTH-009');
       }
+      userResult = await client.query(
+        `INSERT INTO users (role, email, phone, email_verified_at, last_login_at)
+         VALUES ($1, $2, NULL, now(), now())
+         RETURNING *`,
+        [app, normalizedEmail]
+      );
+      isNewUser = true;
     }
 
     const user = userResult.rows[0];
@@ -190,7 +164,7 @@ async function verifyLogin({ phone, code, app, ip, requestId }) {
     if (user.role !== app) {
       const otherApp = user.role === 'driver' ? 'ZoomDrive' : 'ZoomDrive Partner';
       throw new ApiError('ZD-AUTH-004', {
-        message: `This number is registered as a ${user.role}. Open the ${otherApp} app instead.`,
+        message: `This email is registered as a ${user.role}. Open the ${otherApp} app instead.`,
       });
     }
 
@@ -198,29 +172,33 @@ async function verifyLogin({ phone, code, app, ip, requestId }) {
       throw new ApiError('ZD-AUTH-005');
     }
 
-    await client.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
+    const updatedUser = await client.query(
+      'UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()), last_login_at = now() WHERE id = $1 RETURNING *',
+      [user.id]
+    );
+    const verifiedUser = updatedUser.rows[0];
 
-    writeAudit({
+    await writeAudit({
       actorType: 'user',
-      actorId: user.id,
+      actorId: verifiedUser.id,
       action: isNewUser ? 'auth.signup' : 'auth.login',
       entity: 'users',
-      entityId: user.id,
+      entityId: verifiedUser.id,
       meta: { app },
       requestId,
       ip,
     }, client);
 
-    const token = signToken(user);
+    const token = signToken(verifiedUser);
 
     logger.info({
       reqId: requestId,
       module: 'auth',
       action: isNewUser ? 'signup' : 'login',
-      meta: { phone: maskPhone(phone), app, userId: user.id },
+      meta: { app, userId: verifiedUser.id },
     });
 
-    const me = await getMe(user.id, client);
+    const me = await getMe(verifiedUser.id, client);
     return {
       token,
       user: me.user,
@@ -234,7 +212,6 @@ async function verifyLogin({ phone, code, app, ip, requestId }) {
 
 module.exports = {
   publicUser,
-  assertAppAccess,
   verifyLogin,
   signToken,
   verifyToken,

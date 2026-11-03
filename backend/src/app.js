@@ -3,12 +3,14 @@ const helmet = require('helmet');
 const cors = require('cors');
 const { env } = require('./config/env');
 const requestId = require('./middleware/requestId');
+const apiAudit = require('./middleware/apiAudit');
+const { globalWriteLimiter } = require('./middleware/rateLimit');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-app.set('trust proxy', 1);
+app.set('trust proxy', env.TRUST_PROXY_HOPS);
 
 app.use(requestId);
 
@@ -37,6 +39,9 @@ app.use(express.json({
     }
   },
 }));
+
+app.use(apiAudit);
+app.use(globalWriteLimiter);
 
 // later modules mount here, one line each
 app.use('/api/v1/health', require('./modules/health/health.routes'));

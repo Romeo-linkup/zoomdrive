@@ -214,7 +214,21 @@ async function listProviders(req, res) {
 
 async function getProvider(req, res) {
   const userId = Number(req.params.userId);
-  res.ok(await buildProviderDetail(userId));
+  const detail = await buildProviderDetail(userId);
+  for (const document of detail.documents) {
+    if (!document.viewUrl) continue;
+    await writeAudit({
+      actorType: 'admin',
+      actorId: req.admin.id,
+      action: 'admin.view_document',
+      entity: 'provider_documents',
+      entityId: document.id,
+      meta: { docType: document.docType },
+      requestId: req.id,
+      ip: req.ip,
+    });
+  }
+  res.ok(detail);
 }
 
 async function approve(req, res) {
@@ -313,7 +327,7 @@ async function reject(req, res) {
         action: 'admin.provider_reject',
         entity: 'provider_profiles',
         entityId: userId,
-        meta: { reason },
+        meta: { status: 'rejected' },
         requestId: req.id,
         ip: req.ip,
       },
@@ -387,7 +401,7 @@ async function reviewDocument(req, res) {
           action: 'admin.provider_reject',
           entity: 'provider_profiles',
           entityId: userId,
-          meta: { reason: rejectionReason, via: 'document' },
+          meta: { via: 'document', status: 'rejected' },
           requestId: req.id,
           ip: req.ip,
         },

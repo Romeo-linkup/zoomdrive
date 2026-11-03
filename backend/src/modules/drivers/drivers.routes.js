@@ -11,14 +11,10 @@ const plus = require('../plus/plus.controller');
 const router = express.Router();
 
 const optText = (max) => z.string().trim().max(max).nullish().transform((v) => v || null);
-const optEmail = z.string().trim().max(120).nullish()
-  .refine((v) => !v || z.string().email().safeParse(v).success, 'Enter a valid email address')
-  .transform((v) => v || null);
-
 const profileSchema = z.object({
   firstName: z.string().trim().min(1, 'Enter your first name').max(60),
   lastName: z.string().trim().min(1, 'Enter your surname').max(60),
-  email: optEmail,
+  phone: z.string().trim().max(30).optional(),
   vehicleMake: optText(40),
   vehicleModel: optText(40),
   vehicleColour: optText(30),

@@ -43,15 +43,16 @@ async function uploadDocumentHandler(req, res) {
   try {
     const result = await withTransaction(async (client) => {
       const existing = await client.query(
-        'SELECT id, cloudinary_public_id FROM provider_documents WHERE provider_user_id = $1 AND doc_type = $2 FOR UPDATE',
+        'SELECT id, doc_type, cloudinary_public_id FROM provider_documents WHERE provider_user_id = $1 AND doc_type = $2 FOR UPDATE',
         [userId, docType]
       );
       oldPublicIds = existing.rows.map((r) => r.cloudinary_public_id).filter(Boolean);
 
       await client.query('DELETE FROM provider_documents WHERE provider_user_id = $1 AND doc_type = $2', [userId, docType]);
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO provider_documents (provider_user_id, doc_type, file_url, cloudinary_public_id, status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
+         VALUES ($1, $2, $3, $4, 'pending')
+         RETURNING id`,
         [userId, docType, uploadResult.url, uploadResult.publicId]
       );
 
@@ -61,13 +62,25 @@ async function uploadDocumentHandler(req, res) {
           actorId: userId,
           action: 'provider.document_upload',
           entity: 'provider_documents',
-          entityId: userId,
+          entityId: inserted.rows[0].id,
           meta: { docType },
           requestId: req.id,
           ip: req.ip,
         },
         client
       );
+      for (const oldDocument of existing.rows) {
+        await writeAudit({
+          actorType: 'user',
+          actorId: userId,
+          action: 'provider.document_delete',
+          entity: 'provider_documents',
+          entityId: oldDocument.id,
+          meta: { docType: oldDocument.doc_type, reason: 'replacement' },
+          requestId: req.id,
+          ip: req.ip,
+        }, client);
+      }
     });
 
     // After commit, call deleteDocumentAsset for each old public id (best effort)

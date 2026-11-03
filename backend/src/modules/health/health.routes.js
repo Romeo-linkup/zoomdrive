@@ -32,15 +32,18 @@ router.get('/', async (req, res) => {
     pending = migrationFiles.length - applied;
   }
 
-  res.ok({
+  const payload = {
     status: 'ok',
     version: env.APP_VERSION,
-    env: env.NODE_ENV,
-    uptimeSeconds: Math.round(process.uptime()),
     db: dbStatus,
     migrations: { applied, pending },
-    missingEnv: validateEnv().map(p => p.name),
-  });
+  };
+  if (env.NODE_ENV !== 'production') {
+    payload.env = env.NODE_ENV;
+    payload.uptimeSeconds = Math.round(process.uptime());
+    payload.missingEnv = validateEnv().map(p => p.name);
+  }
+  res.ok(payload);
 });
 
 module.exports = router;

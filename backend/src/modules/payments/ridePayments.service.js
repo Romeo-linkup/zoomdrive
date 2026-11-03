@@ -26,7 +26,7 @@ async function getPaymentView(requestId, client = pool) {
 }
 
 function accountEmail(user) {
-  if (user.email) return user.email;
+  if (user.email !== null && user.email !== undefined) return user.email;
   if (!env.PAYSTACK_FALLBACK_EMAIL_DOMAIN) throw new ApiError('ZD-PAY-003');
   return `u${user.driver_id}@${env.PAYSTACK_FALLBACK_EMAIL_DOMAIN}`;
 }
@@ -141,10 +141,10 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
 
     const updated = await client.query(
       `UPDATE payments
-       SET method = 'card', status = 'paid', paid_at = now()
+       SET method = 'card', status = 'paid', paid_at = now(), gateway_fee_cents = $2
        WHERE request_id = $1 AND status = 'pending'
        RETURNING method, status, amount_cents, paid_at`,
-      [requestId]
+      [requestId, verified.feesCents]
     );
     if (!updated.rows[0]) {
       const latest = await getPaymentView(requestId, client);

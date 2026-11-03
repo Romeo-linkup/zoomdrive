@@ -1,18 +1,19 @@
 const { pool } = require('../db/pool');
 const ApiError = require('./ApiError');
 
-const validActorTypes = ['user', 'admin', 'system'];
+const validActorTypes = ['user', 'admin', 'system', 'anonymous'];
+
+function isSensitiveMetaKey(key) {
+  if (/^emailHash$/i.test(key)) return false;
+  return /email|phone|address|bank|account|document|url|comment|note|password|token|secret|authorization|code|api.?key/i.test(key);
+}
 
 function redactMeta(meta) {
+  if (Array.isArray(meta)) return meta.map(redactMeta);
   if (!meta || typeof meta !== 'object') return meta;
   const redacted = {};
-  const sensitiveKeyPattern = /token|secret|password|authorization|code_hash|file_url|api_key/i;
-
   for (const [key, value] of Object.entries(meta)) {
-    if (sensitiveKeyPattern.test(key)) {
-      continue;
-    }
-    redacted[key] = value;
+    if (!isSensitiveMetaKey(key)) redacted[key] = redactMeta(value);
   }
   return redacted;
 }
@@ -39,4 +40,4 @@ async function writeAudit(
   return result.rows[0].id;
 }
 
-module.exports = { writeAudit };
+module.exports = { writeAudit, redactMeta };

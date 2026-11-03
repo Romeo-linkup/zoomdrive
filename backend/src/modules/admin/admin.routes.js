@@ -16,6 +16,7 @@ const adminRequests = require('./adminRequests.controller');
 const adminPricing = require('./adminPricing.controller');
 const adminPayouts = require('./adminPayouts.controller');
 const adminAudit = require('./adminAudit.controller');
+const adminRevenue = require('./adminRevenue.controller');
 const requestTimeline = require('./requestTimeline.service');
 const accountDeletion = require('./accountDeletion.service');
 
@@ -72,8 +73,8 @@ function isIsoDate(value) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 const payoutExportQuery = z.object({
-  from: z.string().refine(isIsoDate, 'Enter a valid ISO date').optional(),
-  to: z.string().refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  from: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  to: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
 });
 const assignSchema = z.object({ providerId: z.number().int().positive() });
 const adminCancelSchema = z.object({
@@ -95,14 +96,33 @@ const deleteSchema = z.object({
 });
 
 const auditQuery = z.object({
-  actorType: z.enum(['user', 'admin', 'system']).optional(),
+  actorType: z.enum(['user', 'admin', 'system', 'anonymous']).optional(),
   actorId: z.string().max(40).optional(),
   action: z.string().max(80).optional(),
   entity: z.string().max(40).optional(),
   entityId: z.string().max(40).optional(),
   requestId: z.string().max(64).optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  from: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  to: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  kind: z.enum(['all', 'events', 'api', 'denied']).default('all'),
+  page,
+});
+const auditExportQuery = z.object({
+  actorType: z.enum(['user', 'admin', 'system', 'anonymous']).optional(),
+  actorId: z.string().max(40).optional(),
+  action: z.string().max(80).optional(),
+  entity: z.string().max(40).optional(),
+  from: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  to: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  kind: z.enum(['all', 'events', 'api', 'denied']).default('all'),
+});
+const revenueRangeQuery = z.object({
+  from: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+  to: z.string().max(40).refine(isIsoDate, 'Enter a valid ISO date').optional(),
+});
+const revenueTransactionsQuery = revenueRangeQuery.extend({
+  type: z.enum(['all', 'ride_payment', 'registration_fee', 'driver_plus', 'payout', 'adjustment']).default('all'),
+  q: z.string().trim().max(80).optional(),
   page,
 });
 
@@ -132,7 +152,7 @@ const serviceSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 
 const settingsSchema = z.object({
-  values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+  values: z.record(z.string().max(80), z.union([z.string(), z.number(), z.boolean()])),
 });
 const pricingChallengeSchema = z.object({
   password: z.string().min(1).max(200),
@@ -143,7 +163,7 @@ const pricingVerifySchema = z.object({
 }).strict();
 const pricingApplySchema = z.object({
   challengeId: z.string().uuid(),
-  changes: z.record(z.string(), z.union([z.number(), z.boolean()])),
+  changes: z.record(z.string().max(80), z.union([z.number(), z.boolean()])), 
 }).strict();
 
 function pricingLimiter(windowMs, limit, message) {
@@ -178,6 +198,12 @@ router.use(adminAuth);
 router.get('/auth/me', wrap(authCtl.me));
 router.get('/overview', wrap(overview.getOverview));
 
+router.get('/revenue/export', validate(revenueRangeQuery, 'query'), wrap(adminRevenue.exportCsv));
+router.get('/revenue/reconcile', wrap(adminRevenue.reconcile));
+router.get('/revenue/summary', validate(revenueRangeQuery, 'query'), wrap(adminRevenue.summary));
+router.get('/revenue/daily', validate(revenueRangeQuery, 'query'), wrap(adminRevenue.daily));
+router.get('/revenue/transactions', validate(revenueTransactionsQuery, 'query'), wrap(adminRevenue.transactions));
+
 router.get('/providers', validate(providerListQuery, 'query'), wrap(providers.listProviders));
 router.get('/providers/:userId', validate(userIdParams, 'params'), wrap(providers.getProvider));
 router.post('/providers/:userId/approve', validate(userIdParams, 'params'), wrap(providers.approve));
@@ -211,6 +237,7 @@ router.get('/requests/:id/timeline', validate(idParams, 'params'), wrap(async (r
   res.ok(timeline);
 }));
 
+router.get('/audit/export', validate(auditExportQuery, 'query'), wrap(adminAudit.exportCsv));
 router.get('/audit', validate(auditQuery, 'query'), wrap(adminAudit.list));
 
 router.get('/payouts', validate(payoutListQuery, 'query'), wrap(adminPayouts.list));

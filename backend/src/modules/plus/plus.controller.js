@@ -5,11 +5,11 @@ async function getState(req, res) {
 }
 
 async function join(req, res) {
-  res.ok(await plus.join(req.user.id));
+  res.ok(await plus.join(req.user.id, { requestId: req.id, ip: req.ip }));
 }
 
 async function pay(req, res) {
-  res.ok(await plus.startPay(req.user));
+  res.ok(await plus.startPay(req.user, { requestId: req.id, ip: req.ip }));
 }
 
 module.exports = { getState, join, pay };

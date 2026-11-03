@@ -45,7 +45,6 @@ async function send({ phone, code }) {
       message: 'BulkSMS delivery failed',
       meta: {
         status: response ? response.status : failureKind,
-        phoneLast4: String(phone || '').slice(-4),
       },
     });
     throw new ApiError('ZD-SMS-001');
