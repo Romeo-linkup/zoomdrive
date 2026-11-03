@@ -81,6 +81,7 @@ async function renderInbox(ctx, screen) {
             signal: ctx.signal,
           });
         } catch {
+          // Mark-read failures do not block opening the selected notification.
           if (!active || ctx.signal.aborted) return;
         }
         if (active) navigateFor(notification);

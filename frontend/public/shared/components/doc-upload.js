@@ -35,7 +35,7 @@ export function createDocUpload({ docType, label, onSelect }) {
     fileInput.value = '';
 
     if (onSelect) {
-      try { onSelect(file); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { onSelect(file); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     }
   });
 

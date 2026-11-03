@@ -46,7 +46,10 @@ export function loadLeaflet() {
         script.async = true;
         document.head.appendChild(script);
       }
-    }).catch(() => fail(false));
+    }).catch((error) => {
+      console.error('[ZD-ERR]', error);
+      fail(false);
+    });
   });
 
   return leafletPromise;

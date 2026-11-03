@@ -399,9 +399,13 @@ async function renderRequestDetail(ctx, screen) {
         input.style.position = 'fixed';
         input.style.left = '-9999px';
         document.body.appendChild(input);
-        input.select();
-        const copied = document.execCommand('copy');
-        input.remove();
+        let copied = false;
+        try {
+          input.select();
+          copied = document.execCommand('copy');
+        } finally {
+          input.remove();
+        }
         if (!copied) throw new Error('Clipboard copy was rejected');
       }
       if (active && !ctx.signal.aborted) toast('Timeline copied', 'ok');

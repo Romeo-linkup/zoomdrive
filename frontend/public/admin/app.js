@@ -1,5 +1,5 @@
 // admin/app.js
-import { initErrors } from '../shared/errors.js';
+import { initErrors, showError } from '../shared/errors.js';
 import { isAuthed, clearToken } from '../shared/auth.js';
 import { apiFetch } from '../shared/api.js';
 import { createRouter } from '../shared/router.js';
@@ -79,8 +79,9 @@ async function fetchAdmin() {
 }
 
 if (isAuthed()) {
-  fetchAdmin().catch(() => {
+  fetchAdmin().catch((err) => {
     admin = null;
+    showError(err);
   });
 }
 

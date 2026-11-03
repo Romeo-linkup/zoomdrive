@@ -13,7 +13,7 @@ function readToken() {
     if (t && typeof t === 'string') return t;
     return null;
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     return memoryToken;
   }
 }
@@ -30,7 +30,7 @@ function writeToken(t) {
       localStorage.removeItem(CONFIG.TOKEN_KEY);
     }
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     memoryToken = t || null;
   }
 }
@@ -92,7 +92,7 @@ export function setSession(payload) {
       return null;
     }
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
   session = s;
   dispatchSession();
@@ -130,7 +130,7 @@ export async function refreshMe() {
         return null;
       }
     } catch (e) {
-      try { console.debug(e); } catch (e2) {}
+      try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
     session = s;
     dispatchSession();
@@ -165,20 +165,20 @@ export async function logout() {
     try {
       await hook();
     } catch (e) {
-      try { console.debug(e); } catch (e2) {}
+      try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
   }
   try {
     await apiFetch('/auth/logout', { method: 'POST', auth: true });
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
   session = null;
   clearToken();
   try {
     location.hash = '#/welcome';
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }
 
@@ -189,7 +189,7 @@ if (typeof window !== 'undefined') {
     try {
       location.hash = '#/welcome';
     } catch (e) {
-      try { console.debug(e); } catch (e2) {}
+      try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
   });
 }

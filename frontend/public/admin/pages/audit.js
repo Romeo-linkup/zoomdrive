@@ -82,7 +82,8 @@ async function renderAudit(ctx, screen) {
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    ctx.navigate('/audit?' + buildQuery(fields, 1).toString());
+    const query = buildQuery(fields, 1).toString();
+    ctx.navigate('/audit' + (query ? '?' + query : ''));
   });
   reset.addEventListener('click', () => ctx.navigate('/audit'));
 
@@ -238,11 +239,12 @@ function showMeta(ctx, entry) {
   });
   document.addEventListener('keydown', onKeyDown);
   ctx.signal.addEventListener('abort', close, { once: true });
-  closeButton.focus();
+  if (ctx.signal.aborted) close();
+  else closeButton.focus();
 }
 
 function sanitizeMeta(value, key = '') {
-  if (/phone|comment|bank|account|card|secret|token|password|credential/i.test(key)) {
+  if (/phone|comment|note|reason|body|message|description|bank|account|card|secret|token|password|credential/i.test(key)) {
     return '[redacted]';
   }
   if (Array.isArray(value)) return value.map((item) => sanitizeMeta(item));

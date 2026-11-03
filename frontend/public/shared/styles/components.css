@@ -1,6 +1,7 @@
 /* Tap targets: every interactive control is at least 44px tall (check rule 10). */
-button,.btn,.tile,.chip,.item,.opt,.doc,.nav-item{min-height:var(--tap)}
+button,.btn,.tile,.chip,.item,.opt,.doc,.nav-item{min-height:var(--tap);min-width:var(--tap)}
 button{font-family:inherit;cursor:pointer}
+input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}
 
 /* Top bar */
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 20px 6px;min-height:56px}
@@ -136,7 +137,7 @@ button{font-family:inherit;cursor:pointer}
 .empty{text-align:center;padding:40px 16px;color:var(--mu)}
 .empty .ico{font-size:44px;display:block;margin-bottom:8px}
 .avatar-lg{width:84px;height:84px;font-size:28px}
-.link-btn{background:none;border:0;color:var(--blue);font-weight:700;font-size:14px;padding:0 4px}
+.link-btn{background:none;border:0;color:var(--blue);font-weight:700;font-size:14px;padding:0 4px;min-height:var(--tap);min-width:var(--tap)}
 
 /* P9 map and loading states */
 .zd-map{height:230px;border-radius:var(--r-lg);overflow:hidden;position:relative;z-index:1;background:var(--soft)}
@@ -208,6 +209,7 @@ button{font-family:inherit;cursor:pointer}
 .admin-timeline-list{list-style:none;padding:0;margin:12px 0 0}
 .admin-timeline-list li{display:grid;grid-template-columns:minmax(135px,auto) auto minmax(100px,1fr) minmax(100px,1fr);align-items:start;gap:8px;padding:12px 0;border-top:1px solid var(--line);font-size:13px}
 .admin-timeline-list time,.admin-timeline-detail{color:var(--mu)}
+.admin-timeline-detail{grid-column:1/-1}
 .admin-timeline-source{justify-self:start}
 .admin-user-reason{display:block;color:var(--mu);font-size:12px;margin-top:4px}
 .admin-user-actions{min-width:150px}
@@ -219,3 +221,8 @@ button{font-family:inherit;cursor:pointer}
   .admin-audit-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
   .admin-timeline-list li{grid-template-columns:1fr 1fr}
 }
+
+pre,code{max-width:100%;overflow-x:auto}
+.table-wrap{max-width:100%;overflow-x:auto}
+.update-toast{display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:auto}
+.update-toast button{min-width:var(--tap);min-height:var(--tap);border:0;border-radius:10px;padding:8px 12px;background:var(--am);color:var(--tx);font-weight:800}

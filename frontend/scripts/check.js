@@ -172,8 +172,8 @@ function rule10TapTarget() {
   }
 }
 
-// Rule 11: PWA - manifests, icons, service workers
-function rule11Pwa() {
+// Rule 14: PWA - manifests, icons, service workers
+function rule14Pwa() {
   const driverManifest = path.join(publicDir, 'driver/manifest.webmanifest');
   const providerManifest = path.join(publicDir, 'provider/manifest.webmanifest');
   const driverSw = path.join(publicDir, 'driver/sw.js');
@@ -249,8 +249,8 @@ function rule11Pwa() {
   }
 }
 
-// Rule 12: NOFETCH - flag any use of fetch( except in api.js and sw.js
-function rule12NoFetch() {
+// Rule 15: NOFETCH - flag any use of fetch( except in api.js and sw.js
+function rule15NoFetch() {
   walkDir(publicDir, (file) => {
     if (file.endsWith('.js') && !file.endsWith('api.js') && !file.endsWith('sw.js')) {
       const content = fs.readFileSync(file, 'utf8');
@@ -264,6 +264,61 @@ function rule12NoFetch() {
   });
 }
 
+// Rule 11: no empty catch blocks; comment-only bodies are allowed.
+function rule11NoEmptyCatch() {
+  const patterns = [
+    /\bcatch\s*(?:\([^)]*\))?\s*\{\s*\}/g,
+    /\.catch\s*\(\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*\{\s*\}\s*\)/g,
+  ];
+  const roots = [publicDir, path.join(frontendDir, 'scripts')];
+  roots.forEach((root) => walkDir(root, (file) => {
+    if (!file.endsWith('.js')) return;
+    const content = fs.readFileSync(file, 'utf8');
+    patterns.forEach((pattern) => {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        const line = content.slice(0, match.index).split('\n').length;
+        addProblem(file, line, 'NOEMPTYCATCH', 'empty catch block');
+      }
+    });
+  }));
+}
+
+// Rule 12: no inline event handler attributes in HTML or markup templates.
+function rule12NoInlineHandlers() {
+  const inlineHandlerAllowlist = [];
+  walkDir(publicDir, (file) => {
+    if (!file.endsWith('.html') && !file.endsWith('.js')) return;
+    const content = fs.readFileSync(file, 'utf8');
+    if (file.endsWith('.js') && !/(?:innerHTML|outerHTML|insertAdjacentHTML)/.test(content)) return;
+    if (inlineHandlerAllowlist.some((allowed) => file.endsWith(allowed))) return;
+    const lines = content.split('\n');
+    lines.forEach((line, index) => {
+      if (/\bon(?:click|change|submit)\s*=/i.test(line)) {
+        addProblem(file, index + 1, 'INLINEHANDLER', 'inline event handler attribute');
+      }
+    });
+  });
+}
+
+// Rule 13: deployment headers include a CSP that forbids framing.
+function rule13CspHeaders() {
+  const file = path.join(frontendDir, 'vercel.json');
+  if (!fs.existsSync(file)) {
+    addProblem(file, 1, 'CSP', 'vercel.json is missing');
+    return;
+  }
+  const content = fs.readFileSync(file, 'utf8');
+  const lines = content.split('\n');
+  const cspLine = lines.findIndex((line) => line.includes('Content-Security-Policy'));
+  if (cspLine === -1) addProblem(file, 1, 'CSP', 'Content-Security-Policy header is missing');
+  const frameLine = lines.findIndex((line) => line.includes("frame-ancestors 'none'"));
+  if (frameLine === -1) {
+    addProblem(file, cspLine === -1 ? 1 : cspLine + 1, 'CSP', "frame-ancestors 'none' is missing");
+  }
+}
+
 // Run all rules
 rule1Syntax();
 rule2Empty();
@@ -272,8 +327,11 @@ rule5Secrets();
 rule6ApiResult();
 rule7InnerHtml();
 rule10TapTarget();
-rule11Pwa();
-rule12NoFetch();
+rule11NoEmptyCatch();
+rule12NoInlineHandlers();
+rule13CspHeaders();
+rule14Pwa();
+rule15NoFetch();
 
 if (problems.length > 0) {
   problems.forEach(p => console.log(p));

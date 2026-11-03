@@ -75,13 +75,13 @@ export async function apiFetch(path, { method = 'GET', body, auth = true, timeou
     } catch (e) {
       const ms = Date.now() - start;
       if (CONFIG && CONFIG.ZD_DEBUG) {
-        try { console.debug('[ZD-API]', method, path, 0, ms); } catch (e2) {}
+        try { console.debug('[ZD-API]', method, path, 0, ms); } catch (e2) { /* Optional debug output can be skipped. */ }
       }
       throw new ApiError({ code: 'ZD-NET-003', message: 'The server sent an unexpected response.', status: 0 });
     }
     const ms = Date.now() - start;
     if (CONFIG && CONFIG.ZD_DEBUG) {
-      try { console.debug('[ZD-API]', method, path, res.status, ms); } catch (e2) {}
+      try { console.debug('[ZD-API]', method, path, res.status, ms); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
     if (json && json.ok) {
       return json.data;
@@ -98,18 +98,18 @@ export async function apiFetch(path, { method = 'GET', body, auth = true, timeou
     try {
       window.dispatchEvent(new CustomEvent('zd:apierror', { detail: apiErr }));
     } catch (e) {
-      try { console.debug(e); } catch (e2) {}
+      try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
     if (res.status === 401 && auth && apiErr.code === 'ZD-AUTH-001') {
-      try { if (clearToken) clearToken(); } catch (e) {}
-      try { window.dispatchEvent(new CustomEvent('zd:unauthorized')); } catch (e) {}
+      try { if (clearToken) clearToken(); } catch (e) { /* Session cleanup is best-effort. */ }
+      try { window.dispatchEvent(new CustomEvent('zd:unauthorized')); } catch (e) { /* The auth event is optional. */ }
     }
     throw apiErr;
   } catch (e) {
     if (e instanceof ApiError) throw e;
     if (timeoutId) clearTimeout(timeoutId);
     if (signal) {
-      try { signal.removeEventListener('abort', onAbort); } catch (e2) {}
+      try { signal.removeEventListener('abort', onAbort); } catch (e2) { /* Listener cleanup is best-effort. */ }
     }
     // check if aborted by timeout
     if (e && e.name === 'AbortError') {
@@ -122,7 +122,7 @@ export async function apiFetch(path, { method = 'GET', body, auth = true, timeou
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
     if (signal) {
-      try { signal.removeEventListener('abort', onAbort); } catch (e2) {}
+      try { signal.removeEventListener('abort', onAbort); } catch (e2) { /* Listener cleanup is best-effort. */ }
     }
   }
 }

@@ -12,6 +12,7 @@ let heartbeatTimer = null;
 let backgroundTimer = null;
 let heartbeatController = null;
 let offlineMessage = '';
+let heartbeatFailures = 0;
 
 function notify() {
   const state = {
@@ -23,7 +24,7 @@ function notify() {
     try {
       callback(state);
     } catch (err) {
-      try { console.debug(err); } catch (e) {}
+      try { console.debug(err); } catch (e) { /* Optional debug output can be skipped. */ }
     }
   });
 }
@@ -66,6 +67,11 @@ async function sendHeartbeat() {
       signal: controller.signal,
     });
     if (!online || controller.signal.aborted) return;
+    heartbeatFailures = 0;
+    if (offlineMessage === 'Connection problem. Retrying…') {
+      offlineMessage = '';
+      notify();
+    }
     lastPosition = { lat: position.lat, lng: position.lng };
     if (data.isOnline === false) {
       await stopOnline({ notifyServer: false });
@@ -73,7 +79,12 @@ async function sendHeartbeat() {
     }
   } catch (err) {
     if (online && !controller.signal.aborted) {
-      try { console.debug(err); } catch (e) {}
+      heartbeatFailures += 1;
+      console.error('[ZD-ERR]', err);
+      if (heartbeatFailures >= 3) {
+        offlineMessage = 'Connection problem. Retrying…';
+        notify();
+      }
     }
   } finally {
     if (heartbeatController === controller) heartbeatController = null;
@@ -86,6 +97,7 @@ export function startOnline(position) {
     lastPosition = { lat: Number(position.lat), lng: Number(position.lng) };
   }
   online = true;
+  heartbeatFailures = 0;
   offlineMessage = '';
   clearTimers();
   notify();
@@ -110,7 +122,7 @@ export async function stopOnline({ notifyServer = false, message = '' } = {}) {
         body: { online: false },
       });
     } catch (err) {
-      try { console.debug(err); } catch (e) {}
+      console.error('[ZD-ERR]', err);
     }
   }
 }
@@ -153,7 +165,7 @@ export function onChange(callback) {
       message: offlineMessage,
     });
   } catch (err) {
-    try { console.debug(err); } catch (e) {}
+    try { console.debug(err); } catch (e) { /* Optional debug output can be skipped. */ }
   }
   return () => listeners.delete(callback);
 }

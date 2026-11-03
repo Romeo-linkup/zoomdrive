@@ -66,8 +66,8 @@ async function renderUsers(ctx, screen) {
   let total = 0;
   const pageSize = 25;
 
-  async function load() {
-    clearError();
+  async function load(clearPreviousError = true) {
+    if (clearPreviousError) clearError();
     const params = new URLSearchParams();
     if (roleSelect.value !== 'all') params.set('role', roleSelect.value);
     params.set('status', statusSelect.value);
@@ -122,7 +122,7 @@ async function renderUsers(ctx, screen) {
         statusCell.appendChild(el('span', { class: statusClass },
           user.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : 'Unknown'));
         if (user.status === 'suspended' && user.suspendedReason) {
-          statusCell.appendChild(el('small', { class: 'admin-user-reason' }, user.suspendedReason));
+          statusCell.appendChild(el('small', { class: 'admin-user-reason' }, redactPhoneNumbers(user.suspendedReason)));
         }
         if (user.status === 'deleted' && user.deletedAt) {
           statusCell.appendChild(el('small', { class: 'admin-user-reason' }, 'Deleted ' + formatDate(user.deletedAt, 'date')));
@@ -236,7 +236,10 @@ async function renderUsers(ctx, screen) {
         body,
         signal: ctx.signal,
       });
-      if (!ctx.signal.aborted) toast(successMessage, 'ok');
+      if (!ctx.signal.aborted) {
+        clearError();
+        toast(successMessage, 'ok');
+      }
     } catch (err) {
       if (!ctx.signal.aborted) {
         if (err.code === 'ZD-ADM-009') {
@@ -246,7 +249,7 @@ async function renderUsers(ctx, screen) {
         }
       }
     }
-    if (!ctx.signal.aborted) await load();
+    if (!ctx.signal.aborted) await load(false);
   }
 
   roleSelect.addEventListener('change', () => {
@@ -281,8 +284,8 @@ function reasonDialog(ctx, { title, explanation = '', confirmLabel, requireDelet
 
     const reason = el('textarea', {
       rows: 4,
-      maxLength: 300,
-      attrs: { maxlength: '300', placeholder: 'Reason (at least 3 characters)', 'aria-label': 'Reason' },
+      maxLength: 200,
+      attrs: { maxlength: '200', placeholder: 'Reason (at least 3 characters)', 'aria-label': 'Reason' },
     });
     dialog.appendChild(el('div', { class: 'field' }, el('label', {}, 'Reason'), reason));
 
@@ -341,7 +344,8 @@ function reasonDialog(ctx, { title, explanation = '', confirmLabel, requireDelet
     document.addEventListener('keydown', onKeyDown);
     ctx.signal.addEventListener('abort', onAbort, { once: true });
     updateConfirm();
-    reason.focus();
+    if (ctx.signal.aborted) onAbort();
+    else reason.focus();
   });
 }
 
@@ -383,7 +387,8 @@ function confirmDialog(ctx, { title, explanation, confirmLabel }) {
     });
     document.addEventListener('keydown', onKeyDown);
     ctx.signal.addEventListener('abort', onAbort, { once: true });
-    confirm.focus();
+    if (ctx.signal.aborted) onAbort();
+    else confirm.focus();
   });
 }
 
@@ -391,4 +396,8 @@ function emptyRow(columns, message) {
   const row = el('tr');
   row.appendChild(el('td', { attrs: { colspan: columns } }, message));
   return row;
+}
+
+function redactPhoneNumbers(value) {
+  return String(value).replace(/(?:\+?27[\s().-]?\d{2}[\s().-]?\d{3}[\s().-]?\d{4}|0\d{9})/g, '[redacted]');
 }

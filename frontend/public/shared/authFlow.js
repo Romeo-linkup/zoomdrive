@@ -43,7 +43,7 @@ export function savePending({ phone, devCode }) {
     const data = JSON.stringify({ phone, devCode, time: Date.now() });
     sessionStorage.setItem(key, data);
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }
 
@@ -56,7 +56,7 @@ export function getPending() {
     if (data && data.phone) return data;
     return null;
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     return null;
   }
 }
@@ -66,7 +66,7 @@ export function clearPending() {
     const key = 'zd_pending_' + APP_ID;
     sessionStorage.removeItem(key);
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }
 

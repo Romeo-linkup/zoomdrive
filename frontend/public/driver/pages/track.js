@@ -333,6 +333,7 @@ function renderTrack(ctx) {
       await applyRequest(data.request);
     } catch (err) {
       if (!active || ctx.signal.aborted) return;
+      console.error('[ZD-ERR]', err);
       if (isNotFound(err)) {
         stopPolling();
         showRequestError(screen, err, ctx.navigate);

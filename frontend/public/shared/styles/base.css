@@ -1,9 +1,9 @@
 *{box-sizing:border-box;margin:0;font-family:var(--font);-webkit-tap-highlight-color:transparent}
 html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
-body{background:#eceef1;color:var(--tx);display:flex;justify-content:center;min-height:100vh}
+body{background:#eceef1;color:var(--tx);display:flex;justify-content:center;min-height:100vh;min-height:100dvh}
 
 /* App column: mobile first, centred on desktop (no device frame). */
-.app{width:100%;max-width:480px;min-height:100vh;background:var(--bg);position:relative;
+.app{width:100%;max-width:480px;min-height:100vh;min-height:100dvh;background:var(--bg);position:relative;
   padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 .app.no-nav{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 

@@ -438,6 +438,7 @@ async function renderJob(ctx) {
       }
     } catch (err) {
       if (!active || ctx.signal.aborted) return;
+      console.error('[ZD-ERR]', err);
       if (!requestError(err)) showError(err);
     } finally {
       inFlight = false;

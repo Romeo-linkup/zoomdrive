@@ -23,10 +23,10 @@ export function initErrors() {
       if (!(err instanceof Error)) {
         err = { code: 'ZD-UI-001', message: 'Something went wrong. Please try again.' };
       }
-      try { console.error('[ZD-ERR]', err); } catch (e) {}
-      try { showError(err); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { console.error('[ZD-ERR]', err); } catch (e) { /* Error reporting must not interrupt the UI. */ }
+      try { showError(err); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     } catch (e) {
-      try { console.debug(e); } catch (e2) {}
+      try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
   });
   window.addEventListener('unhandledrejection', (event) => {
@@ -37,10 +37,10 @@ export function initErrors() {
       if (!(err instanceof Error) && typeof err !== 'object') {
         err = { code: 'ZD-UI-001', message: 'Something went wrong. Please try again.' };
       }
-      try { console.error('[ZD-ERR]', err); } catch (e) {}
-      try { showError(err); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { console.error('[ZD-ERR]', err); } catch (e) { /* Error reporting must not interrupt the UI. */ }
+      try { showError(err); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     } catch (e) {
-      try { console.debug(e); } catch (e2) {}
+      try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     }
   });
 }
@@ -88,7 +88,7 @@ export function showError(err) {
     const actions = el('div', { class: 'actions' });
     const btnCopy = el('button', { type: 'button' }, 'Copy details');
     btnCopy.addEventListener('click', () => {
-      try { copyDetails(err); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { copyDetails(err); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     });
     const btnDismiss = el('button', { type: 'button' }, 'Dismiss');
     btnDismiss.addEventListener('click', () => {
@@ -98,9 +98,9 @@ export function showError(err) {
     actions.appendChild(btnDismiss);
     banner.appendChild(actions);
     root.appendChild(banner);
-    try { highlightField(err); } catch (e) { try { console.debug(e); } catch (e2) {} }
+    try { highlightField(err); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }
 
@@ -113,7 +113,7 @@ export function clearError() {
       existing.parentNode.removeChild(existing);
     }
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }
 
@@ -123,7 +123,7 @@ export function copyDetails(err) {
   try {
     if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
       navigator.clipboard.writeText(text).then(() => {
-        try { toast('Details copied', 'ok'); } catch (e) {}
+        try { toast('Details copied', 'ok'); } catch (e) { /* Copy success feedback is optional. */ }
       }).catch(() => {
         fallbackCopy(text);
       });
@@ -147,11 +147,11 @@ function fallbackCopy(text) {
       document.execCommand('copy');
       toast('Details copied', 'ok');
     } catch (e) {
-      try { toast('Failed to copy', 'error'); } catch (e2) {}
+      try { toast('Failed to copy', 'error'); } catch (e2) { /* Error feedback is optional. */ }
     }
     if (ta.parentNode) ta.parentNode.removeChild(ta);
   } catch (e) {
-    try { toast('Failed to copy', 'error'); } catch (e2) {}
+    try { toast('Failed to copy', 'error'); } catch (e2) { /* Error feedback is optional. */ }
   }
 }
 
@@ -179,10 +179,10 @@ export function highlightField(err, root = document) {
       }
     }
     fe.textContent = err.message || '';
-    try { elField.focus(); } catch (e) {}
+    try { elField.focus(); } catch (e) { /* Focusing a field is best-effort. */ }
     return true;
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
     return false;
   }
 }
@@ -194,7 +194,7 @@ export function clearFieldErrors(root = document) {
     const errs = root.querySelectorAll('.field-error');
     errs.forEach((e) => { if (e.parentNode) e.parentNode.removeChild(e); });
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }
 
@@ -214,18 +214,18 @@ export function renderPageError(container, err, retry) {
     const btnRetry = el('button', { class: 'btn', type: 'button' }, 'Try again');
     if (typeof retry === 'function') {
       btnRetry.addEventListener('click', () => {
-        try { retry(); } catch (e) { try { console.debug(e); } catch (e2) {} }
+        try { retry(); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
       });
     }
     const btnCopy = el('button', { class: 'btn soft', type: 'button' }, 'Copy details');
     btnCopy.addEventListener('click', () => {
-      try { copyDetails(err); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { copyDetails(err); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     });
     actions.appendChild(btnRetry);
     actions.appendChild(btnCopy);
     card.appendChild(actions);
     container.appendChild(card);
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
 }

@@ -192,6 +192,7 @@ function renderSearching(ctx) {
       if (!countdownTimer) renderCountdown();
     } catch (err) {
       if (!active || ctx.signal.aborted) return;
+      console.error('[ZD-ERR]', err);
       if (isNotFound(err)) {
         stopPolling();
         showRequestError(screen, err, ctx.navigate);

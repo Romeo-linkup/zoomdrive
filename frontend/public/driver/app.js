@@ -1,6 +1,6 @@
 // driver/app.js
 import { APP_ID } from '../shared/config.js';
-import { initErrors } from '../shared/errors.js';
+import { initErrors, showError } from '../shared/errors.js';
 import { registerServiceWorker, initInstallPrompt, initOfflineNotice } from '../shared/pwa.js';
 import { isAuthed, refreshMe, getSession } from '../shared/auth.js';
 import { createRouter } from '../shared/router.js';
@@ -29,7 +29,8 @@ if (rideReference) {
 }
 
 if (isAuthed()) {
-  refreshMe().catch(() => {
+  refreshMe().catch((err) => {
+    showError(err);
     location.hash = '#/welcome';
   });
 }

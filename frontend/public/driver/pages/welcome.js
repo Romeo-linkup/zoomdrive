@@ -3,6 +3,7 @@ import { el } from '../../shared/ui.js';
 import { CONFIG, APP_ID } from '../../shared/config.js';
 import { apiFetch } from '../../shared/api.js';
 import { showError } from '../../shared/errors.js';
+import { createInstallControl } from '../../shared/pwa.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
 
 export default (ctx) => {
@@ -20,6 +21,9 @@ export default (ctx) => {
   const loginBtn = el('button', { class: 'btn soft', type: 'button' }, 'Log in');
   loginBtn.addEventListener('click', () => ctx.navigate('/phone?mode=login'));
   screen.appendChild(loginBtn);
+
+  const install = createInstallControl(ctx);
+  if (install) screen.appendChild(install);
 
   const guestLink = el('button', { class: 'link-btn', type: 'button' }, 'Just looking?');
   guestLink.addEventListener('click', () => ctx.navigate('/home'));

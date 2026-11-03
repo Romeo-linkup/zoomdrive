@@ -7,7 +7,7 @@
 .admin-top .brand{font-weight:900;font-size:18px;letter-spacing:-.4px}
 .admin-top .brand b{background:var(--am);padding:0 6px;border-radius:7px;margin-left:4px}
 .admin-tabs{display:flex;gap:4px;flex-wrap:wrap;flex:1}
-.admin-tabs a{display:inline-flex;align-items:center;min-height:var(--tap);padding:0 14px;border-radius:12px;color:var(--mu);font-weight:700;font-size:14px;text-decoration:none}
+.admin-tabs a{display:inline-flex;align-items:center;min-height:var(--tap);min-width:var(--tap);padding:0 14px;border-radius:12px;color:var(--mu);font-weight:700;font-size:14px;text-decoration:none}
 .admin-tabs a.on{background:#111;color:#fff}
 .admin-who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mu)}
 
@@ -15,8 +15,8 @@
 .page-head h1{margin:0;font-size:26px}
 
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}
-.filters select,.filters input{background:var(--soft);border:0;border-radius:12px;padding:12px 14px;font-size:15px;min-height:var(--tap);color:var(--tx)}
-.filters input{flex:1;min-width:180px}
+.filters select,.filters input{background:var(--soft);border:0;border-radius:12px;padding:12px 14px;font-size:16px;min-height:var(--tap);color:var(--tx);max-width:100%}
+.filters input{flex:1;min-width:0}
 
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px}
 table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
@@ -42,6 +42,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
 .kv dd{margin:0;font-weight:600;word-break:break-word}
 .cols{display:grid;grid-template-columns:1fr;gap:12px}
 @media (min-width:860px){.cols{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.kv{grid-template-columns:minmax(0,1fr);gap:4px}}
 
 .docs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 .doc-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff}
@@ -54,13 +55,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
 .action-bar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
 .action-bar .btn{width:auto;margin:0;padding:14px 22px}
 
-.svc-table input[type=text],.svc-table input[type=number]{width:100%;max-width:140px;background:var(--soft);border:0;border-radius:10px;padding:10px;font-size:14px;min-height:var(--tap)}
+.svc-table input[type=text],.svc-table input[type=number]{width:100%;max-width:140px;background:var(--soft);border:0;border-radius:10px;padding:10px;font-size:16px;min-height:var(--tap)}
 .svc-table input[type=checkbox]{width:22px;height:22px;accent-color:#111}
 .svc-table .btn{width:auto;margin:0;padding:10px 16px;font-size:14px}
 
 .settings-form{max-width:640px}
 .settings-form .field small{display:block;color:var(--mu);margin-top:4px;font-size:12px}
-.modal textarea{width:100%;min-height:96px;background:var(--soft);border:0;border-radius:12px;padding:12px;font-size:15px;margin:8px 0;color:var(--tx);font-family:inherit}
+.modal textarea{width:100%;min-height:96px;background:var(--soft);border:0;border-radius:12px;padding:12px;font-size:16px;margin:8px 0;color:var(--tx);font-family:inherit}
 .login-box{max-width:420px;margin:60px auto}
 
 /* S1 additions */
@@ -71,12 +72,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
 .banner{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;font-size:14px}
 .banner.bad{border-color:var(--bad);background:#fff5f5;color:var(--bad)}
 .banner.warn{border-color:var(--am);background:#fffaf0;color:#b87a00}
-.link-btn{background:none;border:0;padding:0;color:var(--blue);font-size:14px;text-decoration:underline;cursor:pointer;font-family:inherit}
+.link-btn{background:none;border:0;padding:0;color:var(--blue);font-size:14px;text-decoration:underline;cursor:pointer;font-family:inherit;min-height:var(--tap);min-width:var(--tap)}
 .admin-money-positive{color:var(--ok);font-weight:800}
 .admin-money-negative{color:var(--amd);font-weight:800}
 .admin-company-name,.admin-inline-marker{display:block;margin-top:4px;color:var(--mu);font-size:12px}
 .admin-export-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin-top:8px}
-.admin-export-controls input{min-width:140px;flex:1}
+.admin-export-controls input{min-width:0;flex:1}
 .admin-export-controls .btn,.admin-filter{width:auto;margin:0;padding:10px 14px;font-size:14px}
 .admin-filter.on{background:#111;color:#fff}
 .admin-bank-card{max-width:760px}

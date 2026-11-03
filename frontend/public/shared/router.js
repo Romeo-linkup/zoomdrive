@@ -18,7 +18,7 @@ export function consumeNext(fallback = '/home') {
       }
     }
   } catch (e) {
-    try { console.debug(e); } catch (e2) {}
+    try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
   }
   return fallback;
 }
@@ -45,7 +45,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
           query[key] = value;
         }
       } catch (e) {
-        try { console.debug(e); } catch (e2) {}
+        try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
       }
     }
     return { path, params: {}, query };
@@ -78,11 +78,11 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
 
   function cleanup() {
     leaveCallbacks.forEach(fn => {
-      try { fn(); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { fn(); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     });
     leaveCallbacks = [];
     if (currentController) {
-      try { currentController.abort(); } catch (e) {}
+      try { currentController.abort(); } catch (e) { /* Abort cleanup is best-effort. */ }
       currentController = null;
     }
   }
@@ -101,7 +101,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
   async function processRoute(path, query, replace = false) {
     redirectCount++;
     if (redirectCount > MAX_REDIRECTS) {
-      try { console.debug('Too many redirects'); } catch (e) {}
+      try { console.debug('Too many redirects'); } catch (e) { /* Optional debug output can be skipped. */ }
       return;
     }
 
@@ -146,7 +146,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
           return;
         }
       } catch (e) {
-        try { console.debug(e); } catch (e2) {}
+        try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
       }
     }
 
@@ -176,14 +176,14 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
       }
 
       window.scrollTo(0, 0);
-      try { mount.focus(); } catch (e) {}
+      try { mount.focus(); } catch (e) { /* Focus restoration is best-effort. */ }
 
       if (route.title) {
         document.title = String(route.title);
       }
 
       if (route.nav && navRoot && renderNav) {
-        try { renderNav(route, ctx); } catch (e) { try { console.debug(e); } catch (e2) {} }
+        try { renderNav(route, ctx); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
       } else if (navRoot) {
         clear(navRoot);
       }
@@ -198,7 +198,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
       }
 
       if (onRouteChange) {
-        try { onRouteChange(route, ctx); } catch (e) { try { console.debug(e); } catch (e2) {} }
+        try { onRouteChange(route, ctx); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
       }
     } catch (err) {
       clear(mount);

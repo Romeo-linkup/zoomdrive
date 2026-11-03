@@ -29,7 +29,7 @@ const navRoot = document.getElementById('nav-root');
 const router = createRouter({
   routes: {
     '/welcome': {
-      render: async () => {
+      render: async (ctx) => {
         const screen = el('div', { class: 'screen' });
         screen.appendChild(createBrandBar(APP_ID));
         const logo = el('img', { class: 'landing-logo', attrs: { src: '/brand/logo.svg', alt: 'ZoomDrive' } });
@@ -58,7 +58,7 @@ const router = createRouter({
           }
         }
 
-        const install = createInstallControl();
+        const install = createInstallControl(ctx);
         if (install) screen.appendChild(install);
         screen.appendChild(el('p', { class: 'mu' }, 'App version ' + CONFIG.APP_VERSION));
         return screen;

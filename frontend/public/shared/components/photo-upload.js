@@ -36,7 +36,7 @@ export function createPhotoUpload({ required = false, initialUrl = null, label =
     }
 
     if (currentObjectUrl) {
-      try { URL.revokeObjectURL(currentObjectUrl); } catch (e) {}
+      try { URL.revokeObjectURL(currentObjectUrl); } catch (e) { /* Releasing a preview URL is best-effort. */ }
     }
 
     currentFile = file;
@@ -48,7 +48,7 @@ export function createPhotoUpload({ required = false, initialUrl = null, label =
     fileInput.value = '';
 
     if (onChange) {
-      try { onChange(file); } catch (e) { try { console.debug(e); } catch (e2) {} }
+      try { onChange(file); } catch (e) { try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ } }
     }
   });
 
@@ -72,7 +72,7 @@ export function createPhotoUpload({ required = false, initialUrl = null, label =
     },
     setUrl(url) {
       if (currentObjectUrl) {
-        try { URL.revokeObjectURL(currentObjectUrl); } catch (e) {}
+        try { URL.revokeObjectURL(currentObjectUrl); } catch (e) { /* Releasing a preview URL is best-effort. */ }
         currentObjectUrl = null;
       }
       currentUrl = url;

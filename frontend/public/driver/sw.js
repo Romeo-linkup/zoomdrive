@@ -1,7 +1,7 @@
 // ZoomDrive driver service worker. Scope: /driver/
 // Never touches API calls (they live on another origin and must always hit the network).
 const APP = 'driver';
-const VERSION = 'zd-' + APP + '-v1';
+const VERSION = 'zd-' + APP + '-v2';
 const SHELL = [
   '/' + APP + '/',
   '/' + APP + '/app.js',
@@ -21,7 +21,7 @@ self.addEventListener('install', (event) => {
 
 // An updated worker waits until the page asks it to take over (update toast arrives in Phase 13).
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
           if (hit) return hit;
           if (req.mode === 'navigate') {
             return caches.match('/' + APP + '/').then((shell) =>
-              shell || new Response('<h1>You are offline</h1><p>Reconnect and try again.</p>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+              shell || new Response('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Offline</title><body style="font-family:system-ui,sans-serif;padding:24px"><div role="status">You are offline. Some features will not work.</div></body></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
             );
           }
           return new Response('', { status: 504 });
