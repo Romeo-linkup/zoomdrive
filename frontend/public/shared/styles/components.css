@@ -10,7 +10,7 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}
 .logo{font-weight:900;font-size:21px;letter-spacing:-.5px}
 .logo b{background:var(--am);padding:0 5px;border-radius:7px;margin-left:2px}
 .brand-img{display:block;height:34px;width:auto}
-.landing-logo{display:block;width:100%;max-width:320px;margin:28px auto 8px}
+.landing-logo{display:block;width:100%;max-width:100%;height:auto;margin:28px auto 8px}
 
 /* Buttons (also used on <a>) */
 .btn{display:flex;align-items:center;justify-content:center;width:100%;border:0;border-radius:var(--r-md);
@@ -273,3 +273,7 @@ pre,code{max-width:100%;overflow-x:auto}
 .table-wrap{max-width:100%;overflow-x:auto}
 .update-toast{display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:auto}
 .update-toast button{min-width:var(--tap);min-height:var(--tap);border:0;border-radius:10px;padding:8px 12px;background:var(--am);color:var(--tx);font-weight:800}
+
+.landing-wrap{width:100%;max-width:var(--form-max);margin-inline:auto;padding-inline:var(--pad);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.landing-actions .btn{white-space:nowrap}
+
