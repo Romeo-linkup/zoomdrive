@@ -36,7 +36,7 @@ function renderAdminHeader(path) {
 
   for (const tab of tabLinks) {
     const isOn = path.startsWith(tab.path);
-    const a = el('a', { href: '#/' + tab.path, class: isOn ? 'on' : '' }, tab.label);
+    const a = el('a', { href: '#' + tab.path, class: isOn ? 'on' : '' }, tab.label);
     tabs.appendChild(a);
   }
   header.appendChild(tabs);
