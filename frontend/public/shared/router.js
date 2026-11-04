@@ -27,6 +27,7 @@ export function consumeNext(fallback = '/home') {
 
 export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, navRoot, renderNav, onRouteChange }) {
   let currentPath = '';
+  let currentParams = {};
   let currentController = null;
   let leaveCallbacks = [];
   let redirectCount = 0;
@@ -111,10 +112,6 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
       return;
     }
 
-    cleanup();
-    clearError();
-    clearFieldErrors(mount);
-
     const matched = matchRoute(path);
     if (!matched) {
       navigate(defaultRoute, { replace: true });
@@ -122,6 +119,14 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
     }
 
     const { route, params } = matched;
+
+    if (currentPath === path && JSON.stringify(currentParams) === JSON.stringify(params)) {
+      return;
+    }
+
+    cleanup();
+    clearError();
+    clearFieldErrors(mount);
 
     if (route.auth && !isAuthed()) {
       const currentPathAndQuery = path + (Object.keys(query).length ? '?' + new URLSearchParams(query).toString() : '');
@@ -162,6 +167,7 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
     }
 
     currentPath = path;
+    currentParams = params;
 
     try {
       clear(mount);

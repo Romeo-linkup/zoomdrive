@@ -19,6 +19,18 @@ export default function render(ctx) {
   }
 }
 
+const draft = {
+  firstName: '',
+  lastName: '',
+  phone: '',
+  vehicleMake: '',
+  vehicleModel: '',
+  vehicleColour: '',
+  plate: '',
+  hailPlatform: null,
+  consentChecked: false,
+};
+
 function renderProfileSetup(ctx, screen) {
   const session = getSession();
   const user = getUser();
@@ -48,14 +60,14 @@ function renderProfileSetup(ctx, screen) {
   const firstName = createField({
     name: 'firstName',
     label: 'First name',
-    value: user && user.firstName ? user.firstName : '',
+    value: draft.firstName || (user && user.firstName ? user.firstName : ''),
   });
   inner.appendChild(firstName.el);
 
   const lastName = createField({
     name: 'lastName',
     label: 'Surname',
-    value: user && user.lastName ? user.lastName : '',
+    value: draft.lastName || (user && user.lastName ? user.lastName : ''),
   });
   inner.appendChild(lastName.el);
 
@@ -68,7 +80,7 @@ function renderProfileSetup(ctx, screen) {
     inputmode: 'tel',
     autocomplete: 'tel',
     required: true,
-    value: user && user.phone ? user.phone : '',
+    value: draft.phone || (user && user.phone ? user.phone : ''),
   });
   inner.appendChild(phone.el);
   inner.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
@@ -78,28 +90,28 @@ function renderProfileSetup(ctx, screen) {
   const vehicleMake = createField({
     name: 'vehicleMake',
     label: 'Make',
-    value: profile.vehicleMake || '',
+    value: draft.vehicleMake || profile.vehicleMake || '',
   });
   inner.appendChild(vehicleMake.el);
 
   const vehicleModel = createField({
     name: 'vehicleModel',
     label: 'Model',
-    value: profile.vehicleModel || '',
+    value: draft.vehicleModel || profile.vehicleModel || '',
   });
   inner.appendChild(vehicleModel.el);
 
   const vehicleColour = createField({
     name: 'vehicleColour',
     label: 'Colour',
-    value: profile.vehicleColour || '',
+    value: draft.vehicleColour || profile.vehicleColour || '',
   });
   inner.appendChild(vehicleColour.el);
 
   const plate = createField({
     name: 'plate',
     label: 'Number plate',
-    value: profile.plate || '',
+    value: draft.plate || profile.plate || '',
   });
   inner.appendChild(plate.el);
 
@@ -112,7 +124,7 @@ function renderProfileSetup(ctx, screen) {
     { value: 'indrive', label: 'inDrive' },
     { value: 'other', label: 'Other' },
   ];
-  let selectedPlatform = profile.hailPlatform || null;
+  let selectedPlatform = (draft.hailPlatform ?? profile.hailPlatform) || null;
 
   platforms.forEach((p) => {
     const chip = el('button', { class: 'chip', type: 'button' }, p.label);
@@ -123,10 +135,12 @@ function renderProfileSetup(ctx, screen) {
     chip.addEventListener('click', () => {
       if (selectedPlatform === p.value) {
         selectedPlatform = null;
+        draft.hailPlatform = null;
         chip.classList.remove('on');
         chip.removeAttribute('aria-pressed');
       } else {
         selectedPlatform = p.value;
+        draft.hailPlatform = p.value;
         chips.querySelectorAll('.chip').forEach(c => {
           c.classList.remove('on');
           c.removeAttribute('aria-pressed');
@@ -140,7 +154,7 @@ function renderProfileSetup(ctx, screen) {
   platformField.appendChild(chips);
   inner.appendChild(platformField);
 
-  let consentChecked = !!profile.consentAt;
+  let consentChecked = (draft.consentChecked ?? !!profile.consentAt);
   const consentField = el('div', { class: 'check', dataset: { field: 'consent' } });
   if (!isEdit || !profile.consentAt) {
     const checkbox = el('input', { type: 'checkbox' });
@@ -149,12 +163,14 @@ function renderProfileSetup(ctx, screen) {
     }
     checkbox.addEventListener('change', () => {
       consentChecked = checkbox.checked;
+      draft.consentChecked = checkbox.checked;
     });
     consentField.appendChild(checkbox);
     const label = el('label', {}, 'I agree to the Terms and Privacy Policy');
     label.addEventListener('click', () => {
       checkbox.checked = !checkbox.checked;
       consentChecked = checkbox.checked;
+      draft.consentChecked = checkbox.checked;
     });
     consentField.appendChild(label);
     inner.appendChild(consentField);
@@ -163,7 +179,16 @@ function renderProfileSetup(ctx, screen) {
   const btn = el('button', { class: 'btn', type: 'button' }, isEdit ? 'Save changes' : 'Create profile');
   inner.appendChild(btn);
 
-  async function handleSubmit() {
+  firstName.input.addEventListener('change', () => { draft.firstName = firstName.getValue(); });
+  lastName.input.addEventListener('change', () => { draft.lastName = lastName.getValue(); });
+  phone.input.addEventListener('change', () => { draft.phone = phone.getValue(); });
+  vehicleMake.input.addEventListener('change', () => { draft.vehicleMake = vehicleMake.getValue(); });
+  vehicleModel.input.addEventListener('change', () => { draft.vehicleModel = vehicleModel.getValue(); });
+  vehicleColour.input.addEventListener('change', () => { draft.vehicleColour = vehicleColour.getValue(); });
+  plate.input.addEventListener('change', () => { draft.plate = plate.getValue(); });
+
+  async function handleSubmit(event) {
+    event.preventDefault();
     clearFieldErrors();
     const fn = firstName.getValue();
     const ln = lastName.getValue();
@@ -234,6 +259,9 @@ function renderProfileSetup(ctx, screen) {
       });
 
       toast('Profile saved', 'ok');
+      Object.keys(draft).forEach(k => { draft[k] = ''; });
+      draft.hailPlatform = null;
+      draft.consentChecked = false;
       const target = isEdit ? '/account' : consumeNext('/home');
       ctx.navigate(target, { replace: true });
     } catch (err) {
@@ -248,6 +276,19 @@ function renderProfileSetup(ctx, screen) {
   }
 
   btn.addEventListener('click', handleSubmit);
+
+  const onSessionChange = () => {
+    const s = getSession();
+    if (!s) {
+      Object.keys(draft).forEach(k => { draft[k] = ''; });
+      draft.hailPlatform = null;
+      draft.consentChecked = false;
+    }
+  };
+  window.addEventListener('zd:session', onSessionChange);
+  ctx.onLeave(() => {
+    window.removeEventListener('zd:session', onSessionChange);
+  });
 
   center.appendChild(inner);
   screen.appendChild(center);

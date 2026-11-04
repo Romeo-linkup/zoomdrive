@@ -2,7 +2,7 @@
 import { apiFetch } from '../../shared/api.js';
 import { renderPageError, showError } from '../../shared/errors.js';
 import { el, clear, formatZAR, toast } from '../../shared/ui.js';
-import { isAuthed } from '../../shared/auth.js';
+import { isAuthed, getSession } from '../../shared/auth.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
 import { getPosition } from '../../shared/geo.js';
 import { serviceIcon } from '../../shared/serviceIcons.js';
@@ -87,16 +87,21 @@ function renderHome(ctx) {
   screen.appendChild(savedPlaces);
 
   async function useGps() {
+    const session = getSession();
+    if (!session || !session.profileComplete) {
+      ctx.navigate('/profile-setup?next=' + encodeURIComponent('/request'), { replace: true });
+      return;
+    }
     gpsBtn.disabled = true;
     try {
       const position = await getPosition();
-      if (!active) return;
+      if (!active || ctx.signal.aborted) return;
       savePosition(position);
       ctx.navigate('/request');
     } catch (err) {
-      if (active) toast(locationMessage(err && err.code), 'info');
+      if (active && !ctx.signal.aborted) toast(locationMessage(err && err.code), 'info');
     } finally {
-      if (active) gpsBtn.disabled = false;
+      if (active && !ctx.signal.aborted) gpsBtn.disabled = false;
     }
   }
 
