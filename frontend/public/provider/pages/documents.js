@@ -5,7 +5,7 @@ import { clear, el, toast, withSpinner } from '../../shared/ui.js';
 import { showError } from '../../shared/errors.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 import { createDocUpload } from '../../shared/components/doc-upload.js';
-import { DOC_LABELS, requiredDocs, profileGaps, missingDocs } from '../onboarding.js';
+import { DOC_LABELS, requiredDocs, profileGaps } from '../onboarding.js';
 
 export default (ctx) => {
   const session = getSession();
@@ -44,16 +44,6 @@ export default (ctx) => {
             body.append('file', file);
             const data = await apiFetch('/providers/me/documents', { method: 'POST', body });
             documents = Array.isArray(data.documents) ? data.documents : [];
-            try {
-              await refreshMe();
-            } catch (refreshErr) {
-              // The upload itself succeeded; refreshing the session is best effort.
-              console.error('[ZD-ERR]', refreshErr);
-            }
-            const fresh = getSession();
-            if (fresh && fresh.profile && Array.isArray(fresh.profile.documents)) {
-              documents = fresh.profile.documents.slice();
-            }
             renderRows();
             updateChecklist();
           } catch (err) {
@@ -87,7 +77,11 @@ export default (ctx) => {
   function updateChecklist() {
     const state = getSession();
     const gaps = profileGaps(state);
-    const missing = missingDocs(state);
+    const missing = requiredDocs(providerType)
+      .filter((docType) => !documents.some(
+        (row) => row.docType === docType && row.status !== 'rejected'
+      ))
+      .map((docType) => DOC_LABELS[docType] || docType);
     const canSubmit = gaps.length === 0 && missing.length === 0;
 
     submitButton.disabled = !canSubmit;
@@ -116,6 +110,16 @@ export default (ctx) => {
   }
 
   updateChecklist();
+
+  apiFetch('/providers/me/documents', { signal: ctx.signal }).then((data) => {
+    if (data && Array.isArray(data.documents)) {
+      documents = data.documents;
+      renderRows();
+      updateChecklist();
+    }
+  }).catch((err) => {
+    if (!ctx.signal || !ctx.signal.aborted) showError(err);
+  });
 
   submitButton.addEventListener('click', async () => {
     try {
