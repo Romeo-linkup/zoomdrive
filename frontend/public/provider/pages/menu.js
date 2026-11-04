@@ -45,18 +45,18 @@ async function renderMenu(ctx) {
   screen.appendChild(registrationRow);
 
   screen.appendChild(el('h3', {}, 'Account'));
-  addRow(screen, { icon: '❔', title: 'Help', soon: true });
-  addRow(screen, { icon: '🛡️', title: 'Safety', soon: true });
-  addRow(screen, { icon: '⚙️', title: 'Settings', soon: true });
+  addRow(screen, { icon: '❔', title: 'Help', path: '/help' });
+  addRow(screen, { icon: '🛡️', title: 'Safety', path: '/safety' });
+  addRow(screen, { icon: '⚙️', title: 'Settings', path: '/settings' });
   screen.appendChild(el('h3', {}, 'More ways to earn'));
-  addRow(screen, { icon: '✨', title: 'Opportunities', soon: true });
-  addRow(screen, { icon: '🤝', title: 'Referrals', soon: true });
+  addRow(screen, { icon: '✨', title: 'Opportunities', path: '/opportunities' });
+  addRow(screen, { icon: '🤝', title: 'Referrals', path: '/referrals' });
   screen.appendChild(el('h3', {}, 'Manage'));
   addRow(screen, { icon: '🚐', title: 'Vehicle and service kit', path: '/vehicle' });
   addRow(screen, { icon: '🧰', title: 'Services offered', path: '/services' });
   addRow(screen, { icon: '📄', title: 'Documents', path: '/documents' });
   screen.appendChild(el('h3', {}, 'Money'));
-  addRow(screen, { icon: '🧾', title: 'Tax info', soon: true });
+  addRow(screen, { icon: '🧾', title: 'Tax info', path: '/tax-info' });
   addRow(screen, { icon: '🏦', title: 'Payout methods', path: '/payouts' });
   const logOut = el('button', { class: 'btn soft', type: 'button' }, 'Log out');
   logOut.addEventListener('click', () => logout());

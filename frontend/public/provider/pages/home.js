@@ -259,7 +259,7 @@ async function renderHome(ctx) {
         lng: Number(position.lng),
         draggablePin: false,
       });
-      watchMapResize(mapController, ctx);
+      watchMapResize(mapController, ctx, mapElement);
       if (!active) {
         mapController.destroy();
         mapController = null;

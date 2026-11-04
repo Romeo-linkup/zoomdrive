@@ -259,7 +259,7 @@ function renderTrack(ctx) {
         return;
       }
       mapController = controller;
-      watchMapResize(mapController, ctx);
+      watchMapResize(mapController, ctx, mapElement);
       mapLoading.remove();
       mapController.invalidate();
       if (currentRequest) updateMap(currentRequest);

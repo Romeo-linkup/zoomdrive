@@ -117,7 +117,7 @@ async function renderJob(ctx) {
     mapLoading = true;
     try {
       mapController = await createMap(mapElement, { lat, lng, draggablePin: false });
-      watchMapResize(mapController, ctx);
+      watchMapResize(mapController, ctx, mapElement);
       if (!active || (currentRequest && TERMINAL_STATUSES.includes(currentRequest.status))) {
         mapController.destroy();
         mapController = null;

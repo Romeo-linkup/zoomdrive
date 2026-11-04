@@ -141,8 +141,10 @@ export async function createMap(element, {
   };
 }
 
-export function watchMapResize(controller, ctx) {
+export function watchMapResize(controller, ctx, element) {
   let resizeTimer = null;
+  let rAFId = null;
+  let observer = null;
   const invalidate = () => {
     if (resizeTimer !== null) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
@@ -152,11 +154,29 @@ export function watchMapResize(controller, ctx) {
   };
   window.addEventListener('resize', invalidate);
   window.addEventListener('orientationchange', invalidate);
-  invalidate();
+  rAFId = requestAnimationFrame(() => {
+    rAFId = null;
+    controller.invalidate();
+  });
+  setTimeout(() => {
+    controller.invalidate();
+  }, 300);
+  if (element && typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(() => {
+      invalidate();
+    });
+    observer.observe(element);
+  }
   ctx.onLeave(() => {
     window.removeEventListener('resize', invalidate);
     window.removeEventListener('orientationchange', invalidate);
     if (resizeTimer !== null) clearTimeout(resizeTimer);
     resizeTimer = null;
+    if (rAFId !== null) cancelAnimationFrame(rAFId);
+    rAFId = null;
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
   });
 }

@@ -347,7 +347,7 @@ function renderRequest(ctx) {
         return;
       }
       mapController = controller;
-      watchMapResize(mapController, ctx);
+      watchMapResize(mapController, ctx, mapElement);
       mapLoading.remove();
       mapController.invalidate();
     } catch (err) {
