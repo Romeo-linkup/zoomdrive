@@ -75,6 +75,16 @@ async function getMe(userId, client = null) {
         createdAt: p.created_at,
       };
       profileComplete = !!(user.first_name && user.last_name && user.phone && p.consent_at);
+      if (!profileComplete) {
+        profile.missing = [];
+        if (!user.first_name) profile.missing.push('firstName');
+        if (!user.last_name) profile.missing.push('lastName');
+        if (!user.phone) profile.missing.push('phone');
+        if (!p.consent_at) profile.missing.push('consent');
+      }
+    } else {
+      profile = { missing: ['firstName', 'lastName', 'phone', 'consent'] };
+      profileComplete = false;
     }
   } else   if (role === 'provider') {
     const profileResult = await q('SELECT * FROM provider_profiles WHERE user_id = $1', [userId]);
