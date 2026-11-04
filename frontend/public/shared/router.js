@@ -120,14 +120,6 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
 
     const { route, params } = matched;
 
-    if (currentPath === path && JSON.stringify(currentParams) === JSON.stringify(params)) {
-      return;
-    }
-
-    cleanup();
-    clearError();
-    clearFieldErrors(mount);
-
     if (route.auth && !isAuthed()) {
       const currentPathAndQuery = path + (Object.keys(query).length ? '?' + new URLSearchParams(query).toString() : '');
       navigate(goToLogin(currentPathAndQuery), { replace: true });
@@ -146,9 +138,6 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
       signal: null,
     };
 
-    currentController = new AbortController();
-    ctx.signal = currentController.signal;
-
     if (guard) {
       try {
         const redirect = guard(route, ctx);
@@ -160,6 +149,17 @@ export function createRouter({ routes, defaultRoute = '/welcome', guard, mount, 
         try { console.debug(e); } catch (e2) { /* Optional debug output can be skipped. */ }
       }
     }
+
+    if (currentPath === path && JSON.stringify(currentParams) === JSON.stringify(params)) {
+      return;
+    }
+
+    cleanup();
+    clearError();
+    clearFieldErrors(mount);
+
+    currentController = new AbortController();
+    ctx.signal = currentController.signal;
 
     if (mount) {
       if (route.narrow) mount.dataset.width = 'narrow';

@@ -89,7 +89,7 @@ function renderHome(ctx) {
   async function useGps() {
     const session = getSession();
     if (!session || !session.profileComplete) {
-      ctx.navigate('/profile-setup?next=' + encodeURIComponent('/request'), { replace: true });
+      ctx.navigate('/profile-setup?next=%2Frequest', { replace: true });
       return;
     }
     gpsBtn.disabled = true;

@@ -202,11 +202,14 @@ export function hideSpinner() {
   }
 }
 
-export async function withSpinner(promise) {
+// withSpinner accepts either a promise or an async function.
+// If a function is passed it is invoked (not merely awaited), so callers
+// must pass `async () => { ... }` rather than the already-awaited result.
+export async function withSpinner(work) {
   showSpinner();
   try {
-    const res = await promise;
-    return res;
+    const p = typeof work === 'function' ? work() : work;
+    return await p;
   } finally {
     hideSpinner();
   }

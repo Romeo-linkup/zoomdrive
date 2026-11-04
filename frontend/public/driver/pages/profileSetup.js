@@ -219,6 +219,8 @@ function renderProfileSetup(ctx, screen) {
     }
 
     btn.disabled = true;
+    let saved = false;
+    let putData = null;
     try {
       await withSpinner(async () => {
         const body = {
@@ -233,6 +235,7 @@ function renderProfileSetup(ctx, screen) {
           consent: true,
         };
         const data = await apiFetch('/drivers/me', { method: 'PUT', body });
+        putData = data;
 
         const file = photo.getFile();
         if (file) {
@@ -245,8 +248,8 @@ function renderProfileSetup(ctx, screen) {
           }
         }
 
-        if (data && data.profileComplete === false) {
-          const missing = (data.profile && data.profile.missing) || [];
+        if (!data || data.profileComplete !== true) {
+          const missing = (data && data.profile && data.profile.missing) || [];
           throw new ApiError({ code: 'ZD-PROF-001', message: 'Profile incomplete: ' + missing.join(', ') });
         }
 
@@ -256,7 +259,10 @@ function renderProfileSetup(ctx, screen) {
           profileComplete: data.profileComplete || false,
           providerStatus: data.providerStatus || null,
         });
+        saved = true;
       });
+
+      if (!saved) return;
 
       toast('Profile saved', 'ok');
       Object.keys(draft).forEach(k => { draft[k] = ''; });

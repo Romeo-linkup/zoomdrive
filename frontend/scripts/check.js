@@ -370,7 +370,24 @@ function rule13CspHeaders() {
   }
 }
 
-// Run all rules
+// Rule 18: WITHSPINNER - flag calls where an async function expression is passed.
+// With the new contract the function is invoked; before it was silently ignored.
+function rule18WithSpinner() {
+  const roots = [publicDir, path.join(frontendDir, 'scripts')];
+  roots.forEach((root) => walkDir(root, (file) => {
+    if (!file.endsWith('.js') || file === __filename) return;
+    const content = fs.readFileSync(file, 'utf8');
+    const lines = content.split('\n');
+    lines.forEach((line, i) => {
+      if (!line.includes('withSpinner(')) return;
+      const match = line.match(/withSpinner\s*\(\s*(async\s+(?:\(\s*\)\s*=>|\([^)]*\)\s*=>|function\b))/);
+      if (match) {
+        addProblem(file, i + 1, 'WITHSPINNER', 'async function expression passed to withSpinner - function will now be invoked');
+      }
+    });
+  }));
+}
+
 rule1Syntax();
 rule2Empty();
 rule4Localhost();
@@ -385,6 +402,7 @@ rule14ResponsiveLayout();
 rule15NoPhoneRoute();
 rule16NoFetch();
 rule17Pwa();
+rule18WithSpinner();
 
 if (problems.length > 0) {
   problems.forEach(p => console.log(p));
