@@ -1,6 +1,6 @@
 // driver/pages/profileSetup.js
-import { getSession, getUser, refreshMe } from '../../shared/auth.js';
-import { apiFetch } from '../../shared/api.js';
+import { getSession, getUser, setSession } from '../../shared/auth.js';
+import { apiFetch, ApiError } from '../../shared/api.js';
 import { el, clear, toast, withSpinner, modal } from '../../shared/ui.js';
 import { clearFieldErrors, showError, renderPageError } from '../../shared/errors.js';
 import { createTopbar, createBrandBar } from '../../shared/components/topbar.js';
@@ -193,6 +193,7 @@ function renderProfileSetup(ctx, screen) {
       return;
     }
 
+    btn.disabled = true;
     try {
       await withSpinner(async () => {
         const body = {
@@ -206,7 +207,7 @@ function renderProfileSetup(ctx, screen) {
           hailPlatform: selectedPlatform || null,
           consent: true,
         };
-        await apiFetch('/drivers/me', { method: 'PUT', body });
+        const data = await apiFetch('/drivers/me', { method: 'PUT', body });
 
         const file = photo.getFile();
         if (file) {
@@ -219,7 +220,17 @@ function renderProfileSetup(ctx, screen) {
           }
         }
 
-        await refreshMe();
+        if (data && data.profileComplete === false) {
+          const missing = (data.profile && data.profile.missing) || [];
+          throw new ApiError({ code: 'ZD-PROF-001', message: 'Profile incomplete: ' + missing.join(', ') });
+        }
+
+        setSession({
+          user: data.user || null,
+          profile: data.profile || null,
+          profileComplete: data.profileComplete || false,
+          providerStatus: data.providerStatus || null,
+        });
       });
 
       toast('Profile saved', 'ok');
@@ -231,6 +242,8 @@ function renderProfileSetup(ctx, screen) {
       } else {
         showError(err);
       }
+    } finally {
+      btn.disabled = false;
     }
   }
 
