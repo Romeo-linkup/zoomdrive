@@ -22,8 +22,10 @@ async function renderJob(ctx) {
   const screen = el('div', { class: 'screen' });
   screen.appendChild(createTopbar({ title: 'Current job', onBack: () => ctx.navigate('/home') }));
   const mapCard = el('div', { class: 'card' });
-  const mapElement = el('div', { class: 'zd-map job-map' }, 'Loading map…');
+  const mapElement = el('div', { class: 'zd-map job-map' });
+  const mapLoadingEl = el('p', { class: 'muted' }, 'Loading map…');
   mapCard.appendChild(mapElement);
+  mapCard.appendChild(mapLoadingEl);
   const layout = el('div', { class: 'layout-split job-layout' });
   const mapColumn = el('div', { class: 'layout-map-column' });
   const detailsPanel = el('div', { class: 'layout-panel' });
@@ -122,10 +124,13 @@ async function renderJob(ctx) {
         return;
       }
       if (position) mapController.setProviderPin(position.lat, position.lng);
-      mapElement.textContent = '';
+      mapLoadingEl.remove();
       mapController.invalidate();
     } catch (err) {
-      if (active) mapElement.textContent = 'Map unavailable. Use the navigation links below.';
+      if (active) {
+        mapLoadingEl.remove();
+        mapElement.textContent = 'Map unavailable. Use the navigation links below.';
+      }
     } finally {
       mapLoading = false;
     }

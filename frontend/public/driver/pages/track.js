@@ -91,8 +91,10 @@ function renderTrack(ctx) {
   const mapElement = el('div', {
     class: 'zd-map',
     attrs: { role: 'application', 'aria-label': 'Request and provider locations' },
-  }, 'Loading map…');
+  });
+  const mapLoading = el('p', { class: 'muted' }, 'Loading map…');
   mapCard.appendChild(mapElement);
+  mapCard.appendChild(mapLoading);
   mapColumn.appendChild(mapCard);
 
   const providerCard = el('div', { class: 'card provider-card' });
@@ -258,11 +260,12 @@ function renderTrack(ctx) {
       }
       mapController = controller;
       watchMapResize(mapController, ctx);
-      mapElement.textContent = '';
+      mapLoading.remove();
       mapController.invalidate();
       if (currentRequest) updateMap(currentRequest);
     } catch (err) {
       if (!active) return;
+      mapLoading.remove();
       mapElement.classList.add('zd-map-fallback');
       mapElement.textContent = 'Map unavailable. Your request location is saved.';
     }

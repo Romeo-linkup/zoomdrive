@@ -89,8 +89,10 @@ function renderRequest(ctx) {
   const mapElement = el('div', {
     class: 'zd-map',
     attrs: { role: 'application', 'aria-label': 'Map with draggable location pin' },
-  }, 'Loading map…');
+  });
+  const mapLoading = el('p', { class: 'muted' }, 'Loading map…');
   mapCard.appendChild(mapElement);
+  mapCard.appendChild(mapLoading);
   const locationHint = el('div', { class: 'banner warn hidden' });
   locationHint.appendChild(el('span', {}, 'Drag the pin to your exact spot'));
   mapCard.appendChild(locationHint);
@@ -308,6 +310,7 @@ function renderRequest(ctx) {
   gpsButton.addEventListener('click', useGps);
 
   function setFallback() {
+    mapLoading.remove();
     mapElement.classList.add('zd-map-fallback');
     clear(mapElement);
     mapElement.appendChild(el('p', {}, 'Map unavailable. Enter your location below.'));
@@ -345,7 +348,7 @@ function renderRequest(ctx) {
       }
       mapController = controller;
       watchMapResize(mapController, ctx);
-      mapElement.textContent = '';
+      mapLoading.remove();
       mapController.invalidate();
     } catch (err) {
       if (!active) return;

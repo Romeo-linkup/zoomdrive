@@ -42,8 +42,10 @@ async function renderHome(ctx) {
 
   const mapCard = el('div', { class: 'card' });
   mapCard.appendChild(el('h2', {}, 'Your location'));
-  const mapElement = el('div', { class: 'zd-map' }, 'Location map will appear when available.');
+  const mapElement = el('div', { class: 'zd-map' });
+  const mapLoadingEl = el('p', { class: 'muted' }, 'Location map will appear when available.');
   mapCard.appendChild(mapElement);
+  mapCard.appendChild(mapLoadingEl);
   screen.appendChild(mapCard);
 
   const opportunities = el('div', { class: 'card' });
@@ -267,10 +269,13 @@ async function renderHome(ctx) {
         mapController.setPin(pendingMapPosition.lat, pendingMapPosition.lng);
         pendingMapPosition = null;
       }
-      mapElement.textContent = '';
+      mapLoadingEl.remove();
       mapController.invalidate();
     } catch (err) {
-      if (active) mapElement.textContent = 'Map unavailable. Your location is still used for job offers.';
+      if (active) {
+        mapLoadingEl.remove();
+        mapElement.textContent = 'Map unavailable. Your location is still used for job offers.';
+      }
     } finally {
       mapLoading = false;
     }
