@@ -220,7 +220,6 @@ function renderProfileSetup(ctx, screen) {
 
     btn.disabled = true;
     let saved = false;
-    let putData = null;
     try {
       await withSpinner(async () => {
         const body = {
@@ -235,7 +234,6 @@ function renderProfileSetup(ctx, screen) {
           consent: true,
         };
         const data = await apiFetch('/drivers/me', { method: 'PUT', body });
-        putData = data;
 
         const file = photo.getFile();
         if (file) {
