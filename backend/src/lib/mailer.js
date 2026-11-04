@@ -98,12 +98,23 @@ async function sendMail({ to, subject, text, html }) {
   }
 
   if (!response || !response.ok) {
+    let brevoCode = null;
+    let brevoMessage = null;
+    if (response) {
+      try {
+        const body = await response.json();
+        brevoCode = body.code || null;
+        brevoMessage = typeof body.message === 'string' ? body.message.slice(0, 200) : null;
+      } catch {
+        // response body was not JSON
+      }
+    }
     logger.warn({
       reqId: '-',
       module: 'mail',
       code: 'ZD-EML-001',
       message: 'Brevo delivery failed',
-      meta: { status: response ? response.status : failureKind },
+      meta: { status: response ? response.status : failureKind, brevoCode, brevoMessage },
     });
     throw new ApiError('ZD-EML-001');
   }
