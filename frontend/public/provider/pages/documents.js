@@ -44,6 +44,16 @@ export default (ctx) => {
             body.append('file', file);
             const data = await apiFetch('/providers/me/documents', { method: 'POST', body });
             documents = Array.isArray(data.documents) ? data.documents : [];
+            try {
+              await refreshMe();
+            } catch (refreshErr) {
+              // The upload itself succeeded; refreshing the session is best effort.
+              console.error('[ZD-ERR]', refreshErr);
+            }
+            const fresh = getSession();
+            if (fresh && fresh.profile && Array.isArray(fresh.profile.documents)) {
+              documents = fresh.profile.documents.slice();
+            }
             renderRows();
             updateChecklist();
           } catch (err) {
