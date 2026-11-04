@@ -25,38 +25,41 @@ function renderProfileSetup(ctx, screen) {
   const profile = session && session.profile ? session.profile : {};
   const isEdit = !!((session && session.profileComplete) || ctx.query.edit === 'true');
 
+  const center = el('div', { class: 'page-center' });
+  const inner = el('div', { class: 'page-center__inner' });
+
   const title = isEdit ? 'Your profile' : 'Create your profile';
   if (isEdit) {
-    screen.appendChild(createTopbar({
+    inner.appendChild(createTopbar({
       title,
       onBack: () => ctx.navigate('/account'),
     }));
   } else {
-    screen.appendChild(createBrandBar('driver'));
-    screen.appendChild(el('h1', {}, title));
+    inner.appendChild(createBrandBar('driver'));
+    inner.appendChild(el('h1', {}, title));
   }
 
   const photo = createPhotoUpload({
     required: false,
     initialUrl: user && user.photoUrl ? user.photoUrl : null,
   });
-  screen.appendChild(photo.el);
+  inner.appendChild(photo.el);
 
   const firstName = createField({
     name: 'firstName',
     label: 'First name',
     value: user && user.firstName ? user.firstName : '',
   });
-  screen.appendChild(firstName.el);
+  inner.appendChild(firstName.el);
 
   const lastName = createField({
     name: 'lastName',
     label: 'Surname',
     value: user && user.lastName ? user.lastName : '',
   });
-  screen.appendChild(lastName.el);
+  inner.appendChild(lastName.el);
 
-  screen.appendChild(el('p', { class: 'mu' }, 'Signed in as ' + (user && user.email ? user.email : '')));
+  inner.appendChild(el('p', { class: 'mu' }, 'Signed in as ' + (user && user.email ? user.email : '')));
 
   const phone = createField({
     name: 'phone',
@@ -67,38 +70,38 @@ function renderProfileSetup(ctx, screen) {
     required: true,
     value: user && user.phone ? user.phone : '',
   });
-  screen.appendChild(phone.el);
-  screen.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
+  inner.appendChild(phone.el);
+  inner.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
 
-  screen.appendChild(el('h3', {}, 'Your vehicle (optional)'));
+  inner.appendChild(el('h3', {}, 'Your vehicle (optional)'));
 
   const vehicleMake = createField({
     name: 'vehicleMake',
     label: 'Make',
     value: profile.vehicleMake || '',
   });
-  screen.appendChild(vehicleMake.el);
+  inner.appendChild(vehicleMake.el);
 
   const vehicleModel = createField({
     name: 'vehicleModel',
     label: 'Model',
     value: profile.vehicleModel || '',
   });
-  screen.appendChild(vehicleModel.el);
+  inner.appendChild(vehicleModel.el);
 
   const vehicleColour = createField({
     name: 'vehicleColour',
     label: 'Colour',
     value: profile.vehicleColour || '',
   });
-  screen.appendChild(vehicleColour.el);
+  inner.appendChild(vehicleColour.el);
 
   const plate = createField({
     name: 'plate',
     label: 'Number plate',
     value: profile.plate || '',
   });
-  screen.appendChild(plate.el);
+  inner.appendChild(plate.el);
 
   const platformField = el('div', { class: 'field', dataset: { field: 'hailPlatform' } });
   platformField.appendChild(el('label', {}, 'E-hailing platform'));
@@ -135,7 +138,7 @@ function renderProfileSetup(ctx, screen) {
     chips.appendChild(chip);
   });
   platformField.appendChild(chips);
-  screen.appendChild(platformField);
+  inner.appendChild(platformField);
 
   let consentChecked = !!profile.consentAt;
   const consentField = el('div', { class: 'check', dataset: { field: 'consent' } });
@@ -154,11 +157,11 @@ function renderProfileSetup(ctx, screen) {
       consentChecked = checkbox.checked;
     });
     consentField.appendChild(label);
-    screen.appendChild(consentField);
+    inner.appendChild(consentField);
   }
 
   const btn = el('button', { class: 'btn', type: 'button' }, isEdit ? 'Save changes' : 'Create profile');
-  screen.appendChild(btn);
+  inner.appendChild(btn);
 
   async function handleSubmit() {
     clearFieldErrors();
@@ -233,5 +236,7 @@ function renderProfileSetup(ctx, screen) {
 
   btn.addEventListener('click', handleSubmit);
 
+  center.appendChild(inner);
+  screen.appendChild(center);
   return screen;
 }

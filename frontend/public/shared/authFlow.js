@@ -166,6 +166,13 @@ export function renderEmailPage(ctx) {
         handleSubmit();
       }
     });
+    const center = el('div', { class: 'page-center' });
+    const inner = el('div', { class: 'page-center__inner' });
+    while (screen.firstChild) {
+      inner.appendChild(screen.firstChild);
+    }
+    center.appendChild(inner);
+    screen.appendChild(center);
     return screen;
   } catch (err) {
     renderPageError(screen, err, () => ctx.navigate(ctx.path));
@@ -383,6 +390,13 @@ export function renderOtpPage(ctx, { afterLogin }) {
 
     const focusTimer = setTimeout(() => inputs[0].focus(), 0);
     ctx.onLeave(() => clearTimeout(focusTimer));
+    const center = el('div', { class: 'page-center' });
+    const inner = el('div', { class: 'page-center__inner' });
+    while (screen.firstChild) {
+      inner.appendChild(screen.firstChild);
+    }
+    center.appendChild(inner);
+    screen.appendChild(center);
     return screen;
   } catch (err) {
     renderPageError(screen, err, () => ctx.navigate(ctx.path));

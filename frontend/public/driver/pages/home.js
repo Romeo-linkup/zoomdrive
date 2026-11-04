@@ -5,6 +5,7 @@ import { el, clear, formatZAR, toast } from '../../shared/ui.js';
 import { isAuthed } from '../../shared/auth.js';
 import { createBrandBar } from '../../shared/components/topbar.js';
 import { getPosition } from '../../shared/geo.js';
+import { serviceIcon } from '../../shared/serviceIcons.js';
 
 const POSITION_KEY = 'zd_driver_pos';
 
@@ -102,7 +103,7 @@ function renderHome(ctx) {
   gpsBtn.addEventListener('click', useGps);
   currentLocation.addEventListener('click', useGps);
 
-  const tiles = el('div', { class: 'tiles' });
+  const tiles = el('div', { class: 'service-grid' });
   screen.appendChild(el('h2', {}, 'What do you need?'));
   screen.appendChild(tiles);
 
@@ -119,10 +120,10 @@ function renderHome(ctx) {
   function renderServices(services) {
     clear(tiles);
     for (const service of services) {
-      const tile = el('button', { class: 'tile', type: 'button' });
-      tile.appendChild(el('span', {}, service.icon || '🛠️'));
-      tile.appendChild(el('span', {}, service.name));
-      tile.appendChild(el('small', {}, formatZAR(service.basePriceCents)));
+      const tile = el('button', { class: 'service-tile', type: 'button' });
+      tile.appendChild(el('span', { class: 'service-tile__icon' }, serviceIcon(service.code)));
+      tile.appendChild(el('span', { class: 'service-tile__name' }, service.name));
+      tile.appendChild(el('span', { class: 'service-tile__price' }, formatZAR(service.basePriceCents)));
       tile.addEventListener('click', () => {
         ctx.navigate('/request?service=' + encodeURIComponent(service.id));
       });
@@ -130,14 +131,14 @@ function renderHome(ctx) {
     }
 
     const schedule = el('button', {
-      class: 'tile',
+      class: 'service-tile',
       type: 'button',
       attrs: { 'aria-disabled': 'true' },
     });
     schedule.disabled = true;
-    schedule.appendChild(el('span', {}, '🗓️'));
-    schedule.appendChild(document.createTextNode('Schedule'));
-    schedule.appendChild(el('small', {}, 'Soon'));
+    schedule.appendChild(el('span', { class: 'service-tile__icon' }, '🗓️'));
+    schedule.appendChild(el('span', { class: 'service-tile__name' }, 'Schedule'));
+    schedule.appendChild(el('span', { class: 'badge-soon' }, 'Soon'));
     tiles.appendChild(schedule);
   }
 

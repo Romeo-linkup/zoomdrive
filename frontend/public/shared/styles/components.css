@@ -14,7 +14,9 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}
 
 /* Buttons (also used on <a>) */
 .btn{display:flex;align-items:center;justify-content:center;width:100%;border:0;border-radius:var(--r-md);
-  background:#111;color:#fff;font-weight:800;font-size:17px;padding:17px;margin-top:12px;text-decoration:none}
+  background:#111;color:#fff;font-weight:800;font-size:17px;padding:17px;margin-top:12px;text-decoration:none;
+  transition:transform .12s ease, opacity .12s ease}
+.btn:active{transform:scale(.98)}
 .btn.blue{background:var(--blue)}
 .btn.soft{background:var(--soft);color:var(--tx)}
 .btn.red{background:var(--soft);color:var(--bad)}
@@ -276,4 +278,41 @@ pre,code{max-width:100%;overflow-x:auto}
 
 .landing-wrap{width:100%;max-width:var(--form-max);margin-inline:auto;padding-inline:var(--pad);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;gap:8px}
 .landing-actions .btn{white-space:nowrap}
+
+/* Centred page shell for welcome, email, otp, type and profile-setup screens */
+.page-center{
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding:max(24px,env(safe-area-inset-top)) var(--pad) calc(56px + env(safe-area-inset-bottom));
+}
+.page-center__inner{
+  margin:auto;
+  width:100%;
+  max-width:var(--form-max);
+  animation:zd-rise .35s ease both;
+}
+@keyframes zd-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.page-center__inner{animation:none}}
+
+/* Service grid and tiles */
+.service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.service-tile{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  min-height:112px;padding:14px 8px;
+  background:var(--soft);border:1px solid var(--line);border-radius:var(--r-md);
+  color:var(--tx);text-align:center;
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.service-tile:active{transform:scale(.97)}
+.service-tile:hover{box-shadow:var(--shadow);border-color:var(--am)}
+.service-tile__icon{font-size:34px;line-height:1}
+.service-tile__name{font-size:13px;font-weight:700;line-height:1.2}
+.service-tile__price{font-size:12px;font-weight:600;color:var(--mu)}
+.badge-soon{display:inline-block;margin-top:2px;padding:2px 8px;border-radius:9px;background:#fff4d6;color:var(--amd);font-size:11px;font-weight:800}
+
+/* Smoother feel */
+input,select,textarea{transition:box-shadow .15s ease, background .15s ease}
+input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px rgba(255,180,0,.35);background:#fff}
+.card{box-shadow:0 8px 28px rgba(0,0,0,.06)}
 

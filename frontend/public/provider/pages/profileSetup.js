@@ -31,38 +31,41 @@ function renderProfileSetup(ctx, screen) {
     return el('div', {});
   }
 
+  const center = el('div', { class: 'page-center' });
+  const inner = el('div', { class: 'page-center__inner' });
+
   const isCompany = providerType === 'company';
   const isEdit = !!profile.providerType;
 
-  screen.appendChild(createTopbar({
+  inner.appendChild(createTopbar({
     title: 'Your details',
     onBack: () => ctx.navigate(isEdit ? '/menu' : '/type'),
   }));
 
-  screen.appendChild(el('span', { class: 'badge dark' }, isCompany ? 'Company' : 'Individual'));
+  inner.appendChild(el('span', { class: 'badge dark' }, isCompany ? 'Company' : 'Individual'));
 
   const photo = createPhotoUpload({
     required: true,
     initialUrl: user && user.photoUrl ? user.photoUrl : null,
     label: 'Add profile photo',
   });
-  screen.appendChild(photo.el);
-  screen.appendChild(el('p', { class: 'mu' }, 'A clear photo of your face is compulsory. Drivers see it when you arrive.'));
+  inner.appendChild(photo.el);
+  inner.appendChild(el('p', { class: 'mu' }, 'A clear photo of your face is compulsory. Drivers see it when you arrive.'));
 
   const firstName = createField({
     name: 'firstName',
     label: 'First name',
     value: user && user.firstName ? user.firstName : '',
   });
-  screen.appendChild(firstName.el);
+  inner.appendChild(firstName.el);
 
   const lastName = createField({
     name: 'lastName',
     label: 'Surname',
     value: user && user.lastName ? user.lastName : '',
   });
-  screen.appendChild(lastName.el);
-  screen.appendChild(el('p', { class: 'mu' }, 'Signed in as ' + (user && user.email ? user.email : '')));
+  inner.appendChild(lastName.el);
+  inner.appendChild(el('p', { class: 'mu' }, 'Signed in as ' + (user && user.email ? user.email : '')));
 
   const phone = createField({
     name: 'phone',
@@ -73,43 +76,43 @@ function renderProfileSetup(ctx, screen) {
     required: true,
     value: user && user.phone ? user.phone : '',
   });
-  screen.appendChild(phone.el);
-  screen.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
+  inner.appendChild(phone.el);
+  inner.appendChild(el('p', { class: 'mu' }, 'So your driver or provider can call you'));
 
   let companyNameField;
   let regNumberField;
   if (isCompany) {
-    screen.appendChild(el('h3', {}, 'Company details'));
+    inner.appendChild(el('h3', {}, 'Company details'));
     companyNameField = createField({
       name: 'name',
       label: 'Company name',
       value: profile.organisation && profile.organisation.name ? profile.organisation.name : '',
     });
-    screen.appendChild(companyNameField.el);
+    inner.appendChild(companyNameField.el);
     regNumberField = createField({
       name: 'regNumber',
       label: 'Registration number',
       value: profile.organisation && profile.organisation.regNumber ? profile.organisation.regNumber : '',
     });
-    screen.appendChild(regNumberField.el);
+    inner.appendChild(regNumberField.el);
   }
 
-  screen.appendChild(el('h3', {}, 'Your vehicle'));
+  inner.appendChild(el('h3', {}, 'Your vehicle'));
   const vehicleDescription = createField({
     name: 'vehicleDescription',
     label: 'Vehicle (for example White Hilux bakkie)',
     value: profile.vehicleDescription || '',
   });
-  screen.appendChild(vehicleDescription.el);
+  inner.appendChild(vehicleDescription.el);
 
   const plate = createField({
     name: 'plate',
     label: 'Number plate',
     value: profile.plate || '',
   });
-  screen.appendChild(plate.el);
+  inner.appendChild(plate.el);
 
-  screen.appendChild(el('h3', {}, 'Where are you based?'));
+  inner.appendChild(el('h3', {}, 'Where are you based?'));
   const locationField = el('div', { class: 'field', dataset: { field: 'baseLat' } });
   const useLocationBtn = el('button', { class: 'btn soft', type: 'button' }, 'Use my current location');
   const manualToggle = el('button', { class: 'link-btn', type: 'button' }, 'Enter coordinates manually');
@@ -134,7 +137,7 @@ function renderProfileSetup(ctx, screen) {
   locationField.appendChild(useLocationBtn);
   locationField.appendChild(manualToggle);
   locationField.appendChild(manualFields);
-  screen.appendChild(locationField);
+  inner.appendChild(locationField);
 
   let latFromLocation = null;
   let lngFromLocation = null;
@@ -176,7 +179,7 @@ function renderProfileSetup(ctx, screen) {
     manualFields.style.display = manualFields.style.display === 'none' ? '' : 'none';
   });
 
-  screen.appendChild(el('h3', {}, 'How far will you travel?'));
+  inner.appendChild(el('h3', {}, 'How far will you travel?'));
   const radiusField = el('div', { class: 'field', dataset: { field: 'serviceRadiusKm' } });
   const radiusSelect = el('select');
   [5, 10, 25, 50, 100].forEach((value) => {
@@ -187,9 +190,9 @@ function renderProfileSetup(ctx, screen) {
     radiusSelect.appendChild(option);
   });
   radiusField.appendChild(radiusSelect);
-  screen.appendChild(radiusField);
+  inner.appendChild(radiusField);
 
-  screen.appendChild(el('h3', {}, 'Services you offer'));
+  inner.appendChild(el('h3', {}, 'Services you offer'));
   const servicesField = el('div', { class: 'field', dataset: { field: 'serviceIds' } });
   const servicesChips = el('div', { class: 'chips' });
   const selectedServiceIds = new Set(Array.isArray(profile.serviceIds) ? profile.serviceIds : []);
@@ -248,7 +251,7 @@ function renderProfileSetup(ctx, screen) {
     });
     servicesField.appendChild(retry);
   });
-  screen.appendChild(servicesField);
+  inner.appendChild(servicesField);
 
   let consentChecked = !!profile.consentAt;
   const consentField = el('div', { class: 'check', dataset: { field: 'consent' } });
@@ -265,11 +268,11 @@ function renderProfileSetup(ctx, screen) {
       consentChecked = checkbox.checked;
     });
     consentField.appendChild(label);
-    screen.appendChild(consentField);
+    inner.appendChild(consentField);
   }
 
   const saveButton = el('button', { class: 'btn', type: 'button' }, 'Save and continue');
-  screen.appendChild(saveButton);
+  inner.appendChild(saveButton);
 
   async function handleSubmit() {
     clearFieldErrors();
@@ -403,5 +406,7 @@ function renderProfileSetup(ctx, screen) {
   }
 
   saveButton.addEventListener('click', handleSubmit);
+  center.appendChild(inner);
+  screen.appendChild(center);
   return screen;
 }

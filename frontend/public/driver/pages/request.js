@@ -7,6 +7,7 @@ import { isAuthed } from '../../shared/auth.js';
 import { goToLogin } from '../../shared/router.js';
 import { createTopbar } from '../../shared/components/topbar.js';
 import { createField } from '../../shared/components/field.js';
+import { serviceIcon } from '../../shared/serviceIcons.js';
 
 const POSITION_KEY = 'zd_driver_pos';
 const ACTIVE_STATUSES = ['searching', 'accepted', 'arrived'];
@@ -111,7 +112,7 @@ function renderRequest(ctx) {
   detailsPanel.appendChild(addressField.el);
 
   detailsPanel.appendChild(el('h3', {}, 'Choose a service'));
-  const serviceTiles = el('div', { class: 'tiles' });
+  const serviceTiles = el('div', { class: 'service-grid' });
   detailsPanel.appendChild(serviceTiles);
   const serviceRetry = el('button', { class: 'btn soft hidden', type: 'button' }, 'Retry services');
   detailsPanel.appendChild(serviceRetry);
@@ -247,11 +248,11 @@ function renderRequest(ctx) {
   function renderServices() {
     clear(serviceTiles);
     services.forEach((service) => {
-      const tile = el('button', { class: 'tile', type: 'button' });
+      const tile = el('button', { class: 'service-tile', type: 'button' });
       if (selectedService && selectedService.id === service.id) tile.classList.add('sel');
       tile.setAttribute('aria-pressed', selectedService && selectedService.id === service.id ? 'true' : 'false');
-      tile.appendChild(el('span', {}, service.icon || '🛠️'));
-      tile.appendChild(document.createTextNode(service.name));
+      tile.appendChild(el('span', { class: 'service-tile__icon' }, serviceIcon(service.code)));
+      tile.appendChild(el('span', { class: 'service-tile__name' }, service.name));
       tile.addEventListener('click', () => {
         if (selectedService && selectedService.id === service.id) return;
         selectedService = service;
