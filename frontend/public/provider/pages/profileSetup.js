@@ -6,7 +6,7 @@ import { clearFieldErrors, showError, renderPageError } from '../../shared/error
 import { createTopbar } from '../../shared/components/topbar.js';
 import { createField } from '../../shared/components/field.js';
 import { createPhotoUpload } from '../../shared/components/photo-upload.js';
-import { loadServices, serviceEmoji } from '../../shared/services.js';
+import { serviceIcon } from '../../shared/serviceIcons.js';
 import { onboardingRoute } from '../onboarding.js';
 import { validatePhone } from '../../shared/authFlow.js';
 
@@ -203,7 +203,7 @@ function renderProfileSetup(ctx, screen) {
     clear(servicesChips);
     const allServices = Array.isArray(thisServices) ? thisServices : [];
     allServices.forEach((service) => {
-      const chip = el('button', { class: 'chip', type: 'button' }, serviceEmoji(service.service) + ' ' + service.name);
+      const chip = el('button', { class: 'chip', type: 'button' }, serviceIcon(service.code) + ' ' + service.name);
       if (selectedServiceIds.has(service.id)) {
         chip.classList.add('on');
         chip.setAttribute('aria-pressed', 'true');
@@ -224,33 +224,34 @@ function renderProfileSetup(ctx, screen) {
   }
 
   let thisServices = [];
-  function loadServiceOptions() {
-    servicesField.removeChild(loadingLabel);
-    servicesField.appendChild(servicesChips);
-    renderServices();
-  }
+  const retryButton = el('button', { class: 'btn soft', type: 'button' }, 'Try again');
+  retryButton.style.display = 'none';
+  servicesField.appendChild(retryButton);
+  servicesField.appendChild(servicesChips);
 
-  loadServices().then((services) => {
-    thisServices = Array.isArray(services) ? services : [];
-    loadServiceOptions();
-  }).catch((err) => {
-    servicesField.removeChild(loadingLabel);
-    showError(err);
-    const retry = el('button', { class: 'btn soft', type: 'button' }, 'Try again');
-    retry.addEventListener('click', () => {
-      servicesField.removeChild(retry);
-      servicesField.appendChild(loadingLabel);
-      loadServices().then((services) => {
-        thisServices = Array.isArray(services) ? services : [];
-        loadServiceOptions();
-      }).catch((nextErr) => {
-        servicesField.removeChild(loadingLabel);
-        showError(nextErr);
-        servicesField.appendChild(retry);
-      });
-    });
-    servicesField.appendChild(retry);
-  });
+  async function loadServiceOptions() {
+    retryButton.style.display = 'none';
+    loadingLabel.textContent = 'Loading services...';
+    loadingLabel.style.display = '';
+    try {
+      const data = await apiFetch('/services', { auth: false, signal: ctx.signal });
+      if (ctx.signal && ctx.signal.aborted) return;
+      thisServices = Array.isArray(data.services) ? data.services : [];
+      renderServices();
+      if (thisServices.length) {
+        loadingLabel.style.display = 'none';
+      } else {
+        loadingLabel.textContent = 'No services are available right now.';
+      }
+    } catch (err) {
+      if (ctx.signal && ctx.signal.aborted) return;
+      loadingLabel.textContent = 'Could not load services.';
+      retryButton.style.display = '';
+      showError(err);
+    }
+  }
+  retryButton.addEventListener('click', loadServiceOptions);
+  loadServiceOptions();
   inner.appendChild(servicesField);
 
   let consentChecked = !!profile.consentAt;
