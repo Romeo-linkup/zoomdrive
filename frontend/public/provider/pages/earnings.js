@@ -41,14 +41,16 @@ async function renderEarnings(ctx, screen) {
 
   if (data.pendingPaymentsCount > 0) {
     screen.appendChild(el('div', { class: 'banner warn' },
-      el('span', {}, data.pendingPaymentsCount + ' completed jobs are waiting for payment')
+      el('span', {}, data.pendingPaymentsCount + ' completed job' +
+        (data.pendingPaymentsCount === 1 ? ' is' : 's are') + ' waiting for payment')
     ));
   }
 
   const todayCard = el('div', { class: 'card' });
   todayCard.appendChild(el('h2', {}, 'Today'));
   todayCard.appendChild(el('div', { class: 'big' }, formatZAR(data.today && data.today.earningCents)));
-  todayCard.appendChild(el('p', { class: 'mu' }, (Number(data.today && data.today.jobs) || 0) + ' completed jobs'));
+  todayCard.appendChild(el('p', { class: 'mu' }, (Number(data.today && data.today.jobs) || 0) + ' paid job' +
+    ((Number(data.today && data.today.jobs) || 0) === 1 ? '' : 's')));
   screen.appendChild(todayCard);
 
   const weekCard = el('div', { class: 'card' });
