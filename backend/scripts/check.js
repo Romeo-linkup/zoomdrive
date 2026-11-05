@@ -48,6 +48,61 @@ function checkEmpty(filePath, content) {
   }
 }
 
+// Rule 20 REQUIRE_ALL: every file under src/ (except server.js) must require without error
+function checkRequireAll() {
+  const stubEnv = {
+    NODE_ENV: 'development',
+    PORT: '4000',
+    DATABASE_URL: 'postgresql://localhost:5432/test',
+    JWT_SECRET: '0123456789012345678901234567890123456789012345678901234567890123',
+    JWT_EXPIRES_IN: '30d',
+    TRUST_PROXY_HOPS: '1',
+    FRONTEND_ORIGINS: 'http://localhost:3000',
+    OTP_DRIVER: 'console',
+    OTP_DAILY_EMAIL_CAP: '250',
+    OTP_DEV_ECHO: 'true',
+    OTP_ALLOW_CONSOLE_IN_PRODUCTION: 'false',
+    SIGNUP_ENABLED: 'true',
+    APP_VERSION: '1.0.0',
+    CLOUDINARY_CLOUD_NAME: 'test',
+    CLOUDINARY_API_KEY: 'test',
+    CLOUDINARY_API_SECRET: 'test',
+    SMS_API_KEY: 'test',
+    SMS_API_SECRET: 'test',
+    SMS_SENDER_ID: 'ZoomDrive',
+    PAYSTACK_SECRET_KEY: 'sk_test_xxx',
+    PAYSTACK_PUBLIC_KEY: 'pk_test_xxx',
+    PAYSTACK_FALLBACK_EMAIL_DOMAIN: 'example.com',
+    DATA_ENCRYPTION_KEY: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=',
+    EMAIL_DRIVER: 'console',
+    EMAIL_FROM: 'noreply@example.com',
+    EMAIL_FROM_NAME: 'ZoomDrive',
+    BREVO_API_KEY: 'test',
+    SMTP_HOST: 'localhost',
+    SMTP_PORT: '25',
+    SMTP_USER: 'test',
+    SMTP_PASS: 'test',
+    EMAIL_FALLBACK_DOMAIN: 'example.com',
+    PRICING_CHANGE_COOLDOWN_HOURS: '24',
+    TRANSACTIONAL_EMAIL_DAILY_CAP: '150',
+    ADMIN_ALERT_EMAIL: 'alert@example.com',
+  };
+  for (const [key, value] of Object.entries(stubEnv)) {
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+
+  walkDir(srcDir, (filePath) => {
+    if (path.extname(filePath) !== '.js') return;
+    if (filePath === __filename) return;
+    if (path.basename(filePath) === 'server.js') return;
+    try {
+      require(filePath);
+    } catch (err) {
+      addProblem(filePath, 1, 'REQUIRE_ALL', `${err.name}: ${err.message}`);
+    }
+  });
+}
+
 // Rule 3 MIGRATION: every backend/db/migrations/*.sql must contain CREATE or ALTER
 function checkMigration(filePath, content) {
   const upper = content.toUpperCase();
@@ -244,6 +299,7 @@ function main() {
 
   checkEnvTracked();
   checkBlueprintCodes();
+  checkRequireAll();
 
   if (problems.length > 0) {
     console.log('CHECK FAILED (' + problems.length + ' problems)');

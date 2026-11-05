@@ -36,7 +36,7 @@ function bankDetailsChanged({ bankName, accountLast4, changedAt }) {
 }
 
 const KINDS = {
-  login_code,
+  login_code: loginCode,
   provider_approved: providerApproved,
   provider_rejected: providerRejected,
   admin_alert: adminAlert,
