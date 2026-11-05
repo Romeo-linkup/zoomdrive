@@ -14,27 +14,28 @@ async function earnings(req, res) {
     ),
     pool.query(
       `WITH day_range AS (
-         SELECT (timezone('Africa/Johannesburg', now())::date - 6 + day_offset)::date AS date
-         FROM generate_series(0, 6) AS days(day_offset)
-       ),
-       daily AS (
-         SELECT (completed_at AT TIME ZONE 'Africa/Johannesburg')::date AS date,
-                COALESCE(SUM(provider_earning_cents), 0) AS earning_cents,
-                COUNT(*) AS jobs
-         FROM requests
-         WHERE provider_id = $1
-           AND status = 'completed'
-           AND (completed_at AT TIME ZONE 'Africa/Johannesburg')::date
-             BETWEEN (timezone('Africa/Johannesburg', now())::date - 6)
-             AND timezone('Africa/Johannesburg', now())::date
-         GROUP BY 1
-       )
-       SELECT to_char(day_range.date, 'YYYY-MM-DD') AS date,
-              COALESCE(daily.earning_cents, 0) AS earning_cents,
-              COALESCE(daily.jobs, 0) AS jobs
-       FROM day_range
-       LEFT JOIN daily ON daily.date = day_range.date
-       ORDER BY day_range.date`,
+          SELECT (timezone('Africa/Johannesburg', now())::date - 6 + day_offset)::date AS date
+          FROM generate_series(0, 6) AS days(day_offset)
+        ),
+        daily AS (
+          SELECT (p.paid_at AT TIME ZONE 'Africa/Johannesburg')::date AS date,
+                 COALESCE(SUM(r.provider_earning_cents), 0)::bigint AS earning_cents,
+                 COUNT(*) AS jobs
+          FROM payments p
+          JOIN requests r ON r.id = p.request_id
+          WHERE r.provider_id = $1
+            AND p.status = 'paid'
+            AND (p.paid_at AT TIME ZONE 'Africa/Johannesburg')::date
+              BETWEEN (timezone('Africa/Johannesburg', now())::date - 6)
+              AND timezone('Africa/Johannesburg', now())::date
+          GROUP BY 1
+        )
+        SELECT to_char(day_range.date, 'YYYY-MM-DD') AS date,
+               COALESCE(daily.earning_cents, 0) AS earning_cents,
+               COALESCE(daily.jobs, 0) AS jobs
+        FROM day_range
+        LEFT JOIN daily ON daily.date = day_range.date
+        ORDER BY day_range.date`,
       [providerId]
     ),
     pool.query(
