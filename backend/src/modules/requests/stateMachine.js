@@ -3,7 +3,7 @@ const ApiError = require('../../lib/ApiError');
 // The ONLY place that defines which request status changes are legal (blueprint 9.4 step 5).
 const TRANSITIONS = {
   searching: ['accepted', 'cancelled', 'expired'],
-  accepted: ['arrived', 'cancelled'],
+  accepted: ['arrived', 'cancelled', 'searching'],
   arrived: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
@@ -18,6 +18,7 @@ const ACTORS = {
   arrived: ['provider'],
   completed: ['provider'],
   cancelled: ['driver', 'provider', 'admin', 'system'],
+  searching: ['provider'],
   expired: ['system'],
 };
 

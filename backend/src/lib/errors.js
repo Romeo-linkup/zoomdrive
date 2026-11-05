@@ -53,6 +53,7 @@ const ERRORS = Object.freeze({
   'ZD-ADM-009': { status: 409, message: 'User has an active request or job' },
   'ZD-ADM-010': { status: 409, message: 'Action is not allowed for the user\'s current status or balance' },
   'ZD-EML-001': { status: 502, message: 'Email delivery failed' },
+  'ZD-EML-002': { status: 502, message: 'Email template not found' },
 });
 
 module.exports = { ERRORS };

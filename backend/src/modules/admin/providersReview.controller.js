@@ -2,6 +2,7 @@ const { pool, query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
 const { notifyBestEffort } = require('../notifications/notifications.service');
+const { enqueueEmail } = require('../notifications/emailOutbox.service');
 const { signedDocumentUrl } = require('../uploads/cloudinary.service');
 const { getRegistrationState } = require('../payments/charges.service');
 
@@ -294,6 +295,13 @@ async function approve(req, res) {
     body: 'Your ZoomDrive Partner profile is approved. You can now go online and accept jobs.',
     kind: 'provider_approved',
   });
+  await enqueueEmail({
+    userId,
+    kind: 'provider_approved',
+    subject: 'You are approved',
+    text: 'Your ZoomDrive Partner profile is approved. You can now go online and accept jobs.',
+    dedupeKey: `provider_approved:${userId}:${userId}`,
+  });
   res.ok(await buildProviderDetail(userId));
 }
 
@@ -341,6 +349,13 @@ async function reject(req, res) {
     title: 'Your profile needs changes',
     body: reason,
     kind: 'provider_rejected',
+  });
+  await enqueueEmail({
+    userId,
+    kind: 'provider_rejected',
+    subject: 'Your profile needs changes',
+    text: reason,
+    dedupeKey: `provider_rejected:${userId}:${userId}`,
   });
   res.ok(await buildProviderDetail(userId));
 }
@@ -418,6 +433,15 @@ async function reviewDocument(req, res) {
   });
 
   if (rejectionNotification) await notifyBestEffort(rejectionNotification);
+  if (rejectionNotification) {
+    await enqueueEmail({
+      userId: rejectionNotification.userId,
+      kind: 'provider_rejected',
+      subject: 'A document needs to be replaced',
+      text: rejectionNotification.body,
+      dedupeKey: `provider_rejected:${rejectionNotification.userId}:${rejectionNotification.userId}`,
+    });
+  }
   const docResult = await query('SELECT provider_user_id FROM provider_documents WHERE id = $1', [id]);
   if (docResult.rows.length > 0) {
     res.ok(await buildProviderDetail(docResult.rows[0].provider_user_id));

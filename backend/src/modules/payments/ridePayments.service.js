@@ -3,6 +3,7 @@ const { pool, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
 const { notifyBestEffort } = require('../notifications/notifications.service');
+const { enqueueEmail } = require('../notifications/emailOutbox.service');
 const paystack = require('./paystack.service');
 const ledger = require('./ledger.service');
 const { env } = require('../../config/env');
@@ -179,6 +180,13 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
       kind: 'payment',
       data: { requestId },
     });
+    await enqueueEmail({
+      userId: settlement.notifyProviderId,
+      kind: 'payment',
+      subject: 'Payment received',
+      text: 'Payment for your completed job has been received.',
+      dedupeKey: `payment:${requestId}:${settlement.notifyProviderId}`,
+    });
   }
   return { payment: settlement.payment };
 }
@@ -192,7 +200,7 @@ async function readBooleanSetting(client, key) {
 }
 
 async function recordOffline({ requestId, method, actor, receivedBy, note, requestIdHeader, ip }) {
-  return withTransaction(async (client) => {
+  const result = await withTransaction(async (client) => {
     if (actor.role === 'provider' && !(await readBooleanSetting(client, 'cash_payments_enabled'))) {
       throw new ApiError('ZD-PAY-009');
     }
@@ -242,8 +250,17 @@ async function recordOffline({ requestId, method, actor, receivedBy, note, reque
       requestId: requestIdHeader,
       ip,
     }, client);
-    return { payment: paymentView(updated.rows[0]) };
+    return { payment: paymentView(updated.rows[0]), providerId: current.provider_id };
   });
+
+  await enqueueEmail({
+    userId: result.providerId,
+    kind: 'payment',
+    subject: 'Payment received',
+    text: 'Payment for your completed job has been recorded.',
+    dedupeKey: `payment:${requestId}:${result.providerId}`,
+  });
+  return { payment: result.payment };
 }
 
 module.exports = { startRidePayment, settleCard, recordOffline, getPaymentView };

@@ -2,6 +2,7 @@ const { pool, query, withTransaction } = require('../../db/pool');
 const ApiError = require('../../lib/ApiError');
 const { writeAudit } = require('../../lib/audit');
 const { notifyBestEffort } = require('../notifications/notifications.service');
+const { enqueueEmail } = require('../notifications/emailOutbox.service');
 const ledger = require('../payments/ledger.service');
 const { decrypt } = require('../../lib/crypto');
 const { toCsv } = require('../../lib/csv');
@@ -274,6 +275,13 @@ async function createPayout(req, res) {
     userId: providerId,
     title: `A payout of R${(amountCents / 100).toFixed(2)} was recorded`,
     kind: 'payment',
+  });
+  await enqueueEmail({
+    userId: providerId,
+    kind: 'payment',
+    subject: 'Payout recorded',
+    text: `A payout of R${(amountCents / 100).toFixed(2)} was recorded.`,
+    dedupeKey: `payment:payout:${reference}:${providerId}`,
   });
   res.ok(await buildDetail(providerId));
 }

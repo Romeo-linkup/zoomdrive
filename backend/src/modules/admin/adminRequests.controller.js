@@ -5,6 +5,7 @@ const dispatch = require('../dispatch/dispatch.service');
 const requests = require('../requests/requests.service');
 const ridePayments = require('../payments/ridePayments.service');
 const { notifyBestEffort } = require('../notifications/notifications.service');
+const { enqueueEmail } = require('../notifications/emailOutbox.service');
 
 async function listRequests(req, res) {
   const { status, q, page } = req.validated;
@@ -207,6 +208,20 @@ async function assign(req, res) {
       data: { requestId },
     }),
   ]);
+  await enqueueEmail({
+    userId: req.body.providerId,
+    kind: 'offer_received',
+    subject: 'You were assigned a job',
+    text: 'You have been assigned a job by an administrator.',
+    dedupeKey: `offer_received:${requestId}:${req.body.providerId}`,
+  });
+  await enqueueEmail({
+    userId: detail.request.driver.id,
+    kind: 'request_accepted',
+    subject: 'Help is on the way',
+    text: `${detail.request.provider.firstName} accepted your request`,
+    dedupeKey: `request_accepted:${requestId}:${detail.request.driver.id}`,
+  });
   res.ok({ request: detail.request });
 }
 

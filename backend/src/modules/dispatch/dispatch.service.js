@@ -13,6 +13,7 @@ const SETTING_DEFAULTS = Object.freeze({
   request_expiry_seconds: 180,
   provider_stale_seconds: 120,
   cancel_fee_cents: 0,
+  offer_timeout_seconds: 45,
 });
 
 async function loadSettings(client = pool) {
@@ -176,4 +177,63 @@ async function manualAssign(args, client = null) {
   return withTransaction((tx) => assignWithClient(args, tx));
 }
 
-module.exports = { loadSettings, findCandidates, createOffers, manualAssign };
+async function topUpOffers({ requestId, client, requestIdHeader, ip }) {
+  const requestResult = await client.query(
+    'SELECT id, service_id, status, lat, lng, expires_at FROM requests WHERE id = $1 FOR UPDATE',
+    [requestId]
+  );
+  if (requestResult.rows.length === 0) return { added: 0, noProvidersLeft: false };
+  const request = requestResult.rows[0];
+
+  if (request.status !== 'searching') return { added: 0, noProvidersLeft: false };
+  if (request.expires_at <= new Date()) return { added: 0, noProvidersLeft: false };
+
+  const settings = await loadSettings(client);
+  const maxOffers = settings.max_offers_per_request;
+
+  const openResult = await client.query(
+    `SELECT COUNT(*)::int AS count FROM request_offers
+     WHERE request_id = $1 AND status = 'offered'`,
+    [requestId]
+  );
+  const openCount = openResult.rows[0].count;
+  if (openCount >= maxOffers) return { added: 0, noProvidersLeft: false };
+
+  const needed = maxOffers - openCount;
+
+  const excludedResult = await client.query(
+    `SELECT provider_id FROM request_offers WHERE request_id = $1`,
+    [requestId]
+  );
+  const excludedIds = new Set(excludedResult.rows.map((row) => row.provider_id));
+
+  const allCandidates = await findCandidates({
+    serviceId: request.service_id,
+    lat: request.lat,
+    lng: request.lng,
+    settings,
+    client,
+  });
+
+  const newCandidates = allCandidates.filter((c) => !excludedIds.has(c.providerId));
+
+  const noProvidersLeft = openCount === 0 && newCandidates.length === 0;
+
+  const offered = await createOffers(client, requestId, newCandidates.slice(0, needed), needed);
+
+  if (offered.length > 0) {
+    await writeAudit({
+      actorType: 'system',
+      action: 'request.top_up_offers',
+      entity: 'requests',
+      entityId: requestId,
+      meta: { added: offered.length },
+      requestId: requestIdHeader,
+      ip,
+    }, client);
+  }
+
+  return { added: offered.length, noProvidersLeft };
+}
+
+module.exports = { loadSettings, findCandidates, createOffers, manualAssign, topUpOffers };

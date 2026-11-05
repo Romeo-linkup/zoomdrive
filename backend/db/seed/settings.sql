@@ -15,5 +15,6 @@ INSERT INTO app_settings (key, value) VALUES
   ('driver_plus_enabled', 'false'),
   ('driver_plus_extra_offers', '0'),
   ('cash_payments_enabled', 'true'),
-  ('block_new_requests_when_unpaid', 'true')
+  ('block_new_requests_when_unpaid', 'true'),
+  ('offer_timeout_seconds', '45')
 ON CONFLICT (key) DO NOTHING;

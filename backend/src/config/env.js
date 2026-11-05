@@ -48,6 +48,10 @@ const env = Object.freeze({
   PRICING_CHANGE_COOLDOWN_HOURS: process.env.PRICING_CHANGE_COOLDOWN_HOURS
     ? Number(process.env.PRICING_CHANGE_COOLDOWN_HOURS)
     : 24,
+  TRANSACTIONAL_EMAIL_DAILY_CAP: process.env.TRANSACTIONAL_EMAIL_DAILY_CAP
+    ? Number(process.env.TRANSACTIONAL_EMAIL_DAILY_CAP)
+    : 150,
+  ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL || null,
 });
 
 function validateEnv() {
@@ -168,6 +172,14 @@ function validateEnv() {
       || env.PRICING_CHANGE_COOLDOWN_HOURS < 1
       || env.PRICING_CHANGE_COOLDOWN_HOURS > 720) {
     problems.push({ name: 'PRICING_CHANGE_COOLDOWN_HOURS', problem: 'must be an integer from 1 to 720' });
+  }
+  if (!Number.isInteger(env.TRANSACTIONAL_EMAIL_DAILY_CAP)
+      || env.TRANSACTIONAL_EMAIL_DAILY_CAP < 1
+      || env.TRANSACTIONAL_EMAIL_DAILY_CAP > 100000) {
+    problems.push({ name: 'TRANSACTIONAL_EMAIL_DAILY_CAP', problem: 'must be an integer from 1 to 100000' });
+  }
+  if (env.ADMIN_ALERT_EMAIL && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.ADMIN_ALERT_EMAIL)) {
+    problems.push({ name: 'ADMIN_ALERT_EMAIL', problem: 'must be a valid email address when set' });
   }
   if (Boolean(env.PAYSTACK_SECRET_KEY) !== Boolean(env.PAYSTACK_PUBLIC_KEY)) {
     problems.push({ name: 'PAYSTACK_SECRET_KEY', problem: 'both Paystack keys must be configured together' });

@@ -4,13 +4,14 @@ const { writeAudit } = require('../../lib/audit');
 const geo = require('../../lib/geo');
 const pricing = require('../../lib/pricing');
 const stateMachine = require('./stateMachine');
-const { loadSettings, findCandidates, createOffers } = require('../dispatch/dispatch.service');
+const { loadSettings, findCandidates, createOffers, topUpOffers } = require('../dispatch/dispatch.service');
 const { isPlusActive } = require('../plus/plus.service');
 const pricingPolicy = require('../admin/pricingPolicy');
 const paystack = require('../payments/paystack.service');
 const ridePayments = require('../payments/ridePayments.service');
 const { getMyRating, getAverageFor } = require('../ratings/ratings.service');
 const { notifyBestEffort } = require('../notifications/notifications.service');
+const { enqueueEmail, enqueueAdminAlert } = require('../notifications/emailOutbox.service');
 
 function queryWith(client, text, params) {
   return client ? client.query(text, params) : query(text, params);
@@ -439,6 +440,13 @@ async function acceptRequest({ providerId, requestId, requestIdHeader, ip }) {
       kind: 'request_accepted',
       data: { requestId },
     });
+    await enqueueEmail({
+      userId: accepted.driverId,
+      kind: 'request_accepted',
+      subject: 'Your request has been accepted',
+      text: `${accepted.providerFirstName} accepted your request. They are on the way.`,
+      dedupeKey: `request_accepted:${requestId}:${accepted.driverId}`,
+    });
     return { request: accepted.request };
   } catch (err) {
     if (err && err.code === '23505' && err.constraint === 'uq_requests_one_active_job_per_provider') {
@@ -449,7 +457,8 @@ async function acceptRequest({ providerId, requestId, requestIdHeader, ip }) {
 }
 
 async function declineRequest({ providerId, requestId, requestIdHeader, ip }) {
-  return withTransaction(async (client) => {
+  let noProvidersLeft = false;
+  const result = await withTransaction(async (client) => {
     const result = await client.query(
       `SELECT status FROM request_offers
        WHERE request_id = $1 AND provider_id = $2
@@ -473,8 +482,21 @@ async function declineRequest({ providerId, requestId, requestIdHeader, ip }) {
         ip,
       }, client);
     }
+    const topUp = await topUpOffers({ requestId, client, requestIdHeader, ip });
+    noProvidersLeft = topUp.noProvidersLeft;
     return { declined: true };
   });
+
+  if (noProvidersLeft) {
+    await enqueueAdminAlert({
+      kind: 'admin_alert',
+      subject: 'No providers left for request',
+      text: `Request ${requestId} has no providers left after declines and no further candidates are available.`,
+      dedupeKey: `admin_alert:no_providers_left:${requestId}`,
+    });
+  }
+
+  return result;
 }
 
 async function transitionProviderRequest({ providerId, requestId, requestIdHeader, ip }, to) {
@@ -535,6 +557,13 @@ async function transitionProviderRequest({ providerId, requestId, requestIdHeade
       kind: 'job_completed',
       data: { requestId },
     });
+    await enqueueEmail({
+      userId: transitioned.driverId,
+      kind: 'job_completed',
+      subject: 'Job completed',
+      text: 'Please pay and rate your provider.',
+      dedupeKey: `job_completed:${requestId}:${transitioned.driverId}`,
+    });
   }
   return { request: transitioned.request };
 }
@@ -556,6 +585,45 @@ async function cancelRequest({ requestId, actor, reason, requestIdHeader, ip }) 
     const isProvider = actor.role === 'provider' && request.provider_id === actor.id;
     const isOperator = actor.role === 'admin' || actor.role === 'system';
     if (!isDriver && !isProvider && !isOperator) throw new ApiError('ZD-REQ-007');
+
+    if (isProvider && request.status === 'accepted') {
+      stateMachine.assertTransition(request.status, 'searching');
+      stateMachine.assertActor('searching', 'provider');
+
+      const settings = await loadSettings(client);
+      await client.query(
+        `UPDATE requests
+         SET status = 'searching', provider_id = NULL, accepted_at = NULL,
+            expires_at = now() + make_interval(secs => $1)
+         WHERE id = $2 RETURNING id`,
+        [settings.request_expiry_seconds, requestId]
+      );
+      await client.query(
+        `UPDATE request_offers SET status = 'declined', responded_at = now()
+         WHERE request_id = $1 AND provider_id = $2`,
+        [requestId, providerId]
+      );
+      const topUp = await topUpOffers({ requestId, client, requestIdHeader, ip });
+
+      await writeAudit({
+        actorType: 'user',
+        actorId: providerId,
+        action: 'request.provider_cancel_reoffer',
+        entity: 'requests',
+        entityId: requestId,
+        meta: { by: 'provider', reason: reason || null, reoffered: topUp.added },
+        requestId: requestIdHeader,
+        ip,
+      }, client);
+      const row = await getJoinedRequest(requestId, client);
+      return {
+        request: await buildView(row, 'provider', client, providerId),
+        driverId: row.driver_id,
+        providerId: providerId,
+        isReoffer: true,
+      };
+    }
+
     stateMachine.assertActor('cancelled', actor.role);
     stateMachine.assertTransition(request.status, 'cancelled');
 
@@ -589,17 +657,45 @@ async function cancelRequest({ requestId, actor, reason, requestIdHeader, ip }) 
       isOperator,
     };
   });
+
+  if (cancelled.isReoffer) {
+    await notifyBestEffort({
+      userId: cancelled.driverId,
+      title: 'We are finding you another provider',
+      body: 'Your provider had to cancel. We are finding you another provider.',
+      kind: 'request_cancelled',
+      data: { requestId },
+    });
+    await enqueueEmail({
+      userId: cancelled.driverId,
+      kind: 'request_cancelled',
+      subject: 'We are finding you another provider',
+      text: 'Your provider had to cancel. We are finding you another provider.',
+      dedupeKey: `request_cancelled:${requestId}:${cancelled.driverId}`,
+    });
+    return { request: cancelled.request };
+  }
+
   const recipients = cancelled.isOperator
     ? [cancelled.driverId, cancelled.providerId]
     : [actor.role === 'driver' ? cancelled.providerId : cancelled.driverId];
   await Promise.all([...new Set(recipients.filter((userId) => userId !== null && userId !== undefined))]
-    .map((userId) => notifyBestEffort({
-      userId,
-      title: 'Request cancelled',
-      body: 'The request was cancelled.',
-      kind: 'request_cancelled',
-      data: { requestId },
-    })));
+    .map(async (userId) => {
+      await notifyBestEffort({
+        userId,
+        title: 'Request cancelled',
+        body: 'The request was cancelled.',
+        kind: 'request_cancelled',
+        data: { requestId },
+      });
+      await enqueueEmail({
+        userId,
+        kind: 'request_cancelled',
+        subject: 'Request cancelled',
+        text: 'The request was cancelled.',
+        dedupeKey: `request_cancelled:${requestId}:${userId}`,
+      });
+    }));
   return { request: cancelled.request };
 }
 
