@@ -89,7 +89,7 @@ async function startRidePayment({ driverId, requestId, requestIdHeader, ip }) {
     amountCents: paymentData.amountCents,
     reference,
     callbackUrl: callbackUrl(),
-    metadata: { purpose: 'ride', requestId },
+    metadata: { purpose: 'ride_payment', requestId },
   });
   if (initialized.reference !== reference) throw new ApiError('ZD-PAY-001');
   return { authorizationUrl: initialized.authorizationUrl, reference };
@@ -111,7 +111,7 @@ async function loadPaymentAndRequest(requestId, client = pool, lock = false) {
   throw new ApiError('ZD-PAY-008');
 }
 
-async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
+async function settleCard({ requestId, expectDriverId, requestIdHeader, ip, paystackRef }) {
   const initial = await loadPaymentAndRequest(requestId);
   if (expectDriverId !== undefined && Number(initial.driver_id) !== Number(expectDriverId)) {
     throw new ApiError('ZD-REQ-007');
@@ -119,12 +119,13 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
   if (initial.payment_status === 'paid') {
     return { payment: paymentView(initial) };
   }
-  if (!initial.paystack_ref) throw new ApiError('ZD-PAY-004');
+  if (!initial.paystack_ref && !paystackRef) throw new ApiError('ZD-PAY-004');
 
-  const verified = await paystack.verifyTransaction(initial.paystack_ref);
-  if (verified.reference !== initial.paystack_ref) throw new ApiError('ZD-PAY-001');
+  const reference = paystackRef || initial.paystack_ref;
+  const verified = await paystack.verifyTransaction(reference);
+  if (verified.reference !== reference) throw new ApiError('ZD-PAY-001');
   if (verified.status !== 'success') return { payment: paymentView(initial) };
-  if (verified.amountCents !== Number(initial.amount_cents) || verified.currency !== 'ZAR') {
+  if (verified.currency !== 'ZAR' || verified.amountCents < Number(initial.amount_cents)) {
     throw new ApiError('ZD-PAY-001', { message: 'Payment amount could not be verified' });
   }
 
@@ -136,16 +137,16 @@ async function settleCard({ requestId, expectDriverId, requestIdHeader, ip }) {
     if (current.payment_status !== 'pending' || current.request_status !== 'completed') {
       throw new ApiError('ZD-PAY-008');
     }
-    if (Number(current.amount_cents) !== verified.amountCents || !current.provider_id) {
+    if (Number(current.amount_cents) > verified.amountCents || !current.provider_id) {
       throw new ApiError('ZD-PAY-001', { message: 'Payment amount could not be verified' });
     }
 
     const updated = await client.query(
       `UPDATE payments
-       SET method = 'card', status = 'paid', paid_at = now(), gateway_fee_cents = $2
+       SET method = 'card', status = 'paid', paid_at = now(), paystack_ref = $3, gateway_fee_cents = $2
        WHERE request_id = $1 AND status = 'pending'
        RETURNING method, status, amount_cents, paid_at`,
-      [requestId, verified.feesCents]
+      [requestId, verified.feesCents, reference]
     );
     if (!updated.rows[0]) {
       const latest = await getPaymentView(requestId, client);

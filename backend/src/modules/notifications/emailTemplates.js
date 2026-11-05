@@ -28,11 +28,19 @@ function adminAlert({ title, body }) {
   };
 }
 
+function bankDetailsChanged({ bankName, accountLast4, changedAt }) {
+  return {
+    subject: 'Your payout bank details were changed',
+    text: `Your payout bank details were changed.\n\nBank: ${bankName}\nAccount ending: ${accountLast4}\nChanged at: ${changedAt}\n\nIf this was not you, contact support immediately.`,
+  };
+}
+
 const KINDS = {
   login_code,
   provider_approved: providerApproved,
   provider_rejected: providerRejected,
   admin_alert: adminAlert,
+  bank_details_changed: bankDetailsChanged,
 };
 
 function template(kind, data) {

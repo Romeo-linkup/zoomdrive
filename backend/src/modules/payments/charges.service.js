@@ -135,7 +135,7 @@ async function settleByReference(reference, { expectUserId } = {}) {
   if (verified.reference !== reference) throw new ApiError('ZD-PAY-001');
 
   if (verified.status === 'success') {
-    if (verified.amountCents !== Number(initialCharge.amount_cents) || verified.currency !== 'ZAR') {
+    if (verified.currency !== 'ZAR' || verified.amountCents < Number(initialCharge.amount_cents)) {
       throw new ApiError('ZD-PAY-001', { message: 'Payment amount could not be verified' });
     }
 
